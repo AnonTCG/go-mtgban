@@ -334,8 +334,11 @@ var options = map[string]*scraperOption{
 		Init: func() (mtgban.Scraper, error) {
 			scgGUID := os.Getenv("SCG_GUID")
 			scgBearer := os.Getenv("SCG_BEARER")
-			if scgGUID == "" || scgBearer == "" {
-				return nil, errors.New("missing SCG_GUID or SCG_BEARER env var")
+			if scgBearer == "" {
+				return nil, errors.New("missing SCG_BEARER env var")
+			}
+			if scgGUID == "" && os.Getenv("SCG_BUYLIST_ONLY") != "true" {
+				return nil, errors.New("missing SCG_GUID env var")
 			}
 
 			scraper := starcitygames.NewScraper(starcitygames.GameMagic, scgGUID, scgBearer)
@@ -351,8 +354,11 @@ var options = map[string]*scraperOption{
 		Init: func() (mtgban.Scraper, error) {
 			scgGUID := os.Getenv("SCG_GUID")
 			scgBearer := os.Getenv("SCG_BEARER")
-			if scgGUID == "" || scgBearer == "" {
-				return nil, errors.New("missing SCG_GUID or SCG_BEARER env var")
+			if scgBearer == "" {
+				return nil, errors.New("missing SCG_BEARER env var")
+			}
+			if scgGUID == "" && os.Getenv("SCG_BUYLIST_ONLY") != "true" {
+				return nil, errors.New("missing SCG_GUID env var")
 			}
 
 			scraper := starcitygames.NewScraperSealed(scgGUID, scgBearer)

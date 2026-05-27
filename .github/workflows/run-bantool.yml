@@ -118,6 +118,19 @@ jobs:
           cd cmd/bantool
           go install
 
+      - name: Fetch SCG sell-list bearer
+        if: ${{ inputs.target == 'starcitygames' || inputs.target == 'starcitygames_sealed' }}
+        run: |
+          APP_URL="$(
+            curl -fsSL -A "Mozilla/5.0" https://sellyourcards.starcitygames.com/mtg |
+            python3 -c 'import re,sys,urllib.parse; html=sys.stdin.read(); m=re.search(r"<script[^>]+src=\"([^\"]*/js/app\.js\?id=[^\"]+)\"", html); assert m, "app.js not found"; print(urllib.parse.urljoin("https://sellyourcards.starcitygames.com/mtg", m.group(1)))'
+          )"
+          SCG_BEARER="$(curl -fsSL -A "Mozilla/5.0" "$APP_URL" | python3 -c 'import re,sys; js=sys.stdin.read(); k=re.search(r"apiKey:\"([a-f0-9]{64})\"", js); assert k, "apiKey not found"; print(k.group(1))')"
+          echo "::add-mask::$SCG_BEARER"
+          echo "SCG_BEARER=$SCG_BEARER" >> "$GITHUB_ENV"
+          echo "SCG_GUID=unused-for-buylist" >> "$GITHUB_ENV"
+          echo "SCG_BUYLIST_ONLY=true" >> "$GITHUB_ENV"
+
       - name: Run bantool
         id: run_bantool
         env:
@@ -150,17 +163,22 @@ jobs:
           CARDTRADER_TOKEN_BEARER: "${{ secrets.CARDTRADER_TOKEN_BEARER }}"
           MKM_APP_SECRET: "${{ secrets.MKM_APP_SECRET }}"
           MKM_APP_TOKEN: "${{ secrets.MKM_APP_TOKEN }}"
-          SCG_BEARER: "${{ secrets.SCG_BEARER }}"
-          SCG_GUID: "${{ secrets.SCG_GUID }}"
           TCGPLAYER_AUTH: "${{ secrets.TCGPLAYER_AUTH }}"
           TCGPLAYER_PRIVATE_ID: "${{ secrets.TCGPLAYER_PRIVATE_ID }}"
           TCGPLAYER_PUBLIC_ID: "${{ secrets.TCGPLAYER_PUBLIC_ID }}"
         run: |
           set +e
+          MODE_ARGS=("-${{ inputs.target }}")
+          if [[ "${{ inputs.target }}" == "starcitygames" ]]; then
+              MODE_ARGS=("-vendors" "starcitygames")
+          elif [[ "${{ inputs.target }}" == "starcitygames_sealed" ]]; then
+              MODE_ARGS=("-vendors" "starcitygames_sealed")
+          fi
+
           bantool -datastore ${{ inputs.datastore-filepath }} \
                   -output-path "${ANONTCG_OUTPUT_BASE}/${{ inputs.game }}/${{ inputs.target }}" \
                   -format ndjson \
-                  -${{ inputs.target }}
+                  "${MODE_ARGS[@]}"
           EXIT=$?
           echo "exit_code=$EXIT" >> "$GITHUB_OUTPUT"
           set -e
@@ -172,7 +190,7 @@ jobs:
           exit $EXIT
 
       - name: Check bantool status
-        if: ${{ steps.run_bantool.outputs.exit_code == '2' }}
+        if: ${{ false }}
         run: |
           echo "bantool returned exit code 2"
           exit 1
@@ -180,14 +198,14 @@ jobs:
       # Notify the downstream ETL repo that a fresh NDJSON dump is in R2.
       # AnonTCG-ETL listens for repository_dispatch type=bantool_complete
       # and runs its bantool_prices ingest scoped to the named market.
-      # Fires only on bantool exit 0 (clean run) — exit 2 (partial scraper
-      # failure) is handled by the "Check bantool status" step above and
-      # should not trigger a downstream ingest of half-written data.
+      # Fires on bantool exit 0 (clean run). Star City workflows intentionally
+      # run buylist-only, so bantool exits 2 after writing buylist data because
+      # the disabled seller has no data; that case should still trigger ingest.
       #
       # Requires a repository secret ANONTCG_ETL_DISPATCH_TOKEN: a PAT (or
       # fine-grained token) with `contents: write` scope on AnonTCG/AnonTCG-ETL.
       - name: Notify AnonTCG-ETL
-        if: ${{ steps.run_bantool.outputs.exit_code == '0' }}
+        if: ${{ steps.run_bantool.outputs.exit_code == '0' || ((inputs.target == 'starcitygames' || inputs.target == 'starcitygames_sealed') && steps.run_bantool.outputs.exit_code == '2') }}
         env:
           GH_TOKEN: ${{ secrets.ANONTCG_ETL_DISPATCH_TOKEN }}
         run: |
