@@ -1,14 +1,12 @@
-name: coolstuffinc_sealed
+name: vegassingles
 
 on:
   workflow_dispatch: {}
   repository_dispatch:
-    types: [coolstuffinc_sealed]
-  schedule:
-    - cron: "5 */4 * * *"
-
-permissions:
-  contents: read
+    types: [vegassingles]
+  # Note: keep disabled until you decide cadence
+  # schedule:
+  #   - cron: "0 * * * *"
 
 jobs:
   cache-datastore:
@@ -29,3 +27,4 @@ jobs:
       datastore-filepath: ${{ needs.cache-datastore.outputs.filepath }}
       datastore-cache-key: ${{ needs.cache-datastore.outputs.key }}
     secrets: inherit
+

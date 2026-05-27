@@ -1,5 +1,39 @@
 name: Run bantool
 
+# AnonTCG fork — bantool runner.
+#
+# Required GitHub Actions configuration (Settings → Secrets and variables → Actions):
+#
+#   --- repository variables ---
+#   ANONTCG_OUTPUT_BASE       e.g. `s3://anontcg-bantool` — base path bantool writes NDJSON under.
+#                             Bantool appends `/<game>/<target>` to this.
+#                             For local file output during testing: `file:///tmp/bantool`.
+#   MAX_CONCURRENCY           per-scraper goroutine cap (default 8 if unset)
+#
+#   Partner / affiliate IDs (set the ones you have; missing ones become empty strings):
+#   CK_PARTNER, CSI_PARTNER, CT_PARTNER, MINT_PARTNER, MP_PARTNER, SCG_PARTNER, TCG_PARTNER
+#
+#   --- repository secrets ---
+#   R2 credentials (S3-compatible — bantool reads these as standard AWS_* env names):
+#   ANONTCG_R2_KEY_ID         Cloudflare R2 access key id
+#   ANONTCG_R2_SECRET         Cloudflare R2 secret access key
+#   ANONTCG_R2_ENDPOINT       Cloudflare R2 endpoint URL (e.g. https://<acct>.r2.cloudflarestorage.com)
+#
+#   Scraper credentials (each scraper hits a different vendor's API):
+#   CARDTRADER_TOKEN_BEARER, MKM_APP_SECRET, MKM_APP_TOKEN,
+#   SCG_BEARER, SCG_GUID,
+#   TCGPLAYER_AUTH, TCGPLAYER_PRIVATE_ID, TCGPLAYER_PUBLIC_ID
+#
+# Removed from upstream (intentionally):
+#   - B2_APP_KEY / B2_KEY_ID / B2_KEY_ID_DATASTORE / B2_APP_KEY_DATASTORE
+#     (we use Cloudflare R2, not Backblaze B2)
+#   - BAN_API_KEY / BAN_SECRET (the upstream "ping mtgban.com/api/load/<target>"
+#     loop has no analog on our infrastructure)
+#   - The "Ping server" step (same reason)
+#
+# Added vs upstream:
+#   - AllPrintings validation step (fail fast on empty/invalid datastore)
+
 on:
   workflow_call:
     inputs:
@@ -49,6 +83,28 @@ jobs:
           key: ${{ inputs.datastore-cache-key }}
           fail-on-cache-miss: true
 
+      # Fail fast if the AllPrintings datastore is empty or invalid. Without
+      # this, bantool reports a confusing downstream LorcanaJSON error that
+      # hides the root cause.
+      - name: Validate datastore (AllPrintings)
+        if: ${{ inputs.datastore-filepath != '' }}
+        run: |
+          FP="${{ inputs.datastore-filepath }}"
+          if [[ -f "$FP" ]]; then
+            if [[ "$FP" == *AllPrintings* ]]; then
+              COUNT=$(jq -r '.data | keys | length' "$FP" 2>/dev/null || echo "0")
+              if [[ "$COUNT" =~ ^[0-9]+$ ]] && [[ "$COUNT" -gt 0 ]]; then
+                echo "Datastore valid: $COUNT sets in $FP"
+              else
+                echo "::error::AllPrintings datastore has no sets (data empty or invalid JSON). File: $FP"
+                exit 1
+              fi
+            fi
+          else
+            echo "::error::Datastore file not found: $FP"
+            exit 1
+          fi
+
       - if: ${{ inputs.skus-cache-key }}
         name: Cache Skus
         uses: actions/cache/restore@v5
@@ -65,6 +121,10 @@ jobs:
       - name: Run bantool
         id: run_bantool
         env:
+          # Bucket destination (AnonTCG variable, not the legacy OUTPUT_BASE)
+          ANONTCG_OUTPUT_BASE: "${{ vars.ANONTCG_OUTPUT_BASE }}"
+
+          # Partner / affiliate IDs (vendor-specific, kept as-is)
           CK_PARTNER: "${{ vars.CK_PARTNER }}"
           CSI_PARTNER: "${{ vars.CSI_PARTNER }}"
           CT_PARTNER: "${{ vars.CT_PARTNER }}"
@@ -76,9 +136,14 @@ jobs:
 
           MTGJSON_TCGSKU_PATH: "${{ inputs.skus-filepath }}"
 
-          B2_APP_KEY: "${{ secrets.B2_APP_KEY }}"
-          B2_KEY_ID: "${{ secrets.B2_KEY_ID }}"
-          BAN_API_KEY: "${{ secrets.BAN_API_KEY }}"
+          # R2 credentials — Cloudflare R2 is S3-compatible, so bantool's
+          # AWS-SDK-based S3 writer authenticates via standard AWS_* env names.
+          # We map our AnonTCG-named secrets onto the standard names here.
+          AWS_ACCESS_KEY_ID: "${{ secrets.ANONTCG_R2_KEY_ID }}"
+          AWS_SECRET_ACCESS_KEY: "${{ secrets.ANONTCG_R2_SECRET }}"
+          AWS_ENDPOINT: "${{ secrets.ANONTCG_R2_ENDPOINT }}"
+
+          # Scraper credentials (vendor APIs)
           CARDTRADER_TOKEN_BEARER: "${{ secrets.CARDTRADER_TOKEN_BEARER }}"
           MKM_APP_SECRET: "${{ secrets.MKM_APP_SECRET }}"
           MKM_APP_TOKEN: "${{ secrets.MKM_APP_TOKEN }}"
@@ -90,8 +155,8 @@ jobs:
         run: |
           set +e
           bantool -datastore ${{ inputs.datastore-filepath }} \
-                  -output-path b2://mtgban-dumps/${{ inputs.game }}/${{ inputs.target }} \
-                  -format json.xz \
+                  -output-path "${ANONTCG_OUTPUT_BASE}/${{ inputs.game }}/${{ inputs.target }}" \
+                  -format ndjson \
                   -${{ inputs.target }}
           EXIT=$?
           echo "exit_code=$EXIT" >> "$GITHUB_OUTPUT"
@@ -102,13 +167,6 @@ jobs:
               exit 0
           fi
           exit $EXIT
-
-      - name: Ping server
-        env:
-          BAN_SECRET: "${{ secrets.BAN_SECRET }}"
-        run: |
-          SIGNED_URL=$(bantool -sign http://${{ inputs.game }}.mtgban.com/api/load/${{ inputs.target }} 2> /dev/null)
-          curl -L "$SIGNED_URL" 2> /dev/null | tee /dev/stderr | jq -e 'select(.status=="ok")'
 
       - name: Check bantool status
         if: ${{ steps.run_bantool.outputs.exit_code == '2' }}
