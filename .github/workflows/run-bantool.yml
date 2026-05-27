@@ -139,9 +139,12 @@ jobs:
           # R2 credentials — Cloudflare R2 is S3-compatible, so bantool's
           # AWS-SDK-based S3 writer authenticates via standard AWS_* env names.
           # We map our AnonTCG-named secrets onto the standard names here.
+          # Key/secret are org-level SECRETS; endpoint is an org-level VARIABLE
+          # (the account-id URL isn't actually sensitive — visible in any R2
+          # request — and being a var lets it be shared without re-pasting).
           AWS_ACCESS_KEY_ID: "${{ secrets.ANONTCG_R2_KEY_ID }}"
           AWS_SECRET_ACCESS_KEY: "${{ secrets.ANONTCG_R2_SECRET }}"
-          AWS_ENDPOINT: "${{ secrets.ANONTCG_R2_ENDPOINT }}"
+          AWS_ENDPOINT: "${{ vars.ANONTCG_R2_ENDPOINT }}"
 
           # Scraper credentials (vendor APIs)
           CARDTRADER_TOKEN_BEARER: "${{ secrets.CARDTRADER_TOKEN_BEARER }}"
