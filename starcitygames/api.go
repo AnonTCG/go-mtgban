@@ -14,7 +14,7 @@ import (
 )
 
 const (
-	scgInventoryURL = "https://essearchapi-na.hawksearch.com/api/v2/search"
+	scgInventoryURL = "https://starcitygamesv2.searchapi-na.hawksearch.com/api/v2/search"
 	scgBuylistURL   = "https://search.starcitygames.com/indexes/sell_list_products_v2/search"
 	scgBuylistSets  = "https://search.starcitygames.com/indexes/sets_v2/search"
 
