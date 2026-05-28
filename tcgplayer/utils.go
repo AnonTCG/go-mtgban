@@ -18,7 +18,7 @@ import (
 
 const (
 	BaseProductURL    = "https://www.tcgplayer.com/product/"
-	PartnerProductURL = "https://partner.tcgplayer.com/c/%s/1830156/21018"
+	PartnerProductURL = "https://partner.tcgplayer.com/c/6226515/1830156/21018"
 )
 
 func GenerateProductURL(productId int, printing, affiliate, condition, language string, isDirect bool) string {
