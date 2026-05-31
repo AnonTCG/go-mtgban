@@ -384,7 +384,8 @@ func (ap AllPrintings) Load() cardBackend {
 	sealedNames := map[string]string{}
 	alternates := map[string]alternateProps{}
 	commanderKeywordMap := map[string]string{}
-	var allCardNames []string
+	allCardNames := map[string]struct{}{}
+	tokenNames := map[string]struct{}{}
 	var tokens []string
 	var allSets []string
 
@@ -397,16 +398,18 @@ func (ap AllPrintings) Load() cardBackend {
 
 		// Load all possible card names
 		for _, card := range set.Cards {
-			if !slices.Contains(allCardNames, card.Name) {
-				allCardNames = append(allCardNames, card.Name)
-			}
+			allCardNames[card.Name] = struct{}{}
 		}
 
 		// Load token names (that don't have the same name of a real card)
 		for _, token := range set.Tokens {
-			if !slices.Contains(tokens, token.Name) && !slices.Contains(allCardNames, token.Name) {
-				tokens = append(tokens, token.Name)
+			_, foundToken := tokenNames[token.Name]
+			_, foundCard := allCardNames[token.Name]
+			if foundToken || foundCard {
+				continue
 			}
+			tokens = append(tokens, token.Name)
+			tokenNames[token.Name] = struct{}{}
 		}
 
 		// Save the names of sealed products for later sorting
@@ -433,7 +436,8 @@ func (ap AllPrintings) Load() cardBackend {
 		// Append tokens to the list of considered cards
 		// if they are not named in the same way of a real card
 		for _, token := range set.Tokens {
-			if !slices.Contains(allCardNames, token.Name) {
+			_, found := allCardNames[token.Name]
+			if !found {
 				allCards = append(allCards, token)
 			}
 		}
