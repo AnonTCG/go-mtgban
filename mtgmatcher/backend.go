@@ -932,12 +932,15 @@ var mtgColorMap = map[string]int{
 
 func fillinSLDdecks(set *Set) []string {
 	var output []string
+	found := map[string]struct{}{}
 	for _, product := range set.SealedProduct {
 		if strings.HasPrefix(product.Name, "Secret Lair Commander") {
 			name := strings.TrimPrefix(product.Name, "Secret Lair Commander Deck ")
-			if !slices.Contains(output, name) {
-				output = append(output, name)
+			if _, ok := found[name]; ok {
+				continue
 			}
+			found[name] = struct{}{}
+			output = append(output, name)
 		}
 	}
 	return output
