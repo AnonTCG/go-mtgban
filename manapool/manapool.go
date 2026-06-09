@@ -95,14 +95,21 @@ func (mp *Manapool) Load(ctx context.Context) error {
 			continue
 		}
 
-		// Convert price to float and add the 4.2% fee
-		price := float64(card.LowPrice) / 100.0 * 1.042
+		// Store the RAW item LowPrice (cents → dollars). The 4.2% Manapool
+		// buyer fee is a buyer-facing acquisition cost, not part of the card's
+		// value — valuation (sealed EV / exports) uses the listed price, not the
+		// fee-inclusive cost. The fee rate is preserved in CustomFields so card-
+		// view display can reconstruct "what a buyer pays" (price * 1.042).
+		price := float64(card.LowPrice) / 100.0
 
 		// Got there!
 		out := &mtgban.InventoryEntry{
 			Conditions: conds,
 			Price:      price,
 			URL:        link,
+			CustomFields: map[string]string{
+				"buyerFeeRate": "0.042",
+			},
 		}
 		err = mp.inventory.AddUnique(cardId, out)
 	}

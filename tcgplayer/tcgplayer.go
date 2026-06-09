@@ -132,9 +132,15 @@ func (tcg *TCGPlayerMarket) processEntry(ctx context.Context, channel chan<- res
 			continue
 		}
 
-		// Sorted as in availableMarketNames
+		// Sorted as in availableMarketNames.
+		// TCGPlayer carries the bare item LowPrice — NOT LowestListingPrice,
+		// which is the delivered price (item + shipping) and inflates every
+		// downstream valuation (sealed EV, exports, "lowest price") by the
+		// shipping component, badly so for sub-$5 cards. Shipping is preserved
+		// separately in CustomFields below so a delivered price stays
+		// reconstructable. TCGDirect uses the item-level DirectLowPrice.
 		prices := []float64{
-			result.LowestListingPrice, getDirectPrice(result.DirectLowPrice),
+			result.LowPrice, getDirectPrice(result.DirectLowPrice),
 		}
 		printing := "Normal"
 		if req.Printing == "FOIL" {
@@ -156,6 +162,17 @@ func (tcg *TCGPlayerMarket) processEntry(ctx context.Context, channel chan<- res
 					OriginalId: fmt.Sprint(req.ProductId),
 					InstanceId: fmt.Sprint(result.SkuId),
 				},
+			}
+
+			// Preserve shipping for the TCGPlayer (marketplace) entry so the
+			// delivered price (item + shipping) stays reconstructable downstream
+			// even though Price is now the bare item LowPrice. Direct has its
+			// own fulfillment model, so this only applies to the marketplace row.
+			if !isDirect {
+				out.entry.CustomFields = map[string]string{
+					"lowestShipping":     fmt.Sprintf("%.2f", result.LowestShipping),
+					"lowestListingPrice": fmt.Sprintf("%.2f", result.LowestListingPrice),
+				}
 			}
 
 			if isDirect {

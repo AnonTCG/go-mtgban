@@ -14,9 +14,17 @@ See `README.md` for required env vars and the full active-scraper table.
 
 ## Hard rules for this repo
 
-1. **Don't modify Go source.** If a scraper bug needs fixing, file an upstream
-   PR against `mtgban/go-mtgban` first. Our local copy stays in lockstep with
-   upstream Go code — workflows are the only AnonTCG-specific surface.
+1. **This is our fork — modifying Go source is allowed.** (Reversed 2026-06-09;
+   the old "don't touch Go, upstream PR first" rule is retired.) We maintain
+   AnonTCG-specific deviations directly in the Go source when our product needs
+   diverge from mtgban's — e.g. the `TCGPlayer` source now emits the bare item
+   `LowPrice` (+ shipping in `CustomFields`) instead of the delivered
+   `LowestListingPrice`, because mtgban uses that source for retail *display*
+   while we value cards at NM for sealed EV / exports and the shipping bundle
+   inflated everything. Keep each deviation a focused, well-commented commit
+   that explains *why we differ from upstream*, so rebases against
+   `mtgban/master` stay tractable. Still pull upstream fixes; just don't treat
+   lockstep as a mandate.
 2. **Don't add B2 / Backblaze code paths.** We use Cloudflare R2 (S3-compatible
    via `AWS_*` env names). The upstream B2 paths were intentionally removed.
 3. **Don't add `mtgban.com` API calls.** Upstream pings their own backend after
