@@ -195,27 +195,3 @@ jobs:
           echo "bantool returned exit code 2"
           exit 1
 
-      # Notify the downstream ETL repo that a fresh NDJSON dump is in R2.
-      # AnonTCG-ETL listens for repository_dispatch type=bantool_complete
-      # and runs its bantool_prices ingest scoped to the named market.
-      # Fires on bantool exit 0 (clean run). Star City workflows intentionally
-      # run buylist-only, so bantool exits 2 after writing buylist data because
-      # the disabled seller has no data; that case should still trigger ingest.
-      #
-      # Requires a repository secret ANONTCG_ETL_DISPATCH_TOKEN: a PAT (or
-      # fine-grained token) with `contents: write` scope on AnonTCG/AnonTCG-ETL.
-      - name: Notify AnonTCG-ETL
-        if: ${{ steps.run_bantool.outputs.exit_code == '0' || ((inputs.target == 'starcitygames' || inputs.target == 'starcitygames_sealed') && steps.run_bantool.outputs.exit_code == '2') }}
-        env:
-          GH_TOKEN: ${{ secrets.ANONTCG_ETL_DISPATCH_TOKEN }}
-        run: |
-          if [[ -z "${GH_TOKEN}" ]]; then
-            echo "::notice::ANONTCG_ETL_DISPATCH_TOKEN unset — skipping downstream notify"
-            exit 0
-          fi
-          gh api -X POST repos/AnonTCG/AnonTCG-ETL/dispatches \
-            -f event_type=bantool_complete \
-            -f "client_payload[market]=${{ inputs.target }}" \
-            -f "client_payload[game]=${{ inputs.game }}" \
-            -f "client_payload[upstream_run_id]=${{ github.run_id }}" \
-            -f "client_payload[upstream_run_url]=${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
