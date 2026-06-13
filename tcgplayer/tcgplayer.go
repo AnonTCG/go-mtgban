@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"slices"
 	"strconv"
 	"sync"
 	"time"
@@ -243,7 +242,7 @@ func (tcg *TCGPlayerMarket) Load(ctx context.Context) error {
 		total := len(sets) - 1
 		i := 1
 
-		var idsFound []int
+		idsFound := map[int]struct{}{}
 		for _, code := range sets {
 			set, _ := mtgmatcher.GetSet(code)
 
@@ -364,10 +363,11 @@ func (tcg *TCGPlayerMarket) Load(ctx context.Context) error {
 						continue
 					}
 					// Skip dupes
-					if slices.Contains(idsFound, sku.SkuId) {
+					_, found := idsFound[sku.SkuId]
+					if found {
 						continue
 					}
-					idsFound = append(idsFound, sku.SkuId)
+					idsFound[sku.SkuId] = struct{}{}
 
 					pages <- marketChan{
 						UUID:      card.UUID,

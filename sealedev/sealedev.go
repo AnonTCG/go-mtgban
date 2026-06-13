@@ -3,7 +3,7 @@ package sealedev
 import (
 	"context"
 	"errors"
-	"fmt"
+	"net/url"
 	"slices"
 	"strconv"
 	"strings"
@@ -21,8 +21,6 @@ const (
 	EVFastRepetition    = 10
 
 	defaultConcurrency = 8
-
-	ckBuylistLink = "https://www.cardkingdom.com/purchasing/mtg_singles"
 )
 
 type SealedEVScraper struct {
@@ -61,7 +59,7 @@ func passthroughFirst(values []float64) (float64, error) {
 var evParameters = []evConfig{
 	// CK Buylist
 	{
-		Name:           "Buylist EV for Singles",
+		Name:           "Singles Buylist (est.)",
 		Shorthand:      "SS",
 		StatsFunc:      passthroughFirst,
 		SourceStores:   []string{"CK", "SCG"},
@@ -315,9 +313,10 @@ func (ss *SealedEVScraper) runEV(uuid string) ([]result, []string) {
 		}
 
 		if evParameters[i].TargetsBuylist {
-			link := ckBuylistLink
-			if ss.BuylistAffiliate != "" {
-				link += fmt.Sprintf("?partner=%s&utm_campaign=%s&utm_medium=affiliate&utm_source=%s", ss.BuylistAffiliate, ss.BuylistAffiliate, ss.BuylistAffiliate)
+			var link string
+			co, err := mtgmatcher.GetUUID(productUUID)
+			if err == nil {
+				link = "/search?q=contents:" + url.QueryEscape("\""+co.Name+"\"")
 			}
 
 			res.buyEntry = &mtgban.BuylistEntry{

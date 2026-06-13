@@ -91,7 +91,7 @@ func (sz *Strikezone) processRow(mode string, channel chan<- respChan, el *colly
 			price = el.ChildText("td:nth-child(6)")
 		}
 
-		theCard, err := preprocess(cardName, edition, notes, cond)
+		theCard, err := preprocess(cardName, edition, notes)
 		if err != nil {
 			return nil
 		}

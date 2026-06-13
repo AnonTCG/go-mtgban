@@ -3,7 +3,6 @@ package tcgplayer
 import (
 	"context"
 	"fmt"
-	"slices"
 	"strconv"
 	"sync"
 	"time"
@@ -151,15 +150,16 @@ func (tcg *TCGPlayerIndex) Load(ctx context.Context) error {
 	for i := 0; i < tcg.MaxConcurrency; i++ {
 		wg.Add(1)
 		go func() {
-			var dupes []string
+			dupes := map[string]struct{}{}
 			buffer := make([]indexChan, 0, tcgplayer.MaxIdsInRequest)
 
 			for page := range pages {
 				// Skip dupes
-				if slices.Contains(dupes, page.TCGProductId) {
+				_, found := dupes[page.TCGProductId]
+				if found {
 					continue
 				}
-				dupes = append(dupes, page.TCGProductId)
+				dupes[page.TCGProductId] = struct{}{}
 
 				// Add our pair to the buffer
 				buffer = append(buffer, page)

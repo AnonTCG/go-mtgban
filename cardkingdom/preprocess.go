@@ -119,6 +119,18 @@ var skuFixupTable = map[string]string{
 	"TLE-0245": "TLE-286",
 	"TLE-0246": "TLE-287",
 	"TLE-0247": "TLE-288",
+
+	// Maximum effort
+	"SLD-IFIYW-01":   "SLD-IFIYW-1",
+	"SLD-IFIYW-02":   "SLD-IFIYW-2",
+	"SLD-IFIYW-03":   "SLD-IFIYW-3",
+	"SLD-IFIYW-04":   "SLD-IFIYW-4",
+	"SLD-IFIYW-05":   "SLD-IFIYW-5",
+	"CFSLD-IFIYW-06": "SLD-IFIYW-6",
+	"CFSLD-IFIYW-07": "SLD-IFIYW-7",
+	"CFSLD-IFIYW-08": "SLD-IFIYW-8",
+	"CFSLD-IFIYW-09": "SLD-IFIYW-9",
+	"CFSLD-IFIYW-10": "SLD-IFIYW-10",
 }
 
 // List of tags that need to be preserved in one way or another
@@ -247,6 +259,11 @@ func Preprocess(card cardkingdom.Product) (*mtgmatcher.InputCard, error) {
 		if found && isFoil {
 			fields = strings.Split(card.Sku, "-")
 			variation = strings.TrimLeft(fields[1], "0")
+		}
+	case "Secret Lair":
+		// Restore the correct hyphen set for this given drop
+		if strings.Contains(number, "IFIYW") {
+			variation = strings.Join(fields[1:], "-")
 		}
 	}
 

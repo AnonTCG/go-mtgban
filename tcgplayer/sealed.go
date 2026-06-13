@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"slices"
 	"sync"
 	"time"
 
@@ -103,15 +102,16 @@ func (tcg *TCGPlayerSealed) Load(ctx context.Context) error {
 	for i := 0; i < tcg.MaxConcurrency; i++ {
 		wg.Add(1)
 		go func() {
-			var idsFound []int
+			idsFound := map[int]struct{}{}
 			buffer := make([]marketChan, 0, tcgplayer.MaxIdsInRequest)
 
 			for page := range pages {
 				// Skip dupes
-				if slices.Contains(idsFound, page.SkuId) {
+				_, found := idsFound[page.SkuId]
+				if found {
 					continue
 				}
-				idsFound = append(idsFound, page.SkuId)
+				idsFound[page.SkuId] = struct{}{}
 
 				// Add our pair to the buffer
 				buffer = append(buffer, page)
