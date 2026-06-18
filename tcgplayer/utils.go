@@ -170,26 +170,26 @@ func LoadSyp(ctx context.Context, auth string) ([]TCGSYP, error) {
 	return result, nil
 }
 
-// Accurate for non-Pro Direct offers, up to 24 cards, with no taxes applied
-// Source: https://mktg-assets.tcgplayer.com/web/seller/guides/TCGplayer-Direct-Shipping-Replacement-Costs.pdf
+// DirectPriceAfterFees returns the per-item net a seller is credited under
+// TCGplayer Direct's item-based fee model (effective 2026-06-18), which
+// replaced the prior order-based SRC model. Accurate for non-Pro Direct
+// offers, with no taxes applied.
+//
+//	item >= $2.50:  $1.12 + 8.95% commission (capped at $75) + 2.5% transaction
+//	item <  $2.50:  50% of item price (commission + transaction waived)
+//
+// AnonTCG fork deviation: the $75 commission cap is retained from the prior
+// model; the new rate card does not mention one (it only matters above
+// ~$838/item) and we keep it until TCGplayer's fee docs confirm otherwise.
+// Source: https://seller.tcgplayer.com/blog/simpler-and-more-predictable-fees-coming-for-tcgplayer-direct-june-18
 func DirectPriceAfterFees(price float64) float64 {
-	tax := 1.0
-	feeCap := 75.0
-	directCost := 0.3 + price*tax*0.025 + math.Min(feeCap, price*0.0895)
-
-	var replacementFees float64
-	if price < 3 {
-		replacementFees = price / 2
-		directCost = 0
-	} else if price < 20 {
-		replacementFees = 1.26
-	} else if price < 250 {
-		replacementFees = 5.47
+	var fee float64
+	if price >= 2.50 {
+		fee = 1.12 + math.Min(75.0, price*0.0895) + price*0.025
 	} else {
-		replacementFees = 9.05
+		fee = price * 0.50
 	}
-
-	return price - directCost - replacementFees
+	return price - fee
 }
 
 const (
