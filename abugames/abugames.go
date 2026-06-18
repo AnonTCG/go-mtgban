@@ -59,13 +59,11 @@ func (abu *ABUGames) processEntry(ctx context.Context, query string, channel cha
 	for _, group := range product.Grouped.ProductId.Groups {
 		// When MINT is found, handle conditions as a standard 4-grade
 		// Otherwise use the same approach used for starcitygames (stricter grading for foils)
-		var hasMintGrade4Retail, hasMintGrade4Buylist bool
+		// This only applies for Retail, the condition is skipped on buylists
+		var hasMintGrade4Retail bool
 		for _, doc := range group.Doclist.Docs {
 			if doc.Condition == "MINT" && (doc.SellQuantity > 0 || doc.SubSellQuantity > 0) && doc.SellPrice > 0 {
 				hasMintGrade4Retail = true
-			}
-			if doc.Condition == "MINT" && doc.BuyQuantity > 0 && doc.BuyPrice > 0 {
-				hasMintGrade4Buylist = true
 			}
 		}
 
@@ -200,57 +198,54 @@ func (abu *ABUGames) processEntry(ctx context.Context, query string, channel cha
 				var cond string
 				switch doc.Condition {
 				case "MINT":
-					cond = "NM"
+					// Skipped since it's impossible to map correctly
 				case "NM":
-					cond = "SP"
-					if !hasMintGrade4Buylist {
-						cond = "NM"
-					}
+					cond = "NM"
 				case "PLD":
+					// Stricter grading for foils
 					cond = "MP"
-					if !lowerGrade && !hasMintGrade4Buylist && !theCard.Foil {
+					if !theCard.Foil {
 						cond = "SP"
 					}
 				case "HP":
 					cond = "HP"
-					if !lowerGrade && !hasMintGrade4Buylist && !theCard.Foil {
-						cond = "MP"
-					}
 				default:
 					abu.printf("Unknown '%s' condition", doc.Condition)
 					continue
 				}
 
-				// priceRatio is between buy and sell
-				var priceRatio float64
-				if doc.SellPrice > 0 {
-					priceRatio = doc.BuyPrice / doc.SellPrice * 100
-				}
-				// While priceRatioTrade is between trade and buy
-				priceRatioTrade := doc.TradePrice / doc.BuyPrice * 100
+				if cond != "" {
+					// priceRatio is between buy and sell
+					var priceRatio float64
+					if doc.SellPrice > 0 {
+						priceRatio = doc.BuyPrice / doc.SellPrice * 100
+					}
+					// While priceRatioTrade is between trade and buy
+					priceRatioTrade := doc.TradePrice / doc.BuyPrice * 100
 
-				u.Path = "/buylist/magic-the-gathering/singles"
+					u.Path = "/buylist/magic-the-gathering/singles"
 
-				buyEntry = &mtgban.BuylistEntry{
-					Conditions: cond,
-					BuyPrice:   doc.BuyPrice,
-					Quantity:   doc.BuyQuantity,
-					PriceRatio: priceRatio,
-					URL:        u.String() + searchQuery,
-					OriginalId: group.GroupValue,
-					InstanceId: doc.Id,
-					VendorName: availableTraderNames[0],
-				}
+					buyEntry = &mtgban.BuylistEntry{
+						Conditions: cond,
+						BuyPrice:   doc.BuyPrice,
+						Quantity:   doc.BuyQuantity,
+						PriceRatio: priceRatio,
+						URL:        u.String() + searchQuery,
+						OriginalId: group.GroupValue,
+						InstanceId: doc.Id,
+						VendorName: availableTraderNames[0],
+					}
 
-				tradeEntry = &mtgban.BuylistEntry{
-					Conditions: cond,
-					BuyPrice:   doc.TradePrice,
-					Quantity:   doc.BuyQuantity,
-					PriceRatio: priceRatioTrade,
-					URL:        u.String() + searchQuery,
-					OriginalId: group.GroupValue,
-					InstanceId: doc.Id,
-					VendorName: availableTraderNames[1],
+					tradeEntry = &mtgban.BuylistEntry{
+						Conditions: cond,
+						BuyPrice:   doc.TradePrice,
+						Quantity:   doc.BuyQuantity,
+						PriceRatio: priceRatioTrade,
+						URL:        u.String() + searchQuery,
+						OriginalId: group.GroupValue,
+						InstanceId: doc.Id,
+						VendorName: availableTraderNames[1],
+					}
 				}
 			}
 
