@@ -61,12 +61,20 @@ type ABUResponse struct {
 }
 
 const (
-	maxEntryPerRequest = 200
+	maxEntryPerRequest = 1000
 
-	abuBaseUrl = `https://data.abugames.com/solr/nodes/select?q=*:*&group=true&group.field=product_id&group.ngroups=true&group.limit=10&start=0&rows=0&wt=json&fq=%2Bcategory%3A%22Magic%20the%20Gathering%20Singles%22%20%2Blanguage%3A(%22English%22%20OR%20%22Italian%22%20OR%20%22Japanese%22%20OR%20%22Phyrexian%22)%20-offline_item%3Atrue%20-magic_features%3A(%22Actual%20Picture%20Card%22)`
+	// abuFieldList restricts Solr responses to the fields ABUCard decodes.
+	// Without it each doc returns all ~56 stored fields (oracle text, ebay
+	// metadata, images, ...), inflating the page payload ~9x.
+	abuFieldList = "id,display_title,simple_title,complete_description," +
+		"magic_edition_sort,condition,layout,rarity,language,title," +
+		"card_number,price,quantity,sub_qty,buy_list_quantity," +
+		"buy_price,trade_price"
+
+	abuBaseUrl = `https://data.abugames.com/solr/nodes/select?q=*:*&group=true&group.field=product_id&group.limit=10&start=0&rows=0&wt=json&fq=%2Bcategory%3A%22Magic%20the%20Gathering%20Singles%22%20%2Blanguage%3A(%22English%22%20OR%20%22Italian%22%20OR%20%22Japanese%22%20OR%20%22Phyrexian%22)%20-offline_item%3Atrue%20-magic_features%3A(%22Actual%20Picture%20Card%22)`
 
 	// This URL will include pics, but queries will be slower
-	abuBaseUrlFull = `https://data.abugames.com/solr/nodes/select?q=*:*&group=true&group.field=product_id&group.ngroups=true&group.limit=10&start=0&rows=0&wt=json&fq=%2Bcategory%3A%22Magic%20the%20Gathering%20Singles%22%20%2Blanguage%3A(%22English%22%20OR%20%22Italian%22%20OR%20%22Japanese%22%20OR%20%22Phyrexian%22)%20-offline_item%3Atrue%20`
+	abuBaseUrlFull = `https://data.abugames.com/solr/nodes/select?q=*:*&group=true&group.field=product_id&group.limit=10&start=0&rows=0&wt=json&fq=%2Bcategory%3A%22Magic%20the%20Gathering%20Singles%22%20%2Blanguage%3A(%22English%22%20OR%20%22Italian%22%20OR%20%22Japanese%22%20OR%20%22Phyrexian%22)%20-offline_item%3Atrue%20`
 
 	abuBaseSealedUrl = `https://data.abugames.com/solr/nodes/select?q=*:*&fq=%2Bcategory%3A%22Magic%20the%20Gathering%20Sealed%20Product%22%20-offline_item%3Atrue%20OR%20-title%3A%22STORE%22%20OR%20-title%3A%22AUCTION%22%20OR%20-title%3A%22OVERSTOCK%22%20%2Blanguage_magic_sealed_product%3A(%22English%22)&sort=display_title%20asc&wt=json&start=0&rows=0`
 )
@@ -149,13 +157,24 @@ func (abu *ABUClient) sendSealedRequest(ctx context.Context, url string) (*ABURe
 	return &response, nil
 }
 
-// Use the URL as is, with just one row requested to fetch the number of items
+// GetTotalItems fetches the number of product groups. group.ngroups (the total
+// group count) is expensive for Solr to compute — a full enumeration of all
+// ~213k groups — so it is requested only here, not baked into the base URL used
+// for page fetches.
 func (abu *ABUClient) GetTotalItems(ctx context.Context, extra string) (int, error) {
 	link := abuBaseUrl
 	if extra != "" {
 		link = abuBaseUrlFull + url.QueryEscape(extra)
 	}
-	product, err := abu.sendRequest(ctx, link)
+	u, err := url.Parse(link)
+	if err != nil {
+		return 0, err
+	}
+	q := u.Query()
+	q.Set("group.ngroups", "true")
+	u.RawQuery = q.Encode()
+
+	product, err := abu.sendRequest(ctx, u.String())
 	if err != nil {
 		return 0, err
 	}
@@ -183,6 +202,11 @@ func (abu *ABUClient) GetProduct(ctx context.Context, extra string, pageStart in
 	q := u.Query()
 	q.Set("rows", fmt.Sprintf("%d", maxEntryPerRequest))
 	q.Set("start", fmt.Sprintf("%d", pageStart))
+	// fl trims each doc to the fields ABUCard decodes (~9x smaller payload).
+	// group.ngroups is deliberately absent from the base URL — only the count
+	// path (GetTotalItems) requests it, since per page it would make Solr
+	// enumerate all ~213k groups for nothing.
+	q.Set("fl", abuFieldList)
 	u.RawQuery = q.Encode()
 
 	return abu.sendRequest(ctx, u.String())

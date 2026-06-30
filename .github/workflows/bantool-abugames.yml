@@ -5,7 +5,7 @@ on:
   repository_dispatch:
     types: [abugames]
   schedule:
-    - cron: "31 19 * * *"
+    - cron: "31 */12 * * *"
 
 permissions:
   contents: read

@@ -14,9 +14,8 @@ var cardTable = map[string]string{
 	"Elminate":                            "Eliminate",
 	"Fireblade Artist Ravnica Allegiance": "Fireblade Artist",
 	"Mindblade Rendor":                    "Mindblade Render",
-	"Neglected Hierloom / Ashmouth Blade": "Neglected Heirloom // Ashmouth Blade",
+	"Neglected Hierloom":                  "Neglected Heirloom",
 	"Rathi Berserker":                     "Aerathi Berserker",
-	"Skin Invasion / Skin Shredder":       "Skin Invasion // Skin Shedder",
 	"Smelt and Herd and Saw":              "Smelt // Herd // Saw",
 	"Soulmemder":                          "Soulmender",
 	"Svagthos, the Restless Tomb":         "Svogthos, the Restless Tomb",
@@ -25,9 +24,9 @@ var cardTable = map[string]string{
 	"Specmen 73":                          "Specimen 73",
 	"Zilortha, Strength Incarnated":       "Zilortha, Strength Incarnate",
 	"Makindi Siderunner":                  "Makindi Sliderunner",
+	"Anti-Venom, Horrifying Hero":         "Anti-Venom, Horrifying Healer",
 
-	"Godzilla, King of the Monsters / Zilortha, Strength Incarnate": "Zilortha, Strength Incarnate",
-	"The Emperor of Palamecia /The Lord Master of Hell":             "The Emperor of Palamecia // The Lord Master of Hell",
+	"The Emperor of Palamecia /The Lord Master of Hell": "The Emperor of Palamecia",
 
 	// Funny cards
 	"No Name":                         "_____",
@@ -88,10 +87,14 @@ func preprocess(card *ABUCard) (*mtgmatcher.InputCard, error) {
 		strings.Contains(strings.ToLower(card.DisplayTitle), " - fol") // SS3 Pyroblast
 
 	edition := card.Edition
+	title := card.DisplayTitle
+	if title == "" {
+		title = card.SimpleTitle
+	}
 
 	// Split by -, rebuild the cardname in a standardized way
 	variation := ""
-	vars := strings.Split(card.DisplayTitle, " - ")
+	vars := strings.Split(title, " - ")
 	cardName := vars[0]
 	if len(vars) > 1 {
 		if vars[len(vars)-1] == edition {
@@ -327,6 +330,26 @@ func preprocess(card *ABUCard) (*mtgmatcher.InputCard, error) {
 		variation = strings.Replace(variation, "Scandanavia", "Scandinavia", 1)
 	} else if strings.Contains(variation, "Phillippines") {
 		variation = strings.Replace(variation, "Phillippines", "Philippines", 1)
+	}
+
+	// Use collector number data when the variation carries has none, unless for a couple of editions
+	if card.Number != "" && mtgmatcher.ExtractNumber(variation) == "" {
+		switch edition {
+		case "Unfinity", "Promo":
+		default:
+			if variation != "" {
+				variation += " "
+			}
+			variation += card.Number
+		}
+	}
+	// Restore canonical name for split cards
+	if strings.Contains(cardName, " / ") {
+		cardName = strings.Replace(cardName, " / ", " // ", -1)
+	}
+	if strings.Contains(cardName, " // ") {
+		cardName = strings.Split(cardName, " // ")[0]
+		cardName = strings.TrimSpace(cardName)
 	}
 
 	name, found := cardTable[cardName]

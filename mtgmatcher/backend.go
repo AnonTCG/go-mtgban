@@ -954,14 +954,11 @@ func fillinSealedContents(sets map[string]*Set, uuids map[string]CardObject) {
 	}
 
 	// Reverse to be compatible with SourceProducts model (child->parent map)
-	for _, list := range tmp {
-		for _, item := range list {
-			for key, sublist := range tmp {
-				// Add if item is in the sublist, and the key was not already added
-				if slices.Contains(sublist, item) && !slices.Contains(result[item], key) {
-					result[item] = append(result[item], key)
-				}
-			}
+	// Each tmp[key] holds unique items, so a single pass yields the reverse
+	// index (item -> parent products) without per-item membership scans.
+	for key, sublist := range tmp {
+		for _, item := range sublist {
+			result[item] = append(result[item], key)
 		}
 	}
 

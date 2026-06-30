@@ -102,6 +102,10 @@ var SKUTests = []SKUTest{
 		In:   "SGL-MTG-STA2-087-JAF1",
 		Out:  "d50b8669-352c-58d9-8cb4-6352e1f0a5ee_e",
 	},
+	{
+		In:  "SGL-MTG-PRM-CD_Q06_006-ENN1",
+		Out: "f7bd93a8-58b7-58d0-849f-0c25dc2e56fb",
+	},
 }
 
 func TestSCGSKU(t *testing.T) {

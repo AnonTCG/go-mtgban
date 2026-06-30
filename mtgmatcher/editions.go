@@ -57,6 +57,7 @@ var EditionTable = map[string]string{
 	"Avatar: The Last Airbender Eternal Legal Cards": "Avatar: The Last Airbender Eternal",
 	"Avatar: The Last Airbender Eternal-Legal":       "Avatar: The Last Airbender Eternal",
 
+	"Teenage Mutant Ninja Turtles Eternal":                "Teenage Mutant Ninja Turtles Commander",
 	"Teenage Mutant Ninja Turtles: Source Material Cards": "Teenage Mutant Ninja Turtles Source Material",
 
 	"Outlaws of Thunder Junction Breaking News":  "Breaking News",

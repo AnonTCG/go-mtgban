@@ -10,8 +10,9 @@ var replacerStrings = []string{
 	// it needs to be before removing the dash step
 	" the ", "",
 	"-the-", "",
-	// Hopefully "of the" is specific enough
+	// Hopefully "of/from the" is specific enough
 	"of the", "of the",
+	"from the", "from the",
 
 	// I can't even
 	"jeong, the", "jeongthe",

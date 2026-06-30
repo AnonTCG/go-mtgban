@@ -180,9 +180,21 @@ func (scg *StarcitygamesSealed) processBLPage(ctx context.Context, channel chan<
 		return err
 	}
 
+	var gamePath string
+	switch {
+	case false:
+		gamePath = "lorcana"
+	case true:
+		gamePath = "mtg"
+	default:
+		panic("unsupported game")
+	}
+
 	for _, hit := range search.Hits {
 		link, _ := url.JoinPath(
 			buylistBookmark,
+			gamePath,
+			"bookmark",
 			url.QueryEscape(hit.Name),
 			",/0/0/0", // various faucets (hot list, rarity, bulk etc)
 			fmt.Sprint(hit.SetID),
@@ -297,6 +309,5 @@ func (scg *StarcitygamesSealed) Info() (info mtgban.ScraperInfo) {
 	info.InventoryTimestamp = &scg.inventoryDate
 	info.BuylistTimestamp = &scg.buylistDate
 	info.SealedMode = true
-	info.CreditMultiplier = 1.3
 	return
 }

@@ -231,6 +231,9 @@ func ProcessSKU(cardName, SKU string) (*mtgmatcher.InputCard, error) {
 				setCode = "PCBB"
 				number = "5"
 			}
+		case strings.HasPrefix(number, "CD_") && len(fields) > 2:
+			setCode = fields[1]
+			number = strings.TrimLeft(fields[2], "0")
 		}
 	case "PUMA":
 		cards := mtgmatcher.MatchInSet(cardName, setCode)

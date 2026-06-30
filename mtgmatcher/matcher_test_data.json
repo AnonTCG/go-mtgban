@@ -4932,5 +4932,14 @@
             "edition": "Modern Horizons 3 Commander",
             "foil": true
         }
+    },
+    {
+        "uuid": "a882532b-12ca-5959-956b-d2fa6dadd89d",
+        "description": "sld_secret_lair_drop_year_number",
+        "input": {
+            "name": "Sol Ring",
+            "variant": "1993",
+            "edition": "Secret Lair Drop"
+        }
     }
 ]

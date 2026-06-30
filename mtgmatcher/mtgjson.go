@@ -144,6 +144,7 @@ type Card struct {
 	Subtypes            []string            `json:"subtypes"`
 	Supertypes          []string            `json:"supertypes"`
 	UUID                string              `json:"uuid"`
+	Legalities          map[string]string   `json:"legalities"`
 	Variations          []string            `json:"variations"`
 	Watermark           string              `json:"watermark"`
 

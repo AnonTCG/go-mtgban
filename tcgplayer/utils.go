@@ -177,11 +177,6 @@ func LoadSyp(ctx context.Context, auth string) ([]TCGSYP, error) {
 //
 //	item >= $2.50:  $1.12 + 8.95% commission (capped at $75) + 2.5% transaction
 //	item <  $2.50:  50% of item price (commission + transaction waived)
-//
-// AnonTCG fork deviation: the $75 commission cap is retained from the prior
-// model; the new rate card does not mention one (it only matters above
-// ~$838/item) and we keep it until TCGplayer's fee docs confirm otherwise.
-// Source: https://seller.tcgplayer.com/blog/simpler-and-more-predictable-fees-coming-for-tcgplayer-direct-june-18
 func DirectPriceAfterFees(price float64) float64 {
 	var fee float64
 	if price >= 2.50 {
