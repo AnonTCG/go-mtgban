@@ -660,6 +660,11 @@ func (ap AllPrintings) Load() cardBackend {
 			// Save the original uuid
 			card.Identifiers["mtgjsonId"] = card.UUID
 
+			// AnonTCG: correct MTGJSON's MSC surge-foil/base-card productId swap
+			// before the alt-foil split below reads the identifiers. No-op for
+			// every other card. See tcgplayer_msc_override.go.
+			applyMSCTCGOverride(card.Identifiers, card.UUID)
+
 			// Now assign the card to the list of cards to be saved
 			filteredCards = append(filteredCards, card)
 

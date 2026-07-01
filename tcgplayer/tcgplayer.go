@@ -300,7 +300,12 @@ func (tcg *TCGPlayerMarket) Load(ctx context.Context) error {
 							continue
 						}
 
-						printing := "NORMAL"
+						// Must be "NON FOIL" (not "NORMAL") to match LoadTCGSKUs and the
+						// downstream printing checks (the processEntry "impossible entry"
+						// guard rejects any nonfoil row whose Printing != "NON FOIL").
+						// A refetched nonfoil SKU tagged "NORMAL" was silently dropped —
+						// latent bug, first exercised by the MSC nonfoil override.
+						printing := "NON FOIL"
 						if sku.PrintingId == 2 {
 							printing = "FOIL"
 						}
