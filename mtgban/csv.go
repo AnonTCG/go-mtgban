@@ -13,7 +13,7 @@ import (
 var (
 	// The base Card fields for the canonical headers
 	CardHeader = []string{
-		"Key", "Name", "Edition", "Finish", "Number", "Rarity",
+		"UUID", "Name", "Edition", "Finish", "Number", "Rarity",
 	}
 
 	// The canonical header that will be present in all inventory files
