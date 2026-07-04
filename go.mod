@@ -12,7 +12,7 @@ require (
 	github.com/jmcvetta/randutil v0.0.0-20150817122601-2bb1b664bcff
 	github.com/joho/godotenv v1.5.1
 	github.com/scizorman/go-ndjson v0.0.0-20200902005011-1d92486df71e
-	golang.org/x/text v0.36.0
+	golang.org/x/text v0.38.0
 	golang.org/x/time v0.15.0 // indirect
 	google.golang.org/api v0.276.0 // indirect
 )
@@ -24,9 +24,9 @@ require (
 	github.com/corpix/uarand v0.2.0
 	github.com/montanaflynn/stats v0.7.1
 	github.com/mroth/weightedrand/v2 v2.1.0
-	github.com/mtgban/go-cardkingdom v0.0.2
-	github.com/mtgban/go-tcgplayer v0.0.1
-	github.com/mtgban/simplecloud v0.0.9
+	github.com/mtgban/go-cardkingdom v0.0.3
+	github.com/mtgban/go-tcgplayer v0.0.2
+	github.com/mtgban/simplecloud v0.0.11
 )
 
 require (
@@ -113,11 +113,11 @@ require (
 	go.opentelemetry.io/otel/sdk v1.43.0 // indirect
 	go.opentelemetry.io/otel/sdk/metric v1.43.0 // indirect
 	go.opentelemetry.io/otel/trace v1.43.0 // indirect
-	golang.org/x/crypto v0.50.0 // indirect
-	golang.org/x/net v0.53.0 // indirect
+	golang.org/x/crypto v0.53.0 // indirect
+	golang.org/x/net v0.56.0 // indirect
 	golang.org/x/oauth2 v0.36.0 // indirect
-	golang.org/x/sync v0.20.0 // indirect
-	golang.org/x/sys v0.43.0 // indirect
+	golang.org/x/sync v0.21.0 // indirect
+	golang.org/x/sys v0.46.0 // indirect
 	google.golang.org/appengine v1.6.8 // indirect
 	google.golang.org/genproto v0.0.0-20260414002931-afd174a4e478 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20260414002931-afd174a4e478 // indirect
