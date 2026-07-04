@@ -22,7 +22,7 @@ name: Run bantool
 #   Scraper credentials (each scraper hits a different vendor's API):
 #   CARDTRADER_TOKEN_BEARER, MKM_APP_SECRET, MKM_APP_TOKEN,
 #   SCG_BEARER, SCG_GUID,
-#   TCGPLAYER_AUTH, TCGPLAYER_PRIVATE_ID, TCGPLAYER_PUBLIC_ID
+#   TCGPLAYER_AUTH, TCGPLAYER_PRIVATE_KEY, TCGPLAYER_PUBLIC_KEY
 #
 # Removed from upstream (intentionally):
 #   - B2_APP_KEY / B2_KEY_ID / B2_KEY_ID_DATASTORE / B2_APP_KEY_DATASTORE
@@ -164,8 +164,8 @@ jobs:
           MKM_APP_SECRET: "${{ secrets.MKM_APP_SECRET }}"
           MKM_APP_TOKEN: "${{ secrets.MKM_APP_TOKEN }}"
           TCGPLAYER_AUTH: "${{ secrets.TCGPLAYER_AUTH }}"
-          TCGPLAYER_PRIVATE_ID: "${{ secrets.TCGPLAYER_PRIVATE_ID }}"
-          TCGPLAYER_PUBLIC_ID: "${{ secrets.TCGPLAYER_PUBLIC_ID }}"
+          TCGPLAYER_PRIVATE_KEY: "${{ secrets.TCGPLAYER_PRIVATE_KEY }}"
+          TCGPLAYER_PUBLIC_KEY: "${{ secrets.TCGPLAYER_PUBLIC_KEY }}"
         run: |
           set +e
           MODE_ARGS=("-${{ inputs.target }}")
