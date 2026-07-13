@@ -21,6 +21,19 @@ func GetSealedUUIDs() []string {
 	return defaultBackend.AllSealedUUIDs
 }
 
+// GetUUIDsInSet returns every non-sealed uuid printed in the given set,
+// foil and etched variants included, in sorted order. The result aliases
+// the backend index and must not be modified; callers spanning multiple
+// sets append the per-set results themselves.
+func GetUUIDsInSet(code string) []string {
+	return defaultBackend.SetUUIDs[strings.ToUpper(code)]
+}
+
+// GetSealedUUIDsInSet is the sealed-product counterpart of GetUUIDsInSet.
+func GetSealedUUIDsInSet(code string) []string {
+	return defaultBackend.SetSealedUUIDs[strings.ToUpper(code)]
+}
+
 func GetUUID(uuid string) (*CardObject, error) {
 	if defaultBackend.UUIDs == nil {
 		return nil, ErrDatastoreEmpty

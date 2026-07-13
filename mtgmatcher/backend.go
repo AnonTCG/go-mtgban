@@ -93,6 +93,11 @@ type cardBackend struct {
 	// Slice with every possible sealed uuid
 	AllSealedUUIDs []string
 
+	// Non-sealed uuids bucketed by set code, each bucket sorted
+	SetUUIDs map[string][]string
+	// Sealed uuids bucketed by set code, each bucket sorted
+	SetSealedUUIDs map[string][]string
+
 	// Non-MTGBAN UUID to a card (or product) UUID
 	ExternalIdentifiers map[string]string
 
@@ -144,7 +149,7 @@ func skipSet(set *Set) bool {
 	return false
 }
 
-func generateUUIDsMap(sets map[string]*Set) (map[string]CardObject, []string, []string) {
+func generateUUIDsMap(sets map[string]*Set) (map[string]CardObject, []string, []string, map[string][]string, map[string][]string) {
 	uuids := map[string]CardObject{}
 	for _, set := range sets {
 		for _, card := range set.Cards {
@@ -171,7 +176,20 @@ func generateUUIDsMap(sets map[string]*Set) (map[string]CardObject, []string, []
 	sort.Strings(allUUIDs)
 	sort.Strings(allSealedUUIDs)
 
-	return uuids, allUUIDs, allSealedUUIDs
+	// Bucket every uuid by its set, mirroring the singles/sealed split.
+	// Built from the sorted slices so each bucket stays sorted too.
+	setUUIDs := map[string][]string{}
+	for _, uuid := range allUUIDs {
+		code := uuids[uuid].SetCode
+		setUUIDs[code] = append(setUUIDs[code], uuid)
+	}
+	setSealedUUIDs := map[string][]string{}
+	for _, uuid := range allSealedUUIDs {
+		code := uuids[uuid].SetCode
+		setSealedUUIDs[code] = append(setSealedUUIDs[code], uuid)
+	}
+
+	return uuids, allUUIDs, allSealedUUIDs, setUUIDs, setSealedUUIDs
 }
 
 // Append "_f" and "_e" to uuids, unless etched is the only printing.
@@ -772,7 +790,7 @@ func (ap AllPrintings) Load() cardBackend {
 	ap.Data["PURL"].Cards = append(ap.Data["PURL"].Cards, purlDupes...)
 
 	// Generate the unique identifiers for singles and products
-	uuids, allUUIDs, allSealedUUIDs := generateUUIDsMap(ap.Data)
+	uuids, allUUIDs, allSealedUUIDs, setUUIDs, setSealedUUIDs := generateUUIDsMap(ap.Data)
 
 	// Remove promo tags that apply to a single finish only
 	filterInvalidPromoTypes(ap.Data, uuids)
@@ -879,6 +897,9 @@ func (ap AllPrintings) Load() cardBackend {
 	b.AllSets = allSets
 	b.AllUUIDs = allUUIDs
 	b.AllSealedUUIDs = allSealedUUIDs
+
+	b.SetUUIDs = setUUIDs
+	b.SetSealedUUIDs = setSealedUUIDs
 
 	b.AllNames = names
 	b.AllCanonicalNames = fullNames
