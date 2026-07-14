@@ -262,12 +262,12 @@ var NumericTests = []ExtractTest{
 	},
 }
 
-func TestExtractNumericalValue(t *testing.T) {
+func TestExtractNumberValue(t *testing.T) {
 	for _, probe := range NumericTests {
 		test := probe
 		t.Run(test.In, func(t *testing.T) {
 			t.Parallel()
-			out := ExtractNumericalValue(test.In)
+			out := ExtractNumberValue(test.In)
 			if out != test.Out {
 				t.Errorf("FAIL %s: Expected '%s' got '%s'", test.In, test.Out, out)
 				return

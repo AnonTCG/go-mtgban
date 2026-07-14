@@ -54,7 +54,7 @@ func MatchId(inputId string, finishes ...bool) (string, error) {
 			altCo := defaultBackend.UUIDs[variation]
 			// We assume that the collector number between the two version
 			// stays the same, with a different suffix
-			if ExtractNumericalValue(co.Number) == ExtractNumericalValue(altCo.Number) {
+			if ExtractNumberValue(co.Number) == ExtractNumberValue(altCo.Number) {
 				maybeId := output(altCo.Card, isFoil, isEtched)
 				altCo = defaultBackend.UUIDs[maybeId]
 

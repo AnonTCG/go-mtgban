@@ -919,7 +919,7 @@ func sldVariant(inCard *InputCard, card *Card) bool {
 		"Liliana's Contract",
 		"Kothophed, Soul Hoarder",
 		"Razaketh, the Foulblooded":
-		num, _ := strconv.Atoi(ExtractNumericalValue(card.Number))
+		num, _ := strconv.Atoi(ExtractNumberValue(card.Number))
 		if num < 200 {
 			result := strings.HasSuffix(card.Number, SuffixSpecial)
 			if inCard.isEtched() {
@@ -956,7 +956,7 @@ func sldVariant(inCard *InputCard, card *Card) bool {
 		"Mogis, God of Slaughter",
 		"Lava Dart", "Monastery Swiftspear", "Soul-Scar Mage", "Underworld Breach", "Mishra's Bauble",
 		"Chain Lightning", "Dragon's Rage Channeler", "Lava Spike", "Rift Bolt", "Skewer the Critics":
-		if !inCard.Contains(ExtractNumericalValue(card.Number)) {
+		if !inCard.Contains(ExtractNumberValue(card.Number)) {
 			return true
 		}
 	}

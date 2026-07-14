@@ -226,7 +226,7 @@ func extractNumber(str string, threshold int) string {
 var reNumerical = regexp.MustCompile(`\d+`)
 
 // Obtain the numerical value of the input so that it can be used for strconv.Atoi()
-func ExtractNumericalValue(str string) string {
+func ExtractNumberValue(str string) string {
 	return strings.TrimLeft(reNumerical.FindString(str), "0")
 }
 
