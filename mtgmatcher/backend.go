@@ -506,19 +506,6 @@ func (ap AllPrintings) Load() cardBackend {
 					card.PromoTypes = append(card.PromoTypes, "ruderiders")
 				}
 
-			// Upstream cannot properly represent foil cards
-			case "SLC":
-				if card.SourceProducts == nil {
-					card.SourceProducts = map[string][]string{}
-				}
-
-				num, _ := strconv.Atoi(card.Number)
-				if (num >= 1993 && num <= 2023) || (num >= 1 && num <= 26) {
-					card.SourceProducts["foil"] = card.SourceProducts["nonfoil"]
-				} else if num == 27 || num >= 28 && num <= 53 {
-					card.SourceProducts["foil"] = allCards[0].SourceProducts["nonfoil"]
-				}
-
 			case "SLD":
 				switch card.Number {
 				// One of the tokens is a DFC but burns a card number, skip it
@@ -672,6 +659,38 @@ func (ap AllPrintings) Load() cardBackend {
 					return sealedNames[filtered[i]] < sealedNames[filtered[j]]
 				})
 				card.SourceProducts[finish] = filtered
+			}
+
+			// Upstream cannot represent the foils of the Secret Lair Countdown
+			// drops: every card in them has only a chance to come in traditional
+			// foil, and a fractional chance to come in halo foil (which is a
+			// separate number entirely), so the products can only ever list the
+			// non-foil printings without distorting pull probabilities.
+			//
+			// Synthesize the missing foil sources from the non-foil ones. This has
+			// to happen *after* the filter above, which is finish-strict and would
+			// otherwise discard everything set here.
+			if set.Code == "SLC" {
+				if card.SourceProducts == nil {
+					card.SourceProducts = map[string][]string{}
+				}
+
+				// Never overwrite a source upstream already got right: the
+				// foil-only bonus cards (#27 and #2023) are declared as foil in
+				// their product and would be orphaned by a blind assignment.
+				if len(card.SourceProducts["foil"]) == 0 {
+					num, _ := strconv.Atoi(card.Number)
+					switch {
+					// Traditional foils share the product of their non-foil printing
+					case (num >= 1 && num <= 26) || (num >= 1993 && num <= 2022):
+						card.SourceProducts["foil"] = card.SourceProducts["nonfoil"]
+					// Halo foils have no non-foil printing of their own; they come
+					// from the same drop as the base cards (allCards[0] is #1, and
+					// its sources are already filtered by the time we get here).
+					case num >= 28 && num <= 53:
+						card.SourceProducts["foil"] = allCards[0].SourceProducts["nonfoil"]
+					}
+				}
 			}
 
 			// Custom properties for tokens
