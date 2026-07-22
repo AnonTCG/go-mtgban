@@ -510,36 +510,6 @@ func WriteMismatchToCSV(mismatch []ArbitEntry, w io.Writer) error {
 	return nil
 }
 
-func WriteCombineToCSV(root *CombineRoot, w io.Writer) error {
-	csvWriter := csv.NewWriter(w)
-	defer csvWriter.Flush()
-
-	header := append(CardHeader, root.Names...)
-	err := csvWriter.Write(header)
-	if err != nil {
-		return err
-	}
-
-	for cardId, entries := range root.Entries {
-		out, err := cardId2record(cardId)
-		if err != nil {
-			continue
-		}
-		for _, vendorName := range root.Names {
-			out = append(out, fmt.Sprintf("%0.2f", entries[vendorName].Price))
-		}
-
-		err = csvWriter.Write(out)
-		if err != nil {
-			return err
-		}
-
-		csvWriter.Flush()
-	}
-
-	return nil
-}
-
 func WritePennyToCSV(penny []ArbitEntry, w io.Writer) error {
 	csvWriter := csv.NewWriter(w)
 	defer csvWriter.Flush()
