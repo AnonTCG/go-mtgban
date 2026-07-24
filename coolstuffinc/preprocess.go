@@ -507,6 +507,13 @@ func PreprocessBuylist(card CSIPriceEntry) (*mtgmatcher.InputCard, error) {
 
 		if num != "" {
 			variant = num + " " + cleanVar
+			// CSI's notes often just repeat the collector number followed by the
+			// product/deck name ("2406 - Goblin Storm Commander Deck"), which is
+			// noise that doubles the number and trips the variant/token filters.
+			// When the notes lead with the collector number, trust it alone.
+			if strings.HasPrefix(cleanVar, num) {
+				variant = num
+			}
 		}
 	case "Deckmasters":
 		variant = strings.TrimSpace(strings.Split(variant, "Deckmaster")[0])
