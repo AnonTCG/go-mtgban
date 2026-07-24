@@ -4941,5 +4941,15 @@
             "variant": "1993",
             "edition": "Secret Lair Drop"
         }
+    },
+    {
+        "uuid": "93e2d1fb-1976-5e3f-b30c-e76a061e081a",
+        "description": "sld_collector_number_above_year_cap_not_misrouted_to_plst",
+        "input": {
+            "name": "Zada, Hedron Grinder",
+            "variant": "2406 2406 Goblin Storm Commander Deck",
+            "edition": "Secret Lair",
+            "foil": true
+        }
     }
 ]

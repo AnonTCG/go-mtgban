@@ -246,8 +246,11 @@ func filterPrintings(inCard *InputCard, editions []string) (printings []string) 
 				}
 
 				// Check that the card reported is not coming from a SLD Deck
-				// or if it does, make sure it is actually from SLD
-				if len(MatchInSetNumber(inCard.Name, "SLD", ExtractNumber(inCard.Variation))) == 0 && len(MatchInSet(inCard.Name, "PLST")) > 0 {
+				// or if it does, make sure it is actually from SLD. Use
+				// ExtractNumberAny so Secret Lair collector numbers above the
+				// year cap (e.g. 2406) aren't dropped and misrouted to PLST,
+				// mirroring the SLD number check further below.
+				if len(MatchInSetNumber(inCard.Name, "SLD", ExtractNumberAny(inCard.Variation))) == 0 && len(MatchInSet(inCard.Name, "PLST")) > 0 {
 					for _, name := range defaultBackend.SLDDeckNames {
 						deckNameInCard := Contains(inCard.Edition, name) || Contains(inCard.Variation, name)
 						if deckNameInCard {
