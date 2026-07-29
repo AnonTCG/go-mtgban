@@ -706,6 +706,9 @@ func (ap AllPrintings) Load() cardBackend {
 			// every other card. See tcgplayer_msc_override.go.
 			applyMSCTCGOverride(card.Identifiers, card.UUID)
 
+			// Save the collector number stripped of its ★/†/φ decorations
+			card.OriginalNumber = strings.TrimRight(card.Number, SuffixSpecial+SuffixVariant+SuffixPhiLow+"*")
+
 			// Now assign the card to the list of cards to be saved
 			filteredCards = append(filteredCards, card)
 

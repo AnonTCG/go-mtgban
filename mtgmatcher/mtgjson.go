@@ -155,6 +155,8 @@ type Card struct {
 		Type        string            `json:"type"`
 	} `json:"foreignData"`
 
+	OriginalNumber string
+
 	// A list of URLs containing the image of the card
 	// At a minimum "full" and "thumbnail" versions should be provided
 	Images map[string]string
