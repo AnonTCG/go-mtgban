@@ -548,6 +548,11 @@ func Preprocess(product *tcgplayer.Product, editions map[int]string) (*mtgmatche
 				variant = vars
 				edition = "P30M"
 			}
+		case "Counterspell":
+			edition = "PF24"
+			if variant == "Retro Frame" {
+				edition = "PF26"
+			}
 		case "The First Sliver", "Serra the Benevolent", "Ponder",
 			"Ugin, the Spirit Dragon", "Sliver Hive",
 			"The Ur-Dragon", "Scourge of Valkas":
