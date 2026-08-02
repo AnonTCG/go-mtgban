@@ -65,7 +65,10 @@ func GenerateProductURL(productId int, printing, affiliate, condition, language 
 		u.RawQuery = v.Encode()
 		link := u.String()
 
-		u, err = url.Parse(fmt.Sprintf(PartnerProductURL, affiliate))
+		// AnonTCG: our affiliate id is baked into PartnerProductURL (see the
+		// const above), so parse it directly. The affiliate arg still gates
+		// whether we wrap the link in the impact URL at all.
+		u, err = url.Parse(PartnerProductURL)
 		if err != nil {
 			return ""
 		}
