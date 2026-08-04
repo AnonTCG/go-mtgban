@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"time"
 
 	"github.com/PuerkitoBio/goquery"
 	"github.com/hashicorp/go-cleanhttp"
@@ -103,6 +104,24 @@ type CSIPriceEntry struct {
 
 func GetBuylist(ctx context.Context, game string) ([]CSIPriceEntry, error) {
 	link := fmt.Sprintf(csiBuylistURL, game)
+
+	// The sell list is a large uncompressed download that occasionally
+	// truncates mid-stream (unexpected EOF), so retry the whole fetch.
+	const attempts = 3
+	var err error
+	for attempt := 1; attempt <= attempts; attempt++ {
+		var entries []CSIPriceEntry
+		entries, err = fetchBuylist(ctx, link)
+		if err == nil {
+			return entries, nil
+		}
+		time.Sleep(time.Duration(attempt) * time.Second)
+	}
+
+	return nil, err
+}
+
+func fetchBuylist(ctx context.Context, link string) ([]CSIPriceEntry, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, link, http.NoBody)
 	if err != nil {
 		return nil, err
