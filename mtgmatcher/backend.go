@@ -419,7 +419,16 @@ func (ap AllPrintings) Load() cardBackend {
 			allCardNames[card.Name] = struct{}{}
 		}
 
-		// Load token names (that don't have the same name of a real card)
+		// Save the names of sealed products for later sorting
+		for _, product := range set.SealedProduct {
+			sealedNames[product.UUID] = product.Name
+		}
+	}
+
+	// Load token names (that don't have the same name of a real card):
+	// this needs every card name loaded first, or the clash check would
+	// depend on the iteration order of the sets
+	for _, set := range ap.Data {
 		for _, token := range set.Tokens {
 			_, foundToken := tokenNames[token.Name]
 			_, foundCard := allCardNames[token.Name]
@@ -428,11 +437,6 @@ func (ap AllPrintings) Load() cardBackend {
 			}
 			tokens = append(tokens, token.Name)
 			tokenNames[token.Name] = struct{}{}
-		}
-
-		// Save the names of sealed products for later sorting
-		for _, product := range set.SealedProduct {
-			sealedNames[product.UUID] = product.Name
 		}
 	}
 
