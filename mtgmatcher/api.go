@@ -202,22 +202,34 @@ func SearchSealedContains(name string) ([]string, error) {
 // that queries naming a single face still find the card: a bucket may
 // therefore hold several distinct cards, each carrying the properties of
 // its own card ("Servo" hashes both the Servo token and "Servo //
-// Thopter"). Name lookups disambiguate here, preferring the card actually
-// named this way and falling back to the first entry for alias-only
-// buckets (e.g. flavor names).
-func entry4Name(norm string) (CardObject, bool) {
+// Thopter"). Name lookups disambiguate here, preferring the card whose
+// name matches verbatim, then any whose name normalizes the same (the
+// normalization folds plurals, so "Cat Warrior" and "Cat Warriors" are
+// distinct cards sharing a bucket), and falling back to the first entry
+// for alias-only buckets (e.g. flavor names).
+func entry4Name(name string) (CardObject, bool) {
+	norm := Normalize(name)
 	uuids, found := defaultBackend.Hashes[norm]
 	if !found {
 		return CardObject{}, false
 	}
+	normalized := CardObject{}
+	foundNormalized := false
 	for _, uuid := range uuids {
 		entry, found := defaultBackend.UUIDs[uuid]
 		if !found {
 			continue
 		}
-		if Normalize(entry.Name) == norm {
+		if strings.EqualFold(entry.Name, name) {
 			return entry, true
 		}
+		if !foundNormalized && Normalize(entry.Name) == norm {
+			normalized = entry
+			foundNormalized = true
+		}
+	}
+	if foundNormalized {
+		return normalized, true
 	}
 	entry, found := defaultBackend.UUIDs[uuids[0]]
 	return entry, found
@@ -225,7 +237,7 @@ func entry4Name(norm string) (CardObject, bool) {
 
 // nameIsToken reports whether the card actually named this way is a token.
 func nameIsToken(name string) bool {
-	entry, found := entry4Name(Normalize(name))
+	entry, found := entry4Name(name)
 	return found && entry.Layout == "token"
 }
 
@@ -233,7 +245,7 @@ func Printings4Card(name string) ([]string, error) {
 	if defaultBackend.Hashes == nil {
 		return nil, ErrDatastoreEmpty
 	}
-	entry, found := entry4Name(Normalize(name))
+	entry, found := entry4Name(name)
 	if !found {
 		return nil, ErrCardDoesNotExist
 	}

@@ -33,6 +33,37 @@ func TestPrintings4CardExactName(t *testing.T) {
 	if !slices.Contains(printings, "L16") {
 		t.Errorf("Servo // Thopter printings = %v, expected to contain L16", printings)
 	}
+
+	// Normalization folds plurals, so the Cat Warrior token and the Cat
+	// Warriors card are distinct names sharing a bucket: verbatim matches
+	// must win over normalized ones.
+	printings, err = Printings4Card("Cat Warriors")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !slices.Contains(printings, "LEG") || slices.Contains(printings, "DMU") {
+		t.Errorf("Cat Warriors printings = %v, expected LEG without DMU", printings)
+	}
+	if !nameIsToken("Cat Warrior") {
+		t.Errorf("the card named exactly Cat Warrior is the DMU token")
+	}
+	if nameIsToken("Cat Warriors") {
+		t.Errorf("Cat Warriors is a regular card, not a token")
+	}
+}
+
+// Token names clashing with a real card name must be excluded from the
+// token table no matter the order sets are iterated during load: these
+// names used to flip classification from process to process.
+func TestIsTokenClashingNames(t *testing.T) {
+	if len(GetUUIDs()) == 0 {
+		t.Skip("datastore not loaded")
+	}
+	for _, name := range []string{"Scarecrow", "Spark Elemental", "Spellgorger Weird"} {
+		if IsToken(name) {
+			t.Errorf("IsToken(%q) = true, but a real card carries this name", name)
+		}
+	}
 }
 
 // oldHasPrinting is the pre-index implementation, kept verbatim as the
