@@ -763,10 +763,7 @@ func filterPrintings(inCard *InputCard, editions []string) (printings []string) 
 			}
 
 		// Tokens need correct set names or special handling earlier
-		case (strings.HasSuffix(inCard.Name, "Token") &&
-			defaultBackend.UUIDs[defaultBackend.Hashes[Normalize(inCard.Name)][0]].Layout == "token") ||
-			(!strings.HasSuffix(inCard.Name, "Token") &&
-				defaultBackend.UUIDs[defaultBackend.Hashes[Normalize(inCard.Name)][0]].Layout == "token"):
+		case nameIsToken(inCard.Name):
 			if !Equals(inCard.Edition, set.Name) {
 				continue
 			}

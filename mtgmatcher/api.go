@@ -197,31 +197,43 @@ func SearchSealedContains(name string) ([]string, error) {
 	return searchFunc(name, defaultBackend.AllSealed, strings.Contains)
 }
 
-func Printings4Card(name string) ([]string, error) {
-	if defaultBackend.Hashes == nil {
-		return nil, ErrDatastoreEmpty
-	}
-	norm := Normalize(name)
+// entry4Name returns the bucket entry actually named this way. Cards are
+// deliberately hashed under their face, flavor, and printed names too, so
+// that queries naming a single face still find the card: a bucket may
+// therefore hold several distinct cards, each carrying the properties of
+// its own card ("Servo" hashes both the Servo token and "Servo //
+// Thopter"). Name lookups disambiguate here, preferring the card actually
+// named this way and falling back to the first entry for alias-only
+// buckets (e.g. flavor names).
+func entry4Name(norm string) (CardObject, bool) {
 	uuids, found := defaultBackend.Hashes[norm]
 	if !found {
-		return nil, ErrCardDoesNotExist
+		return CardObject{}, false
 	}
-	// Cards are deliberately hashed under their face, flavor, and printed
-	// names too, so that queries naming a single face still find the card:
-	// a bucket may therefore hold several distinct cards, each carrying
-	// the printings of its own card ("Servo" hashes both the Servo token
-	// and "Servo // Thopter"). Name lookups disambiguate here, preferring
-	// the card actually named this way.
 	for _, uuid := range uuids {
 		entry, found := defaultBackend.UUIDs[uuid]
 		if !found {
 			continue
 		}
 		if Normalize(entry.Name) == norm {
-			return entry.Printings, nil
+			return entry, true
 		}
 	}
 	entry, found := defaultBackend.UUIDs[uuids[0]]
+	return entry, found
+}
+
+// nameIsToken reports whether the card actually named this way is a token.
+func nameIsToken(name string) bool {
+	entry, found := entry4Name(Normalize(name))
+	return found && entry.Layout == "token"
+}
+
+func Printings4Card(name string) ([]string, error) {
+	if defaultBackend.Hashes == nil {
+		return nil, ErrDatastoreEmpty
+	}
+	entry, found := entry4Name(Normalize(name))
 	if !found {
 		return nil, ErrCardDoesNotExist
 	}

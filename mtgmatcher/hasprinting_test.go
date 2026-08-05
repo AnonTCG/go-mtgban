@@ -2,8 +2,38 @@ package mtgmatcher
 
 import (
 	"math/rand"
+	"slices"
 	"testing"
 )
+
+// The "servo" bucket holds two distinct cards, the WAR token and L16's
+// "Servo // Thopter" through its face name: lookups must resolve to the
+// card actually carrying the queried name, regardless of the bucket
+// order the load process produced.
+func TestPrintings4CardExactName(t *testing.T) {
+	if len(GetUUIDs()) == 0 {
+		t.Skip("datastore not loaded")
+	}
+
+	printings, err := Printings4Card("Servo")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !slices.Contains(printings, "WAR") {
+		t.Errorf("Servo printings = %v, expected to contain WAR", printings)
+	}
+	if slices.Contains(printings, "L16") {
+		t.Errorf("Servo printings = %v, L16 belongs to Servo // Thopter", printings)
+	}
+
+	printings, err = Printings4Card("Servo // Thopter")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !slices.Contains(printings, "L16") {
+		t.Errorf("Servo // Thopter printings = %v, expected to contain L16", printings)
+	}
+}
 
 // oldHasPrinting is the pre-index implementation, kept verbatim as the
 // equivalence reference: for every printing of the named card it scanned the
