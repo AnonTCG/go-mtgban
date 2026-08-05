@@ -201,9 +201,25 @@ func Printings4Card(name string) ([]string, error) {
 	if defaultBackend.Hashes == nil {
 		return nil, ErrDatastoreEmpty
 	}
-	uuids, found := defaultBackend.Hashes[Normalize(name)]
+	norm := Normalize(name)
+	uuids, found := defaultBackend.Hashes[norm]
 	if !found {
 		return nil, ErrCardDoesNotExist
+	}
+	// Cards are deliberately hashed under their face, flavor, and printed
+	// names too, so that queries naming a single face still find the card:
+	// a bucket may therefore hold several distinct cards, each carrying
+	// the printings of its own card ("Servo" hashes both the Servo token
+	// and "Servo // Thopter"). Name lookups disambiguate here, preferring
+	// the card actually named this way.
+	for _, uuid := range uuids {
+		entry, found := defaultBackend.UUIDs[uuid]
+		if !found {
+			continue
+		}
+		if Normalize(entry.Name) == norm {
+			return entry.Printings, nil
+		}
 	}
 	entry, found := defaultBackend.UUIDs[uuids[0]]
 	if !found {
