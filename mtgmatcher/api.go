@@ -312,36 +312,50 @@ func hasPrinting(name, field, value string, editions ...string) bool {
 		return false
 	}
 
-	printings, err := Printings4Card(name)
-	if err != nil {
+	nameNorm := Normalize(name)
+	uuids, found := defaultBackend.Hashes[nameNorm]
+	if !found {
 		cc := &InputCard{
 			Name: name,
 		}
 		adjustName(cc)
-		name = cc.Name
-		printings, err = Printings4Card(name)
-		if err != nil {
+		nameNorm = Normalize(cc.Name)
+		uuids, found = defaultBackend.Hashes[nameNorm]
+		if !found {
 			return false
 		}
 	}
-	for _, code := range printings {
-		var set *Set
-		if len(editions) > 0 {
-			set = defaultBackend.Sets[editions[0]]
-			if set == nil {
-				set, _ = GetSetByName(editions[0])
-			}
-		}
+
+	// A pinned edition narrows the check to that set alone; when it cannot
+	// be resolved, every printing is checked, like the set loop used to.
+	var pinnedCode string
+	if len(editions) > 0 {
+		set := defaultBackend.Sets[editions[0]]
 		if set == nil {
-			set = defaultBackend.Sets[code]
-			if set == nil {
-				continue
-			}
+			set, _ = GetSetByName(editions[0])
 		}
-		for _, in := range set.Cards {
-			if Equals(name, in.Name) && checkFunc(in, value) {
-				return true
-			}
+		if set != nil {
+			pinnedCode = set.Code
+		}
+	}
+
+	// The hash bucket holds every card whose name (or alias) normalizes the
+	// same, so this visits exactly the cards the old per-set scans compared
+	// with Equals - minus the scans: iterating full sets for every printing
+	// made this function the dominant cost of Match for widely printed
+	// cards. The name check stays because aliases (flavor or printed names)
+	// hash into the same bucket but never matched the scans' Equals against
+	// the real card name.
+	for _, uuid := range uuids {
+		co, found := defaultBackend.UUIDs[uuid]
+		if !found {
+			continue
+		}
+		if pinnedCode != "" && co.SetCode != pinnedCode {
+			continue
+		}
+		if Normalize(co.Name) == nameNorm && checkFunc(co.Card, value) {
+			return true
 		}
 	}
 
