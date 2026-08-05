@@ -115,7 +115,16 @@ func GetBuylist(ctx context.Context, game string) ([]CSIPriceEntry, error) {
 		if err == nil {
 			return entries, nil
 		}
-		time.Sleep(time.Duration(attempt) * time.Second)
+		if attempt == attempts {
+			break
+		}
+		// Back off before the next attempt, bailing out if the caller
+		// gives up in the meantime
+		select {
+		case <-ctx.Done():
+			return nil, err
+		case <-time.After(time.Duration(attempt) * time.Second):
+		}
 	}
 
 	return nil, err
