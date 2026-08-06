@@ -1,19 +1,23 @@
 {
- "_comment": "AnonTCG override for MTGJSON mis-published TCGplayer identifiers. 'primary' -> tcgplayerProductId. 'alt_foil' -> tcgplayerAlternativeFoilProductId; an EMPTY alt_foil DELETES that field, suppressing the alt-foil split so the card resolves both finishes from one product. needsNewTCGSKUs is always forced because MTGJSON's cached TcgplayerSkus.json holds the wrong SKUs for these uuids. All ids verified against AnonTCG's tcgplayer_catalog (TCGplayer catalog API, independent of MTGJSON). HOB entries added 2026-08-06: #239 Borderless and #275 Surge Foil were published sharing ONE identifier pair (primary 709068 + altFoil 709470) plus one merged SKU list, so #239's foil priced from the $1,499.93 Surge Foil product while #275 got no rows at all. Correct: 709068 = #239 (Normal + Foil SKUs), 709470 = #275 (Foil only). NOTE: entries are applied UNCONDITIONALLY - they overwrite upstream even after MTGJSON corrects it. Re-check upstream periodically and DELETE an entry once its ids match; delete this file + its loader when empty. (The 43 MSC entries lived here from 2026-07-01 until 2026-08-06, removed after MTGJSON published correct ids - 43/43 verified in both AllPrintings and TcgplayerSkus.json.)",
+ "_comment": "AnonTCG override for MTGJSON mis-published TCGplayer identifiers. 'primary' -> tcgplayerProductId. 'alt_foil' -> tcgplayerAlternativeFoilProductId; an EMPTY alt_foil DELETES that field, suppressing the alt-foil split so the card resolves both finishes from one product. needsNewTCGSKUs is always forced because MTGJSON's cached TcgplayerSkus.json holds the wrong SKUs for these uuids. All ids verified against AnonTCG's tcgplayer_catalog (TCGplayer catalog API, independent of MTGJSON). HOB entries added 2026-08-06: #239 Borderless and #275 Surge Foil were published sharing ONE identifier pair (primary 709068 + altFoil 709470) plus one merged SKU list, so #239's foil priced from the $1,499.93 Surge Foil product while #275 got no rows at all. Correct: 709068 = #239 (Normal + Foil SKUs), 709470 = #275 (Foil only). NOTE: entries are applied UNCONDITIONALLY - they overwrite upstream even after MTGJSON corrects it. Re-check upstream periodically and DELETE an entry once its ids match; delete this file + its loader when empty. (The 43 MSC entries lived here from 2026-07-01 until 2026-08-06, removed after MTGJSON published correct ids - 43/43 verified in both AllPrintings and TcgplayerSkus.json.) Each entry records the BROKEN upstream state it was written against ('upstream_primary'/'upstream_alt_foil'). On load the override compares live MTGJSON against both that broken state and its own corrected values, and logs to stderr when an entry has become redundant (upstream fixed -> delete it) or when upstream has moved to an unrecognised state (-> re-verify before trusting the forced ids).",
  "cards": {
   "b44d95e0-9dc3-59d2-b309-454e35d6f35c": {
    "set": "HOB",
    "name": "Gleaming Splendor",
    "number": "239",
    "primary": "709068",
-   "alt_foil": ""
+   "alt_foil": "",
+   "upstream_primary": "709068",
+   "upstream_alt_foil": "709470"
   },
   "94fb5356-9ee2-50d2-88f9-0d91c4db9bcf": {
    "set": "HOB",
    "name": "Gleaming Splendor",
    "number": "275",
    "primary": "709470",
-   "alt_foil": ""
+   "alt_foil": "",
+   "upstream_primary": "709068",
+   "upstream_alt_foil": "709470"
   }
  }
 }
