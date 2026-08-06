@@ -705,10 +705,11 @@ func (ap AllPrintings) Load() cardBackend {
 			// Save the original uuid
 			card.Identifiers["mtgjsonId"] = card.UUID
 
-			// AnonTCG: correct MTGJSON's MSC surge-foil/base-card productId swap
-			// before the alt-foil split below reads the identifiers. No-op for
-			// every other card. See tcgplayer_msc_override.go.
-			applyMSCTCGOverride(card.Identifiers, card.UUID)
+			// AnonTCG: correct MTGJSON's mis-published TCGplayer productIds
+			// (MSC surge-foil/base swap, HOB #239/#275 shared ids) before the
+			// alt-foil split below reads the identifiers. No-op for every
+			// other card. See tcgplayer_id_override.go.
+			applyTCGIDOverride(card.Identifiers, card.UUID)
 
 			// Save the collector number stripped of its ★/†/φ decorations
 			card.OriginalNumber = strings.TrimRight(card.Number, SuffixSpecial+SuffixVariant+SuffixPhiLow+"*")
