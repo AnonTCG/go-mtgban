@@ -273,7 +273,19 @@ func (tcg *TCGGame) skuEntries(result tcgplayer.SKUPriceSet, sku resolvedSKU) []
 
 	// The lowest listing stays at $0, so the sku is still found through
 	// it; Direct and the market price only where TCGplayer quotes one.
-	out := []genericChan{entry(gameListingName, result.LowestListingPrice, false)}
+	//
+	// AnonTCG: the listing carries the bare item LowPrice — NOT upstream's
+	// LowestListingPrice, which is the delivered price (item + shipping) and
+	// inflates every downstream valuation (sealed EV, exports, "lowest
+	// price") by the shipping component, badly so for sub-$5 cards. Shipping
+	// is preserved in CustomFields so a delivered price stays
+	// reconstructable. Singles only: sealed above keeps upstream's field.
+	listing := entry(gameListingName, result.LowPrice, false)
+	listing.entry.CustomFields = map[string]string{
+		"lowestShipping":     fmt.Sprintf("%.2f", result.LowestShipping),
+		"lowestListingPrice": fmt.Sprintf("%.2f", result.LowestListingPrice),
+	}
+	out := []genericChan{listing}
 	direct := getDirectPrice(result.DirectLowPrice)
 	if tcg.direct() && direct > 0 {
 		out = append(out, entry(gameDirectName, direct, true))

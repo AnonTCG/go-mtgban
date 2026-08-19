@@ -80,7 +80,7 @@ func servePricing(t *testing.T, subtypes map[string]string) *tcgplayer.Client {
 	mux.HandleFunc("/pricing/sku/{ids}", func(w http.ResponseWriter, r *http.Request) {
 		var rows []string
 		for _, id := range strings.Split(r.PathValue("ids"), ",") {
-			rows = append(rows, fmt.Sprintf(`{"skuId": %s, "lowestListingPrice": 1, "marketPrice": 2}`, id))
+			rows = append(rows, fmt.Sprintf(`{"skuId": %s, "lowPrice": 1, "lowestListingPrice": 1, "marketPrice": 2}`, id))
 		}
 		fmt.Fprintf(w, `{"success": true, "errors": [], "results": [%s]}`, strings.Join(rows, ","))
 	})

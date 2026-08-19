@@ -167,8 +167,13 @@ func (mp *Manapool) record(card Product, cardID string) {
 		return
 	}
 
-	// Convert price to float and add the 4.2% fee
-	price := float64(card.LowPrice) / 100.0 * 1.042
+	// AnonTCG: store the RAW item LowPrice (cents → dollars). The 4.2%
+	// Manapool buyer fee is a buyer-facing acquisition cost, not part of the
+	// card's value — valuation (sealed EV / exports) uses the listed price,
+	// not the fee-inclusive cost. The fee rate is preserved in CustomFields
+	// so card-view display can reconstruct "what a buyer pays"
+	// (price * 1.042). Upstream multiplies the fee in here.
+	price := float64(card.LowPrice) / 100.0
 
 	// Got there! The product id is what Mana Pool's cart optimizer takes
 	out := &mtgban.InventoryEntry{
@@ -177,6 +182,9 @@ func (mp *Manapool) record(card Product, cardID string) {
 		Available:  card.AvailableQuantity,
 		URL:        link,
 		InstanceID: card.ProductID,
+		CustomFields: map[string]string{
+			"buyerFeeRate": "0.042",
+		},
 	}
 	mp.addCheapest(cardID, out)
 }

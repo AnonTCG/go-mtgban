@@ -144,7 +144,7 @@ func TestGameSKUEntry(t *testing.T) {
 	}{
 		{
 			desc:   "a holofoil single at near mint",
-			result: tcgplayer.SKUPriceSet{SKUID: 8560578, LowestListingPrice: 29, MarketPrice: 48.27},
+			result: tcgplayer.SKUPriceSet{SKUID: 8560578, LowPrice: 29, MarketPrice: 48.27},
 			want: []string{
 				"Gundam ST01-001 foil: TCGplayer NM 29.00 https://www.tcgplayer.com/product/616528?Condition=Near+Mint&Language=English&Printing=Holofoil&direct=false",
 				"Gundam ST01-001 foil: TCGplayer Trends NM 48.27 https://www.tcgplayer.com/product/616528?Condition=Near+Mint&Language=English&Printing=Holofoil&direct=false",
@@ -152,7 +152,7 @@ func TestGameSKUEntry(t *testing.T) {
 		},
 		{
 			desc:   "lightly played reads as SP",
-			result: tcgplayer.SKUPriceSet{SKUID: 8560579, LowestListingPrice: 33.98, MarketPrice: 33.74},
+			result: tcgplayer.SKUPriceSet{SKUID: 8560579, LowPrice: 33.98, MarketPrice: 33.74},
 			want: []string{
 				"Gundam ST01-001 foil: TCGplayer SP 33.98 https://www.tcgplayer.com/product/616528?Condition=Lightly+Played&Language=English&Printing=Holofoil&direct=false",
 				"Gundam ST01-001 foil: TCGplayer Trends SP 33.74 https://www.tcgplayer.com/product/616528?Condition=Lightly+Played&Language=English&Printing=Holofoil&direct=false",
@@ -160,7 +160,7 @@ func TestGameSKUEntry(t *testing.T) {
 		},
 		{
 			desc:   "a normal single",
-			result: tcgplayer.SKUPriceSet{SKUID: 8560649, LowestListingPrice: 2.15, MarketPrice: 0.79},
+			result: tcgplayer.SKUPriceSet{SKUID: 8560649, LowPrice: 2.15, MarketPrice: 0.79},
 			want: []string{
 				"Gundam (MA Form) ST01-002: TCGplayer NM 2.15 https://www.tcgplayer.com/product/616532?Condition=Near+Mint&Language=English&Printing=Normal&direct=false",
 				"Gundam (MA Form) ST01-002: TCGplayer Trends NM 0.79 https://www.tcgplayer.com/product/616532?Condition=Near+Mint&Language=English&Printing=Normal&direct=false",
@@ -182,7 +182,7 @@ func TestGameSKUEntry(t *testing.T) {
 		{
 			desc:   "a Direct listing, and what it nets",
 			direct: true,
-			result: tcgplayer.SKUPriceSet{SKUID: 8560578, LowestListingPrice: 29, DirectLowPrice: 30, MarketPrice: 48.27},
+			result: tcgplayer.SKUPriceSet{SKUID: 8560578, LowPrice: 29, DirectLowPrice: 30, MarketPrice: 48.27},
 			want: []string{
 				"Gundam ST01-001 foil: TCGplayer NM 29.00 https://www.tcgplayer.com/product/616528?Condition=Near+Mint&Language=English&Printing=Holofoil&direct=false",
 				"Gundam ST01-001 foil: TCG Direct NM 30.00 https://www.tcgplayer.com/product/616528?Condition=Near+Mint&Language=English&Printing=Holofoil&direct=true",
@@ -193,7 +193,7 @@ func TestGameSKUEntry(t *testing.T) {
 		{
 			desc:   "Direct is floored, and under $2.50 it nets half",
 			direct: true,
-			result: tcgplayer.SKUPriceSet{SKUID: 8560649, LowestListingPrice: 0.25, DirectLowPrice: 0.1},
+			result: tcgplayer.SKUPriceSet{SKUID: 8560649, LowPrice: 0.25, DirectLowPrice: 0.1},
 			want: []string{
 				"Gundam (MA Form) ST01-002: TCGplayer NM 0.25 https://www.tcgplayer.com/product/616532?Condition=Near+Mint&Language=English&Printing=Normal&direct=false",
 				"Gundam (MA Form) ST01-002: TCG Direct NM 0.40 https://www.tcgplayer.com/product/616532?Condition=Near+Mint&Language=English&Printing=Normal&direct=true",
@@ -202,7 +202,7 @@ func TestGameSKUEntry(t *testing.T) {
 		},
 		{
 			desc:   "no Direct where the category has none",
-			result: tcgplayer.SKUPriceSet{SKUID: 8560578, LowestListingPrice: 29, DirectLowPrice: 30},
+			result: tcgplayer.SKUPriceSet{SKUID: 8560578, LowPrice: 29, DirectLowPrice: 30},
 			want:   []string{"Gundam ST01-001 foil: TCGplayer NM 29.00 https://www.tcgplayer.com/product/616528?Condition=Near+Mint&Language=English&Printing=Holofoil&direct=false"},
 		},
 		{
