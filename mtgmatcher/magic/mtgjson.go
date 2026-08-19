@@ -962,6 +962,12 @@ func (ap *AllPrintings) newBackend() *mtgmatcher.Backend {
 				card.Rarity = "oversize"
 			}
 
+			// AnonTCG: correct MTGJSON's mis-published TCGplayer productIds
+			// (MSC surge-foil/base swap, HOB #239/#275 shared ids) before the
+			// alt-foil split below reads the identifiers. No-op for every
+			// other card. See tcgplayer_id_override.go.
+			applyTCGIDOverride(card.Identifiers, card.UUID)
+
 			// Save the original uuid
 			card.Identifiers["mtgjsonId"] = card.UUID
 
