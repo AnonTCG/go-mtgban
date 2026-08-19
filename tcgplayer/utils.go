@@ -20,7 +20,9 @@ import (
 // product link for affiliate attribution.
 const (
 	BaseProductURL    = "https://www.tcgplayer.com/product/"
-	PartnerProductURL = "https://partner.tcgplayer.com/c/%s/1830156/21018"
+	// AnonTCG: our affiliate id is baked in (upstream keeps a %s placeholder
+	// filled from the affiliate arg).
+	PartnerProductURL = "https://partner.tcgplayer.com/c/6226515/1830156/21018"
 )
 
 // GenerateProductURL builds the storefront link for a product, narrowed to a
@@ -70,7 +72,10 @@ func GenerateProductURL(productID int, printing, affiliate, condition, language 
 		u.RawQuery = v.Encode()
 		link := u.String()
 
-		u, err = url.Parse(fmt.Sprintf(PartnerProductURL, affiliate))
+		// AnonTCG: our affiliate id is baked into PartnerProductURL (see the
+		// const above), so parse it directly. The affiliate arg still gates
+		// whether we wrap the link in the impact URL at all.
+		u, err = url.Parse(PartnerProductURL)
 		if err != nil {
 			return ""
 		}
