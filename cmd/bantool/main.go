@@ -438,29 +438,48 @@ var options = map[string]*scraperOption{
 			return scraper, nil
 		},
 	},
+	// AnonTCG: the SCG scrapers run on the sellyourcards sell-list API
+	// (SCG_BEARER scraped from the public app.js at workflow time), not
+	// upstream's catalog API — we have no catalog x-api-key, and the
+	// sell-list path is what production has been running. SCG_BUYLIST_ONLY
+	// skips the retail side, which needs the GUID we don't have.
 	"starcitygames": {
 		Init: func() (mtgban.Scraper, error) {
-			scgAPIKey := os.Getenv("SCG_API_KEY")
-			if scgAPIKey == "" {
-				return nil, errors.New("missing SCG_API_KEY env var")
+			scgGUID := os.Getenv("SCG_GUID")
+			scgBearer := os.Getenv("SCG_BEARER")
+			if scgBearer == "" {
+				return nil, errors.New("missing SCG_BEARER env var")
+			}
+			if scgGUID == "" && os.Getenv("SCG_BUYLIST_ONLY") != "true" {
+				return nil, errors.New("missing SCG_GUID env var")
 			}
 
-			scraper := starcitygames.NewScraper(starcitygames.GameMagic, scgAPIKey)
+			scraper := starcitygames.NewScraper(starcitygames.GameMagic, scgGUID, scgBearer)
 			scraper.LogCallback = GlobalLogCallback
 			scraper.Affiliate = os.Getenv("SCG_PARTNER")
+			if MaxConcurrency != 0 {
+				scraper.MaxConcurrency = MaxConcurrency
+			}
 			return scraper, nil
 		},
 	},
 	"starcitygames_sealed": {
 		Init: func() (mtgban.Scraper, error) {
-			scgAPIKey := os.Getenv("SCG_API_KEY")
-			if scgAPIKey == "" {
-				return nil, errors.New("missing SCG_API_KEY env var")
+			scgGUID := os.Getenv("SCG_GUID")
+			scgBearer := os.Getenv("SCG_BEARER")
+			if scgBearer == "" {
+				return nil, errors.New("missing SCG_BEARER env var")
+			}
+			if scgGUID == "" && os.Getenv("SCG_BUYLIST_ONLY") != "true" {
+				return nil, errors.New("missing SCG_GUID env var")
 			}
 
-			scraper := starcitygames.NewScraperSealed(starcitygames.GameMagic, scgAPIKey)
+			scraper := starcitygames.NewScraperSealed(scgGUID, scgBearer)
 			scraper.LogCallback = GlobalLogCallback
 			scraper.Affiliate = os.Getenv("SCG_PARTNER")
+			if MaxConcurrency != 0 {
+				scraper.MaxConcurrency = MaxConcurrency
+			}
 			return scraper, nil
 		},
 	},
@@ -728,31 +747,6 @@ var options = map[string]*scraperOption{
 			if MaxConcurrency != 0 {
 				scraper.MaxConcurrency = MaxConcurrency
 			}
-			return scraper, nil
-		},
-	},
-	"starcitygames_sealed_lorcana": {
-		Init: func() (mtgban.Scraper, error) {
-			scgAPIKey := os.Getenv("SCG_API_KEY")
-			if scgAPIKey == "" {
-				return nil, errors.New("missing SCG_API_KEY env var")
-			}
-			scraper := starcitygames.NewScraperSealed(starcitygames.GameLorcana, scgAPIKey)
-			scraper.LogCallback = GlobalLogCallback
-			scraper.Affiliate = os.Getenv("SCG_PARTNER")
-			return scraper, nil
-		},
-	},
-	"starcitygames_lorcana": {
-		Init: func() (mtgban.Scraper, error) {
-			scgAPIKey := os.Getenv("SCG_API_KEY")
-			if scgAPIKey == "" {
-				return nil, errors.New("missing SCG_API_KEY env var")
-			}
-
-			scraper := starcitygames.NewScraper(starcitygames.GameLorcana, scgAPIKey)
-			scraper.LogCallback = GlobalLogCallback
-			scraper.Affiliate = os.Getenv("SCG_PARTNER")
 			return scraper, nil
 		},
 	},
@@ -1358,56 +1352,6 @@ var options = map[string]*scraperOption{
 		Init: func() (mtgban.Scraper, error) {
 			scraper := merlion.NewScraper()
 			scraper.LogCallback = GlobalLogCallback
-			return scraper, nil
-		},
-	},
-	"starcitygames_sealed_riftbound": {
-		Init: func() (mtgban.Scraper, error) {
-			scgAPIKey := os.Getenv("SCG_API_KEY")
-			if scgAPIKey == "" {
-				return nil, errors.New("missing SCG_API_KEY env var")
-			}
-			scraper := starcitygames.NewScraperSealed(starcitygames.GameRiftbound, scgAPIKey)
-			scraper.LogCallback = GlobalLogCallback
-			scraper.Affiliate = os.Getenv("SCG_PARTNER")
-			return scraper, nil
-		},
-	},
-	"starcitygames_riftbound": {
-		Init: func() (mtgban.Scraper, error) {
-			scgAPIKey := os.Getenv("SCG_API_KEY")
-			if scgAPIKey == "" {
-				return nil, errors.New("missing SCG_API_KEY env var")
-			}
-
-			scraper := starcitygames.NewScraper(starcitygames.GameRiftbound, scgAPIKey)
-			scraper.LogCallback = GlobalLogCallback
-			scraper.Affiliate = os.Getenv("SCG_PARTNER")
-			return scraper, nil
-		},
-	},
-	"starcitygames_sealed_fleshandblood": {
-		Init: func() (mtgban.Scraper, error) {
-			scgAPIKey := os.Getenv("SCG_API_KEY")
-			if scgAPIKey == "" {
-				return nil, errors.New("missing SCG_API_KEY env var")
-			}
-			scraper := starcitygames.NewScraperSealed(starcitygames.GameFleshAndBlood, scgAPIKey)
-			scraper.LogCallback = GlobalLogCallback
-			scraper.Affiliate = os.Getenv("SCG_PARTNER")
-			return scraper, nil
-		},
-	},
-	"starcitygames_fleshandblood": {
-		Init: func() (mtgban.Scraper, error) {
-			scgAPIKey := os.Getenv("SCG_API_KEY")
-			if scgAPIKey == "" {
-				return nil, errors.New("missing SCG_API_KEY env var")
-			}
-
-			scraper := starcitygames.NewScraper(starcitygames.GameFleshAndBlood, scgAPIKey)
-			scraper.LogCallback = GlobalLogCallback
-			scraper.Affiliate = os.Getenv("SCG_PARTNER")
 			return scraper, nil
 		},
 	},

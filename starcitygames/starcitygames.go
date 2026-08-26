@@ -1,290 +1,629 @@
-// Package starcitygames scrapes Star City Games, for singles and sealed
-// product, across every game they carry.
 package starcitygames
 
 import (
 	"context"
 	"errors"
 	"fmt"
+	"net/url"
 	"strings"
 	"time"
 
 	"github.com/mtgban/go-mtgban/mtgban"
 	"github.com/mtgban/go-mtgban/mtgmatcher"
+	"github.com/mtgban/go-mtgban/mtgmatcher/magic"
 )
 
-// Starcitygames prices SCG's singles, both what they sell and what they buy.
+const (
+	defaultConcurrency = 3
+
+	buylistBookmark = "https://sellyourcards.starcitygames.com/"
+)
+
 type Starcitygames struct {
-	LogCallback   mtgban.LogCallbackFunc
-	inventoryDate time.Time
-	buylistDate   time.Time
+	LogCallback    mtgban.LogCallbackFunc
+	inventoryDate  time.Time
+	buylistDate    time.Time
+	MaxConcurrency int
 
 	Affiliate string
 
 	TargetEdition string
 
+	DisableRetail  bool
+	DisableBuylist bool
+
 	inventory mtgban.InventoryRecord
 	buylist   mtgban.BuylistRecord
 
-	// buckets holds the listings a second stock record has already been seen
-	// for, so the pair folds together in either stream order.
-	buckets map[string]struct{}
-
-	setIDs map[string]int
 	client *SCGClient
 	game   int
+
+	styleMap  map[int]string
+	finishMap map[int]string
+	setMap    map[int]string
 }
 
-// NewScraper returns a singles scraper for one game, using the given API key.
-func NewScraper(game int, apiKey string) *Starcitygames {
+func NewScraper(game int, guid, bearer string) *Starcitygames {
 	scg := Starcitygames{}
-	scg.reset()
-	scg.client = NewSCGClient(apiKey)
+	scg.inventory = mtgban.InventoryRecord{}
+	scg.buylist = mtgban.BuylistRecord{}
+	scg.client = NewSCGClient(guid, bearer)
+	scg.MaxConcurrency = defaultConcurrency
 	scg.game = game
 	return &scg
 }
 
-// reset drops everything a run has collected, for a stream that broke and has
-// to be read again from the top. What a listing's records have already been
-// seen goes with the records themselves: they are all coming again.
-func (scg *Starcitygames) reset() {
-	scg.inventory = mtgban.InventoryRecord{}
-	scg.buylist = mtgban.BuylistRecord{}
-	scg.buckets = map[string]struct{}{}
+type responseChan struct {
+	cardId   string
+	invEntry *mtgban.InventoryEntry
+	buyEntry *mtgban.BuylistEntry
+	pageURL  string
+
+	ignoreErr bool
 }
 
-func (scg *Starcitygames) printf(format string, a ...any) {
+func (scg *Starcitygames) printf(format string, a ...interface{}) {
 	if scg.LogCallback != nil {
 		scg.LogCallback("[SCG] "+format, a...)
 	}
 }
 
-func (scg *Starcitygames) processProduct(p CatalogProduct) {
-	// A single malformed product must never abort the whole catalog stream;
-	// recover, log, and skip it.
-	defer func() {
-		if r := recover(); r != nil {
-			scg.printf("recovered from panic on %q (sku=%s): %v", p.Name, p.SKU, r)
-		}
-	}()
-
-	// This scraper handles singles only; sealed has its own scraper, and
-	// the catalog also carries supplies and bulk lots that are not cards
-	// at all. product_type says which is which, so nothing else has to
-	// infer it from the name or the sku.
-	if p.ProductType != ProductTypeSingles {
-		return
-	}
-	if !strings.HasPrefix(p.SKU, "SGL-") {
-		return
-	}
-	if gameFromCatalog(p.Game) != scg.game {
-		return
-	}
-	if scg.TargetEdition != "" && scg.TargetEdition != p.Set {
-		return
-	}
-
-	cardID, err := resolveProduct(scg.game, p)
-	if err != nil {
-		if errors.Is(err, mtgmatcher.ErrUnsupported) {
-			return
-		}
-		// Skip tokens and similar
-		if strings.Contains(p.Name, "Token") || strings.HasPrefix(p.Name, "{") {
-			return
-		}
-		scg.printf("%v for %q [%s %s #%s] sku=%s scryfall=%s", err, p.Name, p.Set, p.Finish, p.CollectorNumber, p.SKU, p.ScryfallID)
-
-		var alias *mtgmatcher.AliasingError
-		if errors.As(err, &alias) {
-			for _, probe := range alias.Probe() {
-				co, _ := mtgmatcher.GetUUID(probe)
-				scg.printf("- %s", co)
-			}
-		}
-		return
-	}
-
-	link := SCGProductURL(p.URL, "", scg.Affiliate)
-
-	// The buylist link points at the sell-your-cards page for this printing,
-	// not the retail page; fall back to retail if the set can't be matched.
-	buyURL := link
-	ids := setIDsForProduct(scg.setIDs, p.Set, p.SKU)
-	if len(ids) > 0 {
-		buyURL = SCGBuylistURL(scg.game, p.Name, p.Language, ids)
-	}
-
-	customFields := map[string]string{
-		"SCGName":     p.Name,
-		"SCGEdition":  p.Set,
-		"SCGLanguage": p.Language,
-		"SCGFinish":   p.Finish,
-		"scgNumber":   p.CollectorNumber,
-		"scgSKU":      p.SKU,
-	}
-
-	ignore := strings.Contains(p.Set, "World Championship") || strings.Contains(p.Name, "Token")
-
-	// A second stock bucket of a listing the catalog also carries plainly.
-	// Star City Games splits some Armory Deck singles across two product
-	// records - "SGL-FAB-AGB-014-ENN" beside "SGL-FAB-AGB-014_CC-ENN" - which
-	// agree on the card, the set, the number, the treatment and the price of
-	// every grade they share, and differ only in how many copies sit in each.
-	// They are one listing's stock written twice over, so the pair's copies
-	// are added together rather than reported as the duplicate they would
-	// otherwise look like, which discarded them.
-	//
-	// Which of the two comes down the stream first is not the catalog's to
-	// promise, and it does not hold: most Armory Deck: Pleiades listings lead
-	// with the marked record. So it is the one that arrives second that is
-	// folded in, whether or not it wears the marker - the first is the one
-	// there is nothing yet to fold it into.
-	second := scg.secondStock(p.SKU)
-
-	for _, v := range p.Variants {
-		condition, err := catalogCondition(v.Condition)
-		if err != nil {
-			scg.printf("%v for %q", err, p.Name)
-			continue
-		}
-
-		// A single catalog download carries both retail and buylist data, so
-		// both records are populated in the same pass.
-		retailPrice, _ := mtgmatcher.ParsePrice(v.Price)
-
-		if retailPrice > 0 && v.Qty > 0 {
-			entry := &mtgban.InventoryEntry{
-				Price:      retailPrice,
-				Conditions: condition,
-				Quantity:   v.Qty,
-				OriginalID: p.SKU,
-				InstanceID: v.SKU,
-				URL:        SCGProductURL(p.URL, v.SKU, scg.Affiliate),
-			}
-			if condition == "NM" {
-				entry.CustomFields = customFields
-			}
-			if err := scg.addInventoryStock(second, cardID, entry); err != nil && !ignore {
-				scg.printf("%s", err.Error())
-				scg.printf("-> %s", link)
-			}
-		}
-
-		if buyPrice, err := mtgmatcher.ParsePrice(v.SellListPrice); err == nil && buyPrice > 0 {
-			var priceRatio float64
-			if retailPrice > 0 {
-				priceRatio = buyPrice / retailPrice * 100
-			}
-
-			var blFields map[string]string
-			if condition == "NM" {
-				blFields = customFields
-			}
-
-			entry := &mtgban.BuylistEntry{
-				Conditions:   condition,
-				BuyPrice:     buyPrice,
-				PriceRatio:   priceRatio,
-				URL:          buyURL,
-				OriginalID:   p.SKU,
-				InstanceID:   v.SKU,
-				CustomFields: blFields,
-			}
-			if err := scg.addBuylistStock(second, cardID, entry); err != nil && !ignore {
-				scg.printf("%s", err.Error())
-			}
-		}
-	}
-}
-
-// loadCatalog streams the single catalog export, which carries both retail
-// (price/qty) and buylist (sell_list_price) data per variant, and fills the
-// inventory and buylist in one pass.
-func (scg *Starcitygames) loadCatalog(ctx context.Context) error {
-	setIDs, err := scg.client.SetIDs(ctx, scg.game)
-	if err != nil {
-		scg.printf("could not load set ids for buylist links: %v", err)
-	}
-	scg.setIDs = setIDs
-
-	count := 0
-	err = scg.client.StreamCatalog(ctx, func() {
-		scg.printf("Catalog stream broke after %d products, downloading it again", count)
-		scg.reset()
-		count = 0
-	}, func(p CatalogProduct) error {
-		scg.processProduct(p)
-		count++
-		if count%5000 == 0 {
-			scg.printf("Processed %d products", count)
-		}
-		return nil
-	})
+func (scg *Starcitygames) processPage(ctx context.Context, channel chan<- responseChan, page int) error {
+	results, err := scg.client.GetPage(ctx, scg.game, page)
 	if err != nil {
 		return err
 	}
-	scg.printf("Processed %d products total", count)
 
-	now := time.Now()
-	scg.inventoryDate = now
-	scg.buylistDate = now
+	for _, result := range results {
+		if len(result.Document.ProductType) == 0 {
+			return errors.New("malformed product_type")
+		}
+		if result.Document.ProductType[0] != "Singles" {
+			scg.printf("Skipping product_type %s", result.Document.ProductType[0])
+			continue
+		}
+
+		if len(result.Document.CardName) == 0 {
+			return errors.New("malformed card_name")
+		}
+		if len(result.Document.Set) == 0 {
+			return errors.New("malformed set")
+		}
+		if len(result.Document.Finish) == 0 {
+			return errors.New("malformed finish")
+		}
+		if len(result.Document.Language) == 0 {
+			return errors.New("malformed language")
+		}
+		if len(result.Document.UniqueID) == 0 {
+			return errors.New("malformed unique_id")
+		}
+		cardName := result.Document.CardName[0]
+		edition := result.Document.Set[0]
+		finish := result.Document.Finish[0]
+		language := result.Document.Language[0]
+		id := fmt.Sprint(result.Document.UniqueID[0])
+
+		var number string
+		if len(result.Document.CollectorNumber) > 0 {
+			number = result.Document.CollectorNumber[0]
+		}
+		var variant string
+		if len(result.Document.Subtitle) > 0 {
+			variant += result.Document.Subtitle[0]
+		}
+		var sku string
+		if len(result.Document.HawkChildAttributes) > 0 &&
+			len(result.Document.HawkChildAttributes[0].VariantSKU) > 0 {
+			sku = result.Document.HawkChildAttributes[0].VariantSKU[0]
+			// Strip the last number that points to the condition
+			if sku != "" {
+				sku = sku[:len(sku)-1]
+			}
+		}
+
+		link := ""
+		if len(result.Document.URLDetail) > 0 {
+			link = BaseProductURL + result.Document.URLDetail[0]
+		}
+
+		var cardId string
+		var err error
+		switch scg.game {
+		case GameMagic:
+			hit := Hit{
+				Name:            cardName,
+				SetName:         edition,
+				Language:        language,
+				CollectorNumber: number,
+				Variants: []Variant{{
+					Subtitle: strings.TrimSpace(variant),
+					Sku:      sku,
+				}},
+				FinishPricingTypeID: 1,
+			}
+			if finish == "Foil" {
+				hit.FinishPricingTypeID = 2
+			}
+			var theCard *mtgmatcher.InputCard
+			theCard, err = preprocess(hit)
+			if err != nil {
+				continue
+			}
+
+			cardId, err = mtgmatcher.Match(theCard)
+			if errors.Is(err, mtgmatcher.ErrUnsupported) {
+				continue
+			} else if err != nil {
+				// Skip errors from tokens and similar
+				if strings.Contains(cardName, "Token") ||
+					strings.Contains(variant, "Token") ||
+					strings.HasPrefix(cardName, "{") {
+					continue
+				}
+				scg.printf("%v", err)
+				scg.printf("%q", theCard)
+				scg.printf("%v", hit)
+				scg.printf("-> %s", link)
+
+				var alias *mtgmatcher.AliasingError
+				if errors.As(err, &alias) {
+					probes := alias.Probe()
+					for _, probe := range probes {
+						co, _ := mtgmatcher.GetUUID(probe)
+						scg.printf("%s", co)
+					}
+				}
+				continue
+			}
+		case GameLorcana:
+			cardId, err = simpleSearch(cardName, number, finish != "Non-foil")
+			if errors.Is(err, mtgmatcher.ErrUnsupported) {
+				continue
+			} else if err != nil {
+				scg.printf("%v", err)
+				scg.printf("%+v", result)
+				scg.printf("-> %s", link)
+
+				var alias *mtgmatcher.AliasingError
+				if errors.As(err, &alias) {
+					probes := alias.Probe()
+					for _, probe := range probes {
+						co, _ := mtgmatcher.GetUUID(probe)
+						scg.printf("%s", co)
+					}
+				}
+				continue
+			}
+		default:
+			return errors.New("unsupported game")
+		}
+
+		customFields := map[string]string{
+			"SCGName":     cardName,
+			"SCGEdition":  edition,
+			"SCGLanguage": language,
+			"SCGFinish":   finish,
+			"scgSubtitle": variant,
+			"scgNumber":   number,
+			"scgSKU":      sku,
+		}
+
+		for _, attribute := range result.Document.HawkChildAttributes {
+			if len(attribute.VariantLanguage) == 0 {
+				return errors.New("malformed variant_language")
+			}
+
+			if attribute.VariantLanguage[0] != language {
+				continue
+			}
+
+			if len(attribute.Price) == 0 {
+				return errors.New("malformed price")
+			}
+			if len(attribute.Qty) == 0 {
+				return errors.New("malformed qty")
+			}
+			if len(attribute.Condition) == 0 {
+				return errors.New("malformed condition")
+			}
+			priceStr := attribute.Price[0]
+			qty := attribute.Qty[0]
+			condition := attribute.Condition[0]
+
+			switch condition {
+			case "Near Mint":
+				condition = "NM"
+			case "Played":
+				condition = "SP"
+			case "Heavily Played":
+				condition = "HP"
+			default:
+				scg.printf("unknown condition %s for %s", condition, cardName)
+				continue
+			}
+
+			price, err := mtgmatcher.ParsePrice(priceStr)
+			if err != nil {
+				scg.printf("invalid price for %s: %s", cardName, err.Error())
+				continue
+			}
+
+			if qty == 0 || price == 0 {
+				continue
+			}
+
+			skuCond := ""
+			if len(attribute.VariantSKU) > 0 {
+				skuCond = attribute.VariantSKU[0]
+			}
+
+			out := responseChan{
+				cardId: cardId,
+				invEntry: &mtgban.InventoryEntry{
+					Price:      price,
+					Conditions: condition,
+					Quantity:   qty,
+					OriginalID: sku,
+					InstanceID: skuCond,
+					URL:        SCGProductURL(result.Document.URLDetail, attribute.VariantSKU, scg.Affiliate),
+					CustomFields: map[string]string{
+						"SCGID": id,
+					},
+				},
+				ignoreErr: strings.Contains(edition, "World Championship") || strings.Contains(cardName, "Token"),
+				pageURL:   link,
+			}
+			if condition == "NM" {
+				out.invEntry.CustomFields = customFields
+			}
+			channel <- out
+		}
+	}
+
 	return nil
 }
 
-// Load fetches everything this scraper offers. See mtgban.Scraper.
+func (scg *Starcitygames) scrape(ctx context.Context) error {
+	totalPages, err := scg.client.NumberOfPages(ctx, scg.game)
+	if err != nil {
+		return err
+	}
+	scg.printf("Found %d pages", totalPages)
+
+	pages := make([]int, 0, totalPages)
+	for i := 1; i <= totalPages; i++ {
+		pages = append(pages, i)
+	}
+
+	mtgban.WorkerPool(ctx, scg.MaxConcurrency, pages,
+		func(ctx context.Context, page int, results chan<- responseChan) error {
+			scg.printf("Processing page %d", page)
+			return scg.processPage(ctx, results, page)
+		},
+		func(record responseChan) {
+			err := scg.inventory.AddStrict(record.cardId, record.invEntry)
+			if err != nil && !record.ignoreErr {
+				scg.printf("%s", err.Error())
+				scg.printf("-> %s", record.pageURL)
+			}
+		},
+		scg.printf,
+	)
+
+	scg.inventoryDate = time.Now()
+
+	return nil
+}
+
+func (scg *Starcitygames) processBuylistEdition(ctx context.Context, channel chan<- responseChan, setID int) error {
+	i := 0
+
+	for {
+		search, err := scg.client.SearchAll(ctx, scg.game, i, buylistRequestLimit, setID)
+		if err != nil {
+			return err
+		}
+
+		scg.processBuylistEditionHits(channel, search.Hits)
+
+		if len(search.Hits) < buylistRequestLimit {
+			break
+		}
+
+		i++
+	}
+
+	return nil
+}
+
+func (scg *Starcitygames) processBuylistEditionHits(channel chan<- responseChan, hits []Hit) {
+	var gamePath string
+	switch scg.game {
+	case GameLorcana:
+		gamePath = "lorcana"
+	case GameMagic:
+		gamePath = "mtg"
+	default:
+		panic("unsupported game")
+	}
+
+	for _, hit := range hits {
+		// Generate URL
+		link, _ := url.JoinPath(
+			buylistBookmark,
+			gamePath,
+			"bookmark",
+			url.QueryEscape(hit.Name),
+			"0/1/0/0", // various faucets (bulk, hotlist, etc)
+			fmt.Sprint(hit.SetID),
+			hit.Language,
+			",",                                 // rarity
+			"0/999999.99",                       // min/max price range
+			fmt.Sprint(hit.FinishPricingTypeID), // 0 = any, 1 = nf, 2 = f
+			"default",
+		)
+
+		// Convert ids into human readable tags
+		var finish int
+		switch v := hit.Finish.(type) {
+		case int:
+			finish = v
+		case float64:
+			finish = int(v)
+		default:
+		}
+
+		cardStyle := scg.styleMap[hit.CardStyleID]
+		cardFinish := scg.finishMap[finish]
+
+		// Workaround for missing double styles
+		isSerial := strings.HasSuffix(hit.Image, "z.jpg") ||
+			strings.HasSuffix(hit.Image, "-vs.jpg") ||
+			strings.Contains(hit.Image, "serial")
+
+		// Unfortunately there are ~200 cards with no such tags, get creative
+		if !isSerial {
+			code := scg.setMap[hit.SetID]
+			if len(mtgmatcher.MatchInSetNumber(hit.Name, code, hit.CollectorNumber)) == 1 &&
+				magic.HasSerializedPrinting(hit.Name, code) &&
+				len(hit.Variants) > 0 &&
+				hit.Variants[0].BuyPrice >= 50 {
+				isSerial = true
+			}
+		}
+
+		if isSerial {
+			if cardFinish != "" {
+				cardFinish += " "
+			}
+			cardFinish += "Serialized"
+		}
+
+		var cardId string
+		var err error
+		var theCard *mtgmatcher.InputCard
+		if scg.game == GameMagic {
+			// Add back tags into subtitle, but skip the default foil/nonfoil to
+			// keep variants simple and compatible with the existing ones
+			if cardFinish == "Foil" || cardFinish == "Non-foil" {
+				cardFinish = ""
+			}
+			hit.Variants[0].Subtitle += " " + cardStyle + " " + cardFinish
+			hit.Variants[0].Subtitle = strings.Replace(hit.Variants[0].Subtitle, "  ", " ", -1)
+			hit.Variants[0].Subtitle = strings.TrimSpace(hit.Variants[0].Subtitle)
+
+			theCard, err = preprocess(hit)
+			if err != nil {
+				continue
+			}
+
+			cardId, err = mtgmatcher.Match(theCard)
+		} else if scg.game == GameLorcana {
+			cardName := hit.Name
+			number := hit.CollectorNumber
+			cardId, err = simpleSearch(cardName, number, hit.FinishPricingTypeID == 2)
+		}
+		if errors.Is(err, mtgmatcher.ErrUnsupported) {
+			continue
+		} else if err != nil {
+			scg.printf("%v for %+v", err, theCard)
+			scg.printf("%+v", hit)
+			scg.printf("-> %s", link)
+
+			var alias *mtgmatcher.AliasingError
+			if errors.As(err, &alias) {
+				probes := alias.Probe()
+				for _, probe := range probes {
+					co, _ := mtgmatcher.GetUUID(probe)
+					scg.printf("%s", co)
+				}
+			}
+			continue
+		}
+
+		for _, variant := range hit.Variants {
+			conditions := variant.VariantValue
+			switch conditions {
+			case "NM", "NM/M":
+				conditions = "NM"
+			case "PL":
+				conditions = "SP"
+				// Stricter grading for foils
+				if hit.FinishPricingTypeID == 2 {
+					conditions = "MP"
+				}
+			case "HP":
+				conditions = "MP"
+				// Stricter grading for foils
+				if hit.FinishPricingTypeID == 2 {
+					conditions = "HP"
+				}
+			default:
+				scg.printf("unknown condition %s for %v", conditions, variant)
+				continue
+			}
+
+			var priceRatio, sellPrice float64
+			price := variant.BuyPrice
+			if price == 0 {
+				continue
+			}
+
+			invCards := scg.inventory[cardId]
+			for _, invCard := range invCards {
+				sellPrice = invCard.Price
+				break
+			}
+			if sellPrice > 0 {
+				priceRatio = price / sellPrice * 100
+			}
+
+			// Add the line entry as needed by the csv import
+			var customFields map[string]string
+			if conditions == "NM" {
+				customFields = map[string]string{
+					"SCGName":     hit.Name,
+					"SCGEdition":  hit.SetName,
+					"SCGLanguage": hit.Language,
+					"SCGFinish":   fmt.Sprint(hit.FinishPricingTypeID),
+					// custom, helps debugging
+					"scgSubtitle": hit.Subtitle,
+					"scgNumber":   hit.CollectorNumber,
+					"scgSKU":      variant.Sku,
+					"scgCard":     fmt.Sprint(theCard),
+				}
+			}
+
+			channel <- responseChan{
+				cardId: cardId,
+				buyEntry: &mtgban.BuylistEntry{
+					Conditions:   conditions,
+					BuyPrice:     price,
+					Quantity:     0,
+					PriceRatio:   priceRatio,
+					URL:          link,
+					CustomFields: customFields,
+					OriginalID:   variant.Sku,
+				},
+				ignoreErr: strings.Contains(hit.Name, "Token"),
+			}
+		}
+	}
+}
+
+type setData struct {
+	Name  string
+	SetID int
+	Index int
+}
+
+func (scg *Starcitygames) scrapeBL(ctx context.Context) error {
+	settings, err := SearchSettings(ctx)
+	if err != nil {
+		return err
+	}
+
+	scg.styleMap = make(map[int]string)
+	scg.finishMap = make(map[int]string)
+	for _, style := range settings.CardStyles {
+		if style.GameID != scg.game {
+			continue
+		}
+
+		scg.styleMap[style.ID] = style.Name
+	}
+	for _, finish := range settings.CardFinishes {
+		if finish.GameID != scg.game {
+			continue
+		}
+
+		scg.finishMap[finish.ID] = finish.Name
+	}
+
+	scg.printf("Found %d styles and %d finishes", len(scg.styleMap), len(scg.finishMap))
+
+	search, err := scg.client.SearchBuylistEditions(ctx)
+	if err != nil {
+		return err
+	}
+
+	scg.setMap = make(map[int]string)
+	editions := make([]setData, 0, len(search.Hits))
+	for _, hit := range search.Hits {
+		if hit.GameID != scg.game {
+			continue
+		}
+
+		editions = append(editions, setData{
+			Name:  hit.Name,
+			SetID: hit.SetID,
+		})
+		scg.setMap[hit.SetID] = hit.WizardsCode
+	}
+
+	scg.printf("Found %d editions", len(editions))
+
+	for i := range editions {
+		editions[i].Index = i + 1
+	}
+
+	mtgban.WorkerPool(ctx, scg.MaxConcurrency, editions,
+		func(ctx context.Context, page setData, results chan<- responseChan) error {
+			if scg.TargetEdition != "" && scg.TargetEdition != page.Name {
+				return nil
+			}
+
+			scg.printf("Processing edition %s (%d/%d)", page.Name, page.Index, len(editions))
+			return scg.processBuylistEdition(ctx, results, page.SetID)
+		},
+		func(record responseChan) {
+			err := scg.buylist.Add(record.cardId, record.buyEntry)
+			if err != nil && !record.ignoreErr {
+				scg.printf("%s", err.Error())
+			}
+		},
+		scg.printf,
+	)
+
+	scg.buylistDate = time.Now()
+
+	return nil
+}
+
+func (scg *Starcitygames) SetConfig(opt mtgban.ScraperOptions) {
+	scg.DisableRetail = opt.DisableRetail
+	scg.DisableBuylist = opt.DisableBuylist
+}
+
 func (scg *Starcitygames) Load(ctx context.Context) error {
-	if err := scg.loadCatalog(ctx); err != nil {
-		return fmt.Errorf("catalog load failed: %w", err)
+	var errs []error
+
+	if !scg.DisableRetail {
+		err := scg.scrape(ctx)
+		if err != nil {
+			errs = append(errs, fmt.Errorf("inventory load failed: %w", err))
+		}
 	}
-	return nil
+
+	if !scg.DisableBuylist {
+		err := scg.scrapeBL(ctx)
+		if err != nil {
+			errs = append(errs, fmt.Errorf("buylist load failed: %w", err))
+		}
+	}
+
+	return errors.Join(errs...)
 }
 
-// secondStock reports whether this sku is the second stock bucket of a
-// listing already seen this run: by the marker it wears, or by its plain
-// twin arriving after the marked record registered the pair. Which of the
-// two the catalog streams first is not its to promise, and it does not
-// hold, so whichever arrives second is the one that folds.
-func (scg *Starcitygames) secondStock(sku string) bool {
-	key := bucketKey(sku)
-	if secondBucket(sku) {
-		scg.buckets[key] = struct{}{}
-		return true
-	}
-	_, paired := scg.buckets[key]
-	return paired
-}
-
-// addInventoryStock files a variant's retail record with the strictness the
-// bucket decision picked: a second bucket merges into the first rather than
-// reading as the duplicate it would otherwise be.
-func (scg *Starcitygames) addInventoryStock(second bool, cardID string, entry *mtgban.InventoryEntry) error {
-	if second {
-		return scg.inventory.Add(cardID, entry)
-	}
-	return scg.inventory.AddStrict(cardID, entry)
-}
-
-// addBuylistStock is addInventoryStock for the buylist side of the record.
-func (scg *Starcitygames) addBuylistStock(second bool, cardID string, entry *mtgban.BuylistEntry) error {
-	if second {
-		return scg.buylist.AddRelaxed(cardID, entry)
-	}
-	return scg.buylist.Add(cardID, entry)
-}
-
-// Inventory returns what Load collected. See mtgban.Seller.
 func (scg *Starcitygames) Inventory() mtgban.InventoryRecord {
 	return scg.inventory
 }
 
-// Buylist returns what Load collected. See mtgban.Vendor.
 func (scg *Starcitygames) Buylist() mtgban.BuylistRecord {
 	return scg.buylist
 }
 
-// Info describes this scraper. See mtgban.Scraper.
 func (scg *Starcitygames) Info() (info mtgban.ScraperInfo) {
 	info.Name = "Star City Games"
 	info.Shorthand = "SCG"
@@ -294,12 +633,8 @@ func (scg *Starcitygames) Info() (info mtgban.ScraperInfo) {
 	switch scg.game {
 	case GameMagic:
 		info.Game = mtgban.GameMagic
-	case GameFleshAndBlood:
-		info.Game = mtgban.GameFleshAndBlood
 	case GameLorcana:
 		info.Game = mtgban.GameLorcana
-	case GameRiftbound:
-		info.Game = mtgban.GameRiftbound
 	}
 	return
 }
