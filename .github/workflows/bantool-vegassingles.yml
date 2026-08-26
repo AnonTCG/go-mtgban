@@ -4,8 +4,10 @@ on:
   workflow_dispatch: {}
   repository_dispatch:
     types: [vegassingles]
-  schedule:
-    - cron: "50 5,17 * * *"
+  # AnonTCG: keep disabled until we decide cadence (and whether we consume
+  # this vendor at all — the 'VS' source is not in price_sources).
+  # schedule:
+  #   - cron: "6 20 * * *"
 
 permissions:
   contents: read

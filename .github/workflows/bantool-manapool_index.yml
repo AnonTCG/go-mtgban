@@ -4,8 +4,11 @@ on:
   workflow_dispatch: {}
   repository_dispatch:
     types: [manapool_index]
-  schedule:
-    - cron: "20 * * * *"
+  # AnonTCG: keep unscheduled — new upstream target (Mana Pool market-price
+  # index), carried dispatch-only until we decide to consume it (its source
+  # is not in price_sources; enabling is a deliberate ops decision).
+  # schedule:
+  #   - cron: "20 * * * *"
 
 permissions:
   contents: read
