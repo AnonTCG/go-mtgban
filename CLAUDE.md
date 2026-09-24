@@ -68,6 +68,31 @@ git fetch upstream
 git merge upstream/master
 ```
 
+### `gh` in this repo needs `--repo`, always
+
+This clone has two remotes (`origin` = AnonTCG/go-mtgban, `upstream` =
+mtgban/go-mtgban), and `gh` resolves the bare repo to **upstream**. Every
+`gh` command run from this directory without `--repo` therefore targets
+mtgban's repo, not ours:
+
+```bash
+gh workflow list                                   # ← lists UPSTREAM's workflows
+gh workflow run "magic / tcg_index"                # ← 403: Must have admin rights
+                                                   #   (dispatching mtgban's workflow)
+
+gh workflow list --repo AnonTCG/go-mtgban          # ← ours
+gh workflow run 284267798 --repo AnonTCG/go-mtgban # ← ours
+```
+
+Read-only calls are the dangerous ones: they succeed quietly against
+upstream and hand back workflow ids that do not exist here (upstream's
+`magic / tcg_index` is 188972717, ours is 284267798). Confirmed 2026-09-24.
+
+Related: `gh` may be logged into more than one account (`gh auth status`).
+AnonTCG-ETL is private and only visible to the account that owns it — a
+wrong active account 404s on the whole repo, which reads like "deleted"
+rather than "no access". `gh auth switch --user <name>` fixes it.
+
 ## What's intentionally NOT here
 
 - Per-game workflows (`bantool-*_lorcana.yml`, `*_onepiece.yml`,
