@@ -263,13 +263,30 @@ func (tcg *Market) Load(ctx context.Context) error {
 
 			for _, card := range set.Cards {
 				uuid := card.Identifiers["mtgjsonId"]
-				skus, found := skusMap[uuid]
-				if !found {
+				skus, hasCachedSKUs := skusMap[uuid]
+
+				// AnonTCG deviation (not upstream). needsNewTCGSKUs means
+				// "MTGJSON's cached sku list is not to be trusted for this
+				// card, refetch from the product id". Upstream checks the
+				// cache FIRST and skips anything missing from it, so the flag
+				// is only ever honored for cards that already had an entry.
+				//
+				// The cards the id-override subsystem fills have no entry at
+				// all: MTGJSON publishes neither a tcgplayerProductId nor a
+				// TcgplayerSkus.json row for them (verified 2026-09-24 on
+				// build 5.3.0+20260923). Skipping them here leaves the
+				// override fixing tcg_index only, while tcg_market - the
+				// per-sku TCGPlayer/TCGDirect rows the decklist export reads
+				// for three of its four price columns - stays empty.
+				//
+				// A card with no cached skus and no refetch flag is still
+				// skipped, exactly as before.
+				_, needsRefetch := card.Identifiers["needsNewTCGSKUs"]
+				if !hasCachedSKUs && !needsRefetch {
 					continue
 				}
 
-				_, found = card.Identifiers["needsNewTCGSKUs"]
-				if found {
+				if needsRefetch {
 					tcgID := card.Identifiers["tcgplayerProductId"]
 					id, err := strconv.Atoi(tcgID)
 					if err != nil {
