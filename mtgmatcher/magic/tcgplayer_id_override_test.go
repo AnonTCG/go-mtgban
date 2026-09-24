@@ -124,14 +124,26 @@ func TestApplyTCGIDOverrideIgnoresUnknownUUID(t *testing.T) {
 	}
 }
 
-// Every entry must record the broken state it was written against, or the
-// staleness check silently degrades to "always warn".
+// A HAND-CURATED entry must record the broken state it was written against, or
+// the staleness check silently degrades to "always warn". Generated entries are
+// exempt and checked separately below: for those the empty upstream state IS
+// the recorded state, because MTGJSON publishes no id at all.
 func TestTCGIDOverrideEntriesRecordUpstreamState(t *testing.T) {
-	for uuid, ov := range tcgIDOverride {
+	manual := parseTCGIDOverride(tcgIDOverrideRaw, "tcgplayer_id_override.json")
+	if len(manual) == 0 {
+		t.Skip("no hand-curated entries left")
+	}
+	for uuid, ov := range manual {
 		if ov.UpstreamPrimary == "" && ov.UpstreamAltFoil == "" {
 			t.Errorf("%s (%s %s #%s): no upstream_primary/upstream_alt_foil recorded",
 				uuid, ov.Set, ov.Name, ov.Number)
 		}
+	}
+}
+
+// Invariants every entry shares, whatever produced it.
+func TestTCGIDOverrideEntriesAreActionable(t *testing.T) {
+	for uuid, ov := range tcgIDOverride {
 		if ov.Primary == "" {
 			t.Errorf("%s (%s %s #%s): empty primary product id",
 				uuid, ov.Set, ov.Name, ov.Number)
@@ -142,4 +154,26 @@ func TestTCGIDOverrideEntriesRecordUpstreamState(t *testing.T) {
 				uuid, ov.Set, ov.Name, ov.Number)
 		}
 	}
+}
+
+// The generated map exists to fill cards MTGJSON never mapped. An entry there
+// carrying a non-empty upstream primary is a CORRECTION, not a fill - fine, but
+// it must still differ from what upstream publishes, which the shared invariant
+// above already enforces. What this pins is the merge: a uuid present in both
+// files must resolve to the hand-curated value.
+func TestManualOverrideWinsOverGenerated(t *testing.T) {
+	manual := parseTCGIDOverride(tcgIDOverrideRaw, "tcgplayer_id_override.json")
+
+	var overlapping int
+	for uuid, want := range manual {
+		if _, dup := tcgIDOverrideGenerated[uuid]; !dup {
+			continue
+		}
+		overlapping++
+		if got := tcgIDOverride[uuid]; got != want {
+			t.Errorf("%s: merged entry is %+v, want the hand-curated %+v", uuid, got, want)
+		}
+	}
+	t.Logf("%d manual, %d generated, %d overlapping, %d merged",
+		len(manual), len(tcgIDOverrideGenerated), overlapping, len(tcgIDOverride))
 }

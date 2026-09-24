@@ -4,6 +4,7 @@ import (
 	_ "embed"
 	"encoding/json"
 	"log"
+	"maps"
 )
 
 // AnonTCG deviation (not upstream). MTGJSON periodically publishes wrong
@@ -44,6 +45,20 @@ import (
 //go:embed tcgplayer_id_override.json
 var tcgIDOverrideRaw []byte
 
+// The generated half, produced by cmd/gen-tcgid-override from a
+// cmd/tcgid4scryfall report. It covers the far larger and far more mechanical
+// failure: MTGJSON publishing NO tcgplayerProductId at all (3,810 of our
+// 110,299 entities on 2026-09-24), which leaves both TCGplayer scrapers with
+// nothing to enqueue and the card at $0.00.
+//
+// Kept in its own file so regeneration is a wholesale overwrite that cannot
+// touch a hand-curated entry. The manual map wins on conflict — a human who
+// reasoned about a card has seen something the report cannot express, such as
+// the alt-foil DELETE the HOB pair needs.
+//
+//go:embed tcgplayer_id_override_generated.json
+var tcgIDOverrideGeneratedRaw []byte
+
 type tcgIDOverrideEntry struct {
 	Set    string `json:"set"`
 	Name   string `json:"name"`
@@ -63,14 +78,32 @@ type tcgIDOverrideEntry struct {
 
 var tcgIDOverride = loadTCGIDOverride()
 
-func loadTCGIDOverride() map[string]tcgIDOverrideEntry {
+// tcgIDOverrideGenerated is the generated subset, kept addressable on its own
+// so tests can hold it to a different invariant: a generated entry records an
+// EMPTY upstream state (that is the whole point - MTGJSON publishes nothing),
+// where a manual entry must record the broken values it was written against.
+var tcgIDOverrideGenerated = parseTCGIDOverride(tcgIDOverrideGeneratedRaw, "tcgplayer_id_override_generated.json")
+
+func parseTCGIDOverride(raw []byte, name string) map[string]tcgIDOverrideEntry {
 	var payload struct {
 		Cards map[string]tcgIDOverrideEntry `json:"cards"`
 	}
-	if err := json.Unmarshal(tcgIDOverrideRaw, &payload); err != nil {
-		panic("mtgmatcher: invalid tcgplayer_id_override.json: " + err.Error())
+	if err := json.Unmarshal(raw, &payload); err != nil {
+		panic("mtgmatcher: invalid " + name + ": " + err.Error())
 	}
 	return payload.Cards
+}
+
+// loadTCGIDOverride merges the generated map under the hand-curated one.
+// Manual entries are applied last and therefore win: they exist because a
+// human found something the automated report cannot see.
+func loadTCGIDOverride() map[string]tcgIDOverrideEntry {
+	manual := parseTCGIDOverride(tcgIDOverrideRaw, "tcgplayer_id_override.json")
+
+	merged := map[string]tcgIDOverrideEntry{}
+	maps.Copy(merged, parseTCGIDOverride(tcgIDOverrideGeneratedRaw, "tcgplayer_id_override_generated.json"))
+	maps.Copy(merged, manual)
+	return merged
 }
 
 // overrideState classifies live MTGJSON identifiers against an override entry.
