@@ -97,13 +97,38 @@ The fork was re-cut on upstream/master (game-agnostic mtgmatcher, 7 games).
 Everything below is the complete deviation surface — keep it small:
 
 1. `mtgmatcher/magic/tcgplayer_id_override.*` — TCGplayer id-override
-   subsystem (MTGJSON mis-publication fixes, currently the HOB Gleaming
-   Splendor pair). Call site in `mtgmatcher/magic/mtgjson.go`.
-2. `tcgplayer/tcgplayer.go` + `manapool/manapool.go` — raw item prices for
+   subsystem. Call site in `mtgmatcher/magic/mtgjson.go`. Two maps, merged at
+   load with the manual one winning:
+   - `tcgplayer_id_override.json` — HAND-CURATED, for MTGJSON publishing a
+     *wrong* id (currently the HOB Gleaming Splendor pair, which needs an
+     alt-foil DELETE no report can express). Edit by hand; each entry records
+     the broken upstream values so `classify()` can flag it stale.
+   - `tcgplayer_id_override_generated.json` — GENERATED, for MTGJSON
+     publishing *no* id at all (3,810 of AnonTCG's 110,299 entities on
+     2026-09-24; Scryfall, MTGJSON's source for the field, has the same gap).
+     Never hand-edit — regenerate with `cmd/gen-tcgid-override` from a
+     `cmd/tcgid4scryfall` report. Entries carry an empty `upstream_primary`,
+     which is what makes `classify()` report them Redundant once MTGJSON
+     catches up.
+2. `cmd/gen-tcgid-override` — builds the generated map above. Also writes
+   AnonTCG-ETL's copy via `-etl-o`: that repo backfills
+   `mtg_entities.identifiers.tcgplayer_product` at ingest (feeding
+   `search_catalog`, the upload RPCs and the website's TCGplayer links), and
+   reads our DB rather than the matcher, so it cannot use the embedded map.
+   One command writes both so they cannot drift; `-check` fails on drift.
+   `.github/workflows/tcgid_override_refresh.yml` runs it biweekly and opens
+   a PR — it never pushes to master, and never writes the other repo.
+   `cmd/tcgid4scryfall` itself is upstream's and stays UNMODIFIED.
+3. `tcgplayer/tcgplayer.go` + `manapool/manapool.go` — raw item prices for
    valuation (bare `LowPrice`; shipping / buyer-fee rate in `CustomFields`).
-   Also the `"NON FOIL"` SKU-refetch fix (upstream still has `"NORMAL"`).
-3. `tcgplayer/utils.go` — affiliate id baked into `PartnerProductURL`.
-4. `starcitygames/` — the WHOLE package is our fork's sell-list
+   Also the `"NON FOIL"` SKU-refetch fix (upstream still has `"NORMAL"`), and
+   the SKU gate: upstream checks `skusMap` BEFORE `needsNewTCGSKUs` and so
+   skips any uuid missing from `TcgplayerSkus.json` — exactly the cards the
+   generated override exists to fill. Ours lets the refetch flag through
+   without a cached entry, which is what gets them per-SKU
+   TCGPlayer/TCGDirect rows rather than index prices only.
+4. `tcgplayer/utils.go` — affiliate id baked into `PartnerProductURL`.
+5. `starcitygames/` — the WHOLE package is our fork's sell-list
    implementation, not upstream's catalog-API rewrite. Production runs
    buylist-only on a bearer scraped from the public sellyourcards app.js
    (no stored credential); upstream's catalog API needs an `x-api-key` we
@@ -114,7 +139,7 @@ Everything below is the complete deviation surface — keep it small:
    `SCG_GUID`/`SCG_BEARER`/`SCG_BUYLIST_ONLY`; upstream's other-game SCG
    targets were removed (they need the catalog scraper). On upstream syncs,
    keep `starcitygames/` ours and re-check the three core call sites.
-5. `.github/workflows/` — R2 output, no B2/mtgban.com, our cron schedule,
+6. `.github/workflows/` — R2 output, no B2/mtgban.com, our cron schedule,
    21 Magic targets (+ manapool_index). The exit-2 "Check bantool status"
    gate is deliberately `if: false`: SCG buylist-only runs ALWAYS exit 2
    ("seller SCG has no data" is expected), so a blanket gate turns every
