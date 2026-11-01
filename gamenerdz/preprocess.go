@@ -466,7 +466,7 @@ var magicShelves = map[string]string{
 // with the storefront's own index with the sets those promos sit in.
 var magicPromoShelves = map[string][]string{
 	"mfp":   {"MagicFest 2025"},
-	"ump":   {"MagicFest 2025", "Media and Collaboration Promos", "URL/Convention Promos"},
+	"ump":   {"MagicFest 2025", "Wizards Play Network 2026", "Media and Collaboration Promos", "URL/Convention Promos"},
 	"media": {"URL/Convention Promos", "Media and Collaboration Promos"},
 	"play":  {"Spotlight Series"},
 }
