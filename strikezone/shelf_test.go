@@ -68,6 +68,7 @@ func TestShelfCards(t *testing.T) {
 		{"Arcane Signet (CommandFest 2025)", "Promos: Magicfest", "Near Mint Foil English", "PF25", "10"},
 		{"Lightning Bolt", "Promos: Magicfest", "Near Mint Foil English", "PF19", "1"},
 		{"Counterspell (0002)", "Secret Lair", "Near Mint Foil English", "PURL", "2"},
+		{"Flooded Strand (001)", "Promos: Unique and Miscellaneous", "Near Mint Foil English", "PNAT", "2018"},
 	} {
 		card, err := preprocess(b, tt.name, tt.edition, tt.notes)
 		if err != nil {

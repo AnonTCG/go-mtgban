@@ -380,6 +380,8 @@ func preprocess(b *matcher.Backend, cardName, edition, notes string) (*matcher.I
 			edition = "PWOS"
 		case "J. Jonah Jameson":
 			edition = "PF25"
+		case "Flooded Strand":
+			edition = "PNAT"
 		}
 	case "Promos: Launch Party and Release Event":
 		if magic.IsBasicLand(cardName) {
