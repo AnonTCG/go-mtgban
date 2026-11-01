@@ -78,6 +78,7 @@ func TestCatalogFabShapes(t *testing.T) {
 		{"first edition run", withTCGPlayerID(product("SGL-FAB-ELE1-080-ENR", "Rites of Replenishment (Yellow)", "Tales of Aria (1st Edition)", "Rainbow Foil", "Foil"), "248353"), "ele080_248353_1steditionrainbowfoil"},
 		{"marker finds the extended art past the pitch label", product("SGL-FAB-HNT2-155-ENR", "Drop of Dragon Blood", "The Hunted", "Rainbow Foil", "Foil"), "hnt155_614550_rainbowfoil"},
 		{"misspelt name", product("SGL-FAB-PEN-190-ENN", "Deep Recess of Existence", "Compendium of Rathe", "Non-foil", "Non-foil"), "pen190_676395"},
+		{"art card named as the card", product("SGL-FAB-PRM-FAB_404-ENC", "Peace Art Card", "Promotional Cards", "Cold Foil", "Alt Foil"), "fab404_685513_coldfoil"},
 		{"misspelt number", product("SGL-FAB-APS-056-ENR", "Attention Grabbers", "Armory Deck: Pleiades", "Rainbow Foil", "Foil"), "aps006_653806_rainbowfoil"},
 		{"lettered marvels", product("SGL-FAB-MPG2-112b-ENC", "Seismic Surge", "Mastery Pack Guardian", "Cold Foil", "Alt Foil"), "mpg112_647746_coldfoil"},
 	} {

@@ -1811,10 +1811,11 @@ var fabFinishes = map[string]string{
 	"Gold Foil": "Cold Foil",
 }
 
-// fabNames spells the names the catalog misspells.
+// fabNames respells catalog names that disagree with the datastore.
 var fabNames = map[string]string{
 	"Deep Recess of Existence": "Deep Recesses of Existence",
 	"Robe of Resourcefullness": "Robe of Resourcefulness",
+	"Peace Art Card":           "Peace",
 
 	"Gold / Goldkiss Rum // Gold / Goldkiss Rum": "Goldkiss Rum // Gold",
 }
