@@ -22,10 +22,6 @@ on:
       datastore-cache-key:
         required: false
         type: string
-      skus-filepath:
-        type: string
-      skus-cache-key:
-        type: string
       # The Cardmarket id map the index prices from, as go-cardmarket's
       # catalog dump publishes it.
       cardmarket-catalog-filepath:
@@ -77,14 +73,6 @@ jobs:
           key: ${{ inputs.datastore-cache-key }}
           fail-on-cache-miss: true
 
-      - if: ${{ inputs.skus-cache-key }}
-        name: Cache Skus
-        uses: actions/cache/restore@v6
-        with:
-          path: "datastore/"
-          key: ${{ inputs.skus-cache-key }}
-          fail-on-cache-miss: true
-
       - name: Build bantool
         run: |
           cd cmd/bantool
@@ -96,7 +84,6 @@ jobs:
           AFFILIATE: "${{ inputs.affiliate }}"
           MAX_CONCURRENCY: "${{ vars.MAX_CONCURRENCY }}"
 
-          MTGJSON_TCGSKU_PATH: "${{ inputs.skus-filepath }}"
           CARDMARKET_CATALOG_PATH: "${{ inputs.cardmarket-catalog-filepath }}"
           # The catalog dump is published beside every game's datastore, on
           # the same schedule, and names the product each sku belongs to.
