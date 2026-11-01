@@ -269,6 +269,9 @@ var tcgIDOverrides = map[int]int{
 	353893: 658910, // Blue-Eyes White Dragon, LCKC-EN001
 	353939: 658920, // Crush Card Virus, LCKC-EN046
 	353940: 658921, // Crush Card Virus, LCKC-EN046 Alternate Art
+	// Flesh and Blood: the TCGplayer id sent is the Cardmarket one.
+	281847: 580614, // Cintari Saber (Left) (Golden), FAB184
+	281849: 580615, // Cintari Saber (Right) (Golden), FAB185
 	// Flesh and Blood: Spectral Shield's plain print, not its token.
 	289168: 552843, // Spectral Shield, MST158-A
 	// Gundam: the ST11-ST14 release event promos, filed under GD06.
