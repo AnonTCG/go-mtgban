@@ -273,6 +273,51 @@ var versionPrintings = map[int]struct{ set, number string }{
 	16943: {"SUM", "298"}, // Swamp (V.2), CardTrader
 	16948: {"SUM", "299"}, // Swamp (V.3), CardTrader
 
+	// Simplified Chinese Alternate Art Cards: Portal, the V.N order of the
+	// English shelf, which each product's CardTrader blueprint art confirms
+	257595: {"POR", "212s"}, // Forest (V.1), shelf order
+	257596: {"POR", "213s"}, // Forest (V.2), shelf order
+	257597: {"POR", "214s"}, // Forest (V.3), shelf order
+	257598: {"POR", "215s"}, // Forest (V.4), shelf order
+	257602: {"POR", "200s"}, // Island (V.1), shelf order
+	257603: {"POR", "201s"}, // Island (V.2), shelf order
+	257604: {"POR", "202s"}, // Island (V.3), shelf order
+	257605: {"POR", "203s"}, // Island (V.4), shelf order
+	257606: {"POR", "208s"}, // Mountain (V.1), shelf order
+	257607: {"POR", "209s"}, // Mountain (V.2), shelf order
+	257608: {"POR", "210s"}, // Mountain (V.3), shelf order
+	257609: {"POR", "211s"}, // Mountain (V.4), shelf order
+	257610: {"POR", "196s"}, // Plains (V.1), shelf order
+	257611: {"POR", "197s"}, // Plains (V.2), shelf order
+	257612: {"POR", "198s"}, // Plains (V.3), shelf order
+	257613: {"POR", "199s"}, // Plains (V.4), shelf order
+
+	// Simplified Chinese Alternate Art Cards: Eighth and Tenth Edition. A
+	// nonfoil and a foil product share each printing and the table holds
+	// one, the product whose guide price is the more valuable column; the
+	// other stays skipped.
+	257636: {"8ED", "121s"}, // Carrion Wall (V.2), foil price
+	257637: {"8ED", "125s"}, // Death Pits of Rath (V.1), nonfoil price
+	257640: {"8ED", "129s"}, // Drudge Skeletons (V.5), foil price
+	259545: {"10E", "139s"}, // Drudge Skeletons (V.7), CardTrader
+
+	// Promos: media inserts that MTGJSON links to a printing and its later
+	// reprint at once, kept on the printing of the product's own era
+	382566: {"PMEI", "2019-3"}, // Shock, era
+	412234: {"PMEI", "2019-6"}, // Duress, era
+	448968: {"PMEI", "2020-1"}, // Voltaic Key, era
+	530787: {"PMEI", "2020-4"}, // Dark Ritual, era
+	530797: {"PMEI", "2020-7"}, // Crop Rotation, era
+	569213: {"PMEI", "2021-1"}, // Counterspell (V.1), era
+	573875: {"PMEI", "2021-2"}, // Bone Shredder, era
+	690039: {"PMEI", "2022-2"}, // Wild Growth, era
+	690040: {"PMEI", "2022-4"}, // Frantic Search, era
+	750367: {"PMEI", "2022-1"}, // Disenchant, era
+	772038: {"PMEI", "2023-2"}, // Worn Powerstone, era
+
+	// MagicCon Products
+	830163: {"PPRO", "2025-1"}, // Cloud, Midgar Mercenary, era
+
 	// 30th Anniversary History Promos
 	678517: {"P30H", "4★"}, // Shivan Dragon (V.2), CardTrader
 	678520: {"P30H", "5★"}, // Llanowar Elves (V.2), CardTrader
@@ -294,6 +339,9 @@ var versionPrintings = map[int]struct{ set, number string }{
 	839912: {"SLD", "2109★"}, // Sylvan Safekeeper, CardTrader
 	839914: {"SLD", "2110★"}, // Crucible of Worlds, CardTrader
 	839916: {"SLD", "2111★"}, // Zuran Orb, CardTrader
+
+	// Lorwyn Eclipsed: Promos
+	866276: {"PECL", "244p"}, // Sygg's Command, CardTrader
 }
 
 // etchedPrintings is versionPrintings for the products that are the etched

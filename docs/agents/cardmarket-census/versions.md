@@ -22,6 +22,12 @@ all to the V.1 product, at CardTrader's numbers; Ebony Charm's V.1 and its
 corrected V.2, which the map gives one id in Mirage; and The List's Tetsuko
 Umezawa, Fugitive, which the map links to neither of its two candidates.
 
+It also places the Simplified Chinese alternate-art basics of Portal and a
+few Eighth and Tenth Edition alternate arts, which the map links to no
+printing; the media inserts (PMEI, PPRO) the map links to a printing and its
+later reprint at once; and Lorwyn Eclipsed's promo Sygg's Command, which the
+map links to the plain printing while the promo carries an Elf token's id.
+
 `etchedPrintings` is the same table for products that are a printing's
 etched finish, such as the "(V.2)" of Carrion Feeder, Plaguecrafter,
 Thoughtseize and Doomsday in October Superdrop 2022. The datastore carries
@@ -83,6 +89,9 @@ The tag after each row's name says what placed it:
 | left over | the one row of its group left once the other versions are placed |
 | map lists two, four | the map files the product on several printings. CardTrader and the sibling priced on the other one agree which is this product's |
 | Scryfall | the map does not carry the product, and Scryfall's own `cardmarket_id` names its printing |
+| shelf order | the V.N order of the card's English shelf; the CardTrader blueprint linked to each product shows the same art as that printing on Scryfall |
+| foil price, nonfoil price | the shelf holds a nonfoil and a foil product of one printing, which the table can name once; the row keeps the product whose guide prices it, in that column, and the other stays skipped |
+| era | the map lists a media insert and its later reprint; CardTrader's blueprint for the product carries the insert's Scryfall id, or, where it carries none, Cardmarket's date added places it |
 
 The images settled 35 disputes: 33 went CardTrader's way and two went
 Scryfall's (Antoine Ruel's Island V.4 is ar335, Mark Le Pine's Mountain
