@@ -27,6 +27,18 @@ func TestGameInput(t *testing.T) {
 		},
 		{
 			game:    matcher.GameFleshAndBlood,
+			card:    Card{Name: "Rhinar, Reckless Rampage // Harmonized Kodachi (No", Edition: "Welcome to Rathe - Unlimited", Number: "078/225"},
+			variant: Variant{Print: "Unl.", Foil: "Non Foil"},
+			want:    matcher.InputCard{Name: "Rhinar, Reckless Rampage // Harmonized Kodachi", Edition: "Welcome to Rathe - Unlimited", Finish: "Unlimited Edition Normal"},
+		},
+		{
+			game:    matcher.GameFleshAndBlood,
+			card:    Card{Name: "Embodiment of Earth // Embodiment of Lightning (", Edition: "Tales of Aria - Unlimited", Number: "109/110"},
+			variant: Variant{Print: "Unl.", Foil: "Non Foil"},
+			want:    matcher.InputCard{Name: "Embodiment of Earth // Embodiment of Lightning (", Edition: "Tales of Aria - Unlimited", Finish: "Unlimited Edition Normal"},
+		},
+		{
+			game:    matcher.GameFleshAndBlood,
 			card:    Card{Name: "Drone of Brutality (Red) (Rainbow Foil)", Edition: "Welcome to Rathe - Unlimited", Number: "WTR164"},
 			variant: Variant{Print: "Unl.", Foil: "Non Foil"},
 			want:    matcher.InputCard{Name: "Drone of Brutality (Red)", Edition: "Welcome to Rathe - Unlimited", Variation: "WTR164", Foil: true, Finish: "Unlimited Edition Rainbow Foil"},

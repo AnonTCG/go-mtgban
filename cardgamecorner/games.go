@@ -368,7 +368,11 @@ func gameInput(game matcher.Game, card *Card, index int) *matcher.InputCard {
 		// Every name ends in its finish, which hides the pitch before it
 		// from the rules, and is the only place a rainbow foil says so
 		name, rainbow = strings.CutSuffix(name, " (Rainbow Foil)")
-		name = strings.TrimSuffix(name, " (Normal)")
+		// The store cuts a name at 50 characters, leaving " (No" for it
+		cut := strings.LastIndex(name, " (")
+		if cut >= 0 && len(name)-cut > 2 && strings.HasPrefix(" (Normal)", name[cut:]) {
+			name = name[:cut]
+		}
 		foil = foil || rainbow
 		// A double-sided card is numbered "001/002" with its faces in
 		// ascending order, which the catalog does not keep, and both
