@@ -298,6 +298,8 @@ var tcgIDOverrides = map[int]int{
 	417446: 721555, // T-029 Winner Pack 06
 	// Magic: the Scryfall id names the card before it on the shelf.
 	155490: 237359, // Nicol Bolas, God-Pharaoh, PHOU 140p
+	// Magic: the id sent is a sealed product; Cardmarket 914142 names the card.
+	415429: 721395, // Aeon Engine, PLST C19-52
 }
 
 // TCGplayerProductID answers the TCGplayer id a blueprint's listings resolve

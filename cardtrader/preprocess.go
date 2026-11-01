@@ -475,6 +475,14 @@ func Preprocess(b *matcher.Backend, bp *Blueprint) (*matcher.InputCard, error) {
 			// guess at another card. Only an id-less card may be an SLD print.
 			hasID := bp.ScryfallID != "" || bp.TCGplayerProductID() != 0
 			n := plstNumber(b, cardName, number)
+			// A List printing with a TCGplayer product of its own is an
+			// older reprint, not the deck's copy the id failed to name.
+			if hasID && n != "" {
+				cards := b.MatchInSetNumber(cardName, "PLST", n)
+				if len(cards) > 0 && cards[0].Identifiers["tcgplayerProductId"] != "" {
+					n = ""
+				}
+			}
 			if !hasID && len(b.MatchInSetNumber(cardName, "SLD", number)) > 0 {
 				edition = "Secret Lair Drop"
 				variant = number
