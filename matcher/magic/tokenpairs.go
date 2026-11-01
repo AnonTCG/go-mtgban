@@ -2,6 +2,7 @@ package magic
 
 import (
 	"fmt"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -204,6 +205,76 @@ func deriveTokenPairs(sets map[string]*Set, uuids map[string]*matcher.CardObject
 	}
 
 	return derived
+}
+
+// tcgProductKeys are the identifiers that give a printing a TCGplayer product.
+var tcgProductKeys = [...]string{"tcgplayerProductId", "tcgplayerEtchedProductId", "tcgplayerAlternativeFoilProductId"}
+
+// ownTokenProducts returns the distinct product ids tokenProducts names as
+// selling this printing alone: a single-part entry whose part is the
+// printing itself.
+func ownTokenProducts(card *Card) []string {
+	var ids []string
+	for _, tp := range card.TokenProducts {
+		if len(tp.TokenParts) != 1 || tp.TokenParts[0].UUID != card.UUID {
+			continue
+		}
+		id := tp.Identifiers["tcgplayerProductId"]
+		if id != "" && !slices.Contains(ids, id) {
+			ids = append(ids, id)
+		}
+	}
+	return ids
+}
+
+// adoptOwnTokenProducts gives a printing with no TCGplayer product the one
+// product tokenProducts says sells it alone, so the id reaches it the way
+// any other product id does. It is adopted only when nothing is in doubt:
+// the printing names exactly one such product, no other printing names
+// that product as its own, and no printing or sealed product carries it
+// under any id.
+func adoptOwnTokenProducts(sets map[string]*Set) {
+	owned := map[string]bool{}
+	claimants := map[string]int{}
+	for _, set := range sets {
+		for _, product := range set.SealedProduct {
+			for _, key := range tcgProductKeys {
+				id := product.Identifiers[key]
+				if id != "" {
+					owned[id] = true
+				}
+			}
+		}
+		for i := range set.Cards {
+			card := &set.Cards[i]
+			for _, key := range tcgProductKeys {
+				id := card.Identifiers[key]
+				if id != "" {
+					owned[id] = true
+				}
+			}
+			for _, id := range ownTokenProducts(card) {
+				claimants[id]++
+			}
+		}
+	}
+
+	for _, set := range sets {
+		for i := range set.Cards {
+			card := &set.Cards[i]
+			if card.Identifiers["tcgplayerProductId"] != "" {
+				continue
+			}
+			ids := ownTokenProducts(card)
+			if len(ids) != 1 || claimants[ids[0]] != 1 || owned[ids[0]] {
+				continue
+			}
+			if card.Identifiers == nil {
+				card.Identifiers = map[string]string{}
+			}
+			card.Identifiers["tcgplayerProductId"] = ids[0]
+		}
+	}
 }
 
 // isTokenPairLayout is an allowlist (layout is upstream-extensible).

@@ -1281,6 +1281,10 @@ func (ap *AllPrintings) newBackend() *matcher.Backend {
 		}
 	}
 
+	// A token mtgjson sells under its own product only through
+	// tokenProducts takes that product as its id, before any is filed
+	adoptOwnTokenProducts(ap.Data)
+
 	duplicate(ap.Data, "Legends Italian", "LEG", "ITA", "1995-09-01")
 	duplicate(ap.Data, "The Dark Italian", "DRK", "ITA", "1995-08-01")
 	duplicate(ap.Data, "Alternate Fourth Edition", "4ED", "ALT", "1995-04-01")

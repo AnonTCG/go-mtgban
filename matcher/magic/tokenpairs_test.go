@@ -640,3 +640,65 @@ func TestDeriveTokenPairsCrossSetFallsBackRatherThanDrops(t *testing.T) {
 		t.Errorf("derived pairing filed under %q, want the first face's token set TAAA", derived[0].SetCode)
 	}
 }
+
+// TestAdoptOwnTokenProducts pins when a printing with no TCGplayer product
+// takes the one tokenProducts names as selling it alone: only when it names
+// exactly one, no other printing names the same one as its own, and no
+// printing or sealed product carries it under any id.
+func TestAdoptOwnTokenProducts(t *testing.T) {
+	own := func(uuid string, ids ...string) Card {
+		card := Card{UUID: uuid, Identifiers: map[string]string{}}
+		for _, id := range ids {
+			card.TokenProducts = append(card.TokenProducts, TokenProduct{
+				Identifiers: map[string]string{"tcgplayerProductId": id},
+				TokenParts:  []TokenPart{{UUID: uuid}},
+			})
+		}
+		return card
+	}
+	pair := own("pair")
+	pair.TokenProducts = []TokenProduct{{
+		Identifiers: map[string]string{"tcgplayerProductId": "6"},
+		TokenParts:  []TokenPart{{UUID: "pair"}, {UUID: "other"}},
+	}}
+	priced := own("priced", "7")
+	priced.Identifiers["tcgplayerProductId"] = "70"
+	etched := own("etched")
+	etched.Identifiers["tcgplayerEtchedProductId"] = "8"
+	foreign := own("foreign")
+	foreign.TokenProducts = []TokenProduct{{
+		Identifiers: map[string]string{"tcgplayerProductId": "9"},
+		TokenParts:  []TokenPart{{UUID: "someone else"}},
+	}}
+
+	sets := map[string]*Set{"TAAA": {Code: "TAAA", SealedProduct: []SealedProduct{{
+		UUID:        "box",
+		Identifiers: map[string]string{"tcgplayerProductId": "10"},
+	}}, Cards: []Card{
+		own("alone", "1"),
+		own("twice", "2", "3"),
+		own("shared a", "4"),
+		own("shared b", "4"),
+		own("repeated", "5", "5"),
+		pair,
+		priced,
+		etched,
+		own("owned", "8"),
+		own("boxed", "10"),
+		foreign,
+	}}}
+
+	adoptOwnTokenProducts(sets)
+
+	want := map[string]string{
+		"alone":    "1",
+		"repeated": "5",
+		"priced":   "70",
+	}
+	for _, card := range sets["TAAA"].Cards {
+		got := card.Identifiers["tcgplayerProductId"]
+		if got != want[card.UUID] {
+			t.Errorf("%s: tcgplayerProductId %q, want %q", card.UUID, got, want[card.UUID])
+		}
+	}
+}
