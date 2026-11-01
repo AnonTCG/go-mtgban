@@ -40,6 +40,13 @@ func TestPromoShelf(t *testing.T) {
 			wantSet: "PW25", wantNumber: "17",
 		},
 		{
+			desc: "a MagicCon full-art Counterspell is the second Universes Within number",
+			jp:   "【Foil】(002)■フルアート■《対抗呪文/Counterspell》(MagicConプロモ)[流星マーク] 青",
+			en:   "【Foil】(002)■Full-Art■《Counterspell》[MagicCon Promo]",
+			card: "Counterspell", foil: "1",
+			wantSet: "PURL", wantNumber: "2",
+		},
+		{
 			desc: "a judge foil told apart by the year in its title",
 			jp:   "【Foil】《吸血の教示者/Vampiric Tutor》(2018年版ジャッジ褒賞)[流星マーク] 黒",
 			en:   "【Foil】■2018Ver.■《Vampiric Tutor》 [Judge Foil]",

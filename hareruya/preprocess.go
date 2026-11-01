@@ -1684,6 +1684,7 @@ var promoMap = map[string]map[string]map[string]struct {
 				Edition: "PF24",
 				Variant: "1",
 			},
+			"Full-Art 2": {Edition: "PURL", Variant: "2"},
 		},
 	},
 	"MagicFest": {
