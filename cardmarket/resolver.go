@@ -671,9 +671,6 @@ func (r *resolver) resolveProduct(product *cm.Product) (string, string, bool, er
 			if r.gameID == cm.GameOnePiece {
 				return "", "", false, err
 			}
-			r.logf("%v", err)
-			r.logf("%+v", product)
-
 			if errors.As(err, &alias) {
 				probes := alias.Probe()
 				r.logf("%s got ids: %s", cardName, probes)
@@ -697,10 +694,6 @@ func (r *resolver) resolveProduct(product *cm.Product) (string, string, bool, er
 			// probe's error may carry the more informative verdict
 			if errFoil != nil {
 				err = errFoil
-			}
-			if r.gameID != cm.GameOnePiece {
-				r.logf("%v", err)
-				r.logf("%+v", product)
 			}
 			return "", "", false, err
 		}
