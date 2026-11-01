@@ -168,6 +168,14 @@ func (cgc *Cardgamecorner) processEntry(channel chan<- resultChan, cards []listi
 					cardID, err = id, nil
 				}
 			}
+			// The number field is wrong on a few Yu-Gi-Oh listings, while
+			// the SKU still ends in the card's own
+			if errors.Is(err, matcher.ErrCardWrongVariant) && cgc.backend.Game == matcher.GameYuGiOh {
+				id, found := matchBySKUNumber(cgc.backend, &card, i)
+				if found {
+					cardID, err = id, nil
+				}
+			}
 			// The basic lands carry nothing but the store's own version tag,
 			// so retry them with the number their SKU spells, then the one
 			// their image names, and ignore the ones neither places.

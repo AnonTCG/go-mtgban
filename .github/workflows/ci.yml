@@ -459,7 +459,7 @@ jobs:
         env:
           YUGIOH_PATH: "${{ github.workspace }}/${{ needs.cache-yugioh.outputs.filepath }}"
         run: |
-          go test ./matcher/yugioh/... ./coolstuffinc/... ./cardmarket/... ./internal/vocabulary/... -v
+          go test ./matcher/yugioh/... ./coolstuffinc/... ./cardmarket/... ./cardgamecorner/... ./internal/vocabulary/... -v
 
   test-fleshandblood:
     needs: cache-fleshandblood
