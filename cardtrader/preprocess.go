@@ -642,8 +642,6 @@ func Preprocess(b *matcher.Backend, bp *Blueprint) (*matcher.InputCard, error) {
 					switch {
 					case magic.HasPromoPackPrinting(b, cardName, set.Code) && !notPromoPack:
 						variant = "Promo Pack"
-					case b.HasPrinting(cardName, "promo_type", magic.PromoTypePrerelease, set.Code) && !notPromoPack:
-						variant = "Prerelease"
 					case notPromoPack && bp.ScryfallID == "" && bp.TCGplayerProductID() == 0:
 						// Only guess the base edition when the vendor gave
 						// no id to distrust; an unresolved id stays refused.
