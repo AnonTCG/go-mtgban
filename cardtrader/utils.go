@@ -624,6 +624,7 @@ var ygoInserts = map[string]bool{
 var ygoForeignShelves = map[string]bool{
 	"Advent Calendar 2011":                   true,
 	"Advent Calendar 2014":                   true,
+	"GX Card Almanac":                        true,
 	"Yu-Gi-Oh! The Official Magazine Promos": true,
 }
 
