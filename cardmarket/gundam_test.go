@@ -16,13 +16,18 @@ const gundamDatastore = `{"data": {
   "GCG-PR": {"name": "Gundam Promotional Cards", "releaseDate": "2025-03-01", "type": "promo"},
   "GD01": {"name": "Newtype Rising", "releaseDate": "2025-07-25"},
   "GD01-B": {"name": "Edition Beta", "releaseDate": "2025-02-06"},
+  "GD02": {"name": "Dual Impact", "releaseDate": "2025-10-24"},
   "GD03": {"name": "Steel Requiem", "releaseDate": "2026-01-30"},
   "GD05": {"name": "Freedom Ascension", "releaseDate": "2026-07-24"},
+  "GD06": {"name": "Stardust Trails", "releaseDate": "2026-10-30"},
   "ST03": {"name": "Starter Deck 03: Zeon's Rush", "releaseDate": "2025-07-11"},
   "ST09": {"name": "Starter Deck 09: Destiny Ignition", "releaseDate": "2026-03-27"},
   "ST12": {"name": "Starter Deck 12: Raging Onslaught", "releaseDate": "2026-09-25"}
  },
  "cards": [
+  {"color": "White", "colors": ["White"], "externalLinks": {"tcgPlayerId": 655173}, "finish": "Holofoil", "id": "gd02-129_655173_holofoil", "name": "Argama", "number": "GD02-129", "rarity": "Rare", "setCode": "GD02", "type": "Base"},
+  {"color": "White", "colors": ["White"], "externalLinks": {"tcgPlayerId": 659358}, "finish": "Holofoil", "id": "gd02-129_659358_holofoil", "name": "Argama", "number": "GD02-129", "rarity": "R+", "setCode": "GD02", "type": "Base"},
+  {"color": "White", "colors": ["White"], "externalLinks": {"tcgPlayerId": 727898}, "finish": "Holofoil", "id": "gd02-129_727898_holofoil", "name": "Argama", "number": "GD02-129", "promoTypes": ["sp"], "rarity": "R+", "setCode": "GD06", "type": "Base", "variant": "SP"},
   {"color": "Blue", "colors": ["Blue"], "externalLinks": {"tcgPlayerId": 643150}, "finish": "Holofoil", "id": "gd01-001_643150_holofoil", "name": "Gundam", "number": "GD01-001", "rarity": "Legend Rare", "setCode": "GD01", "type": "Unit"},
   {"color": "Blue", "colors": ["Blue"], "externalLinks": {"tcgPlayerId": 645356}, "finish": "Holofoil", "id": "gd01-001_645356_holofoil", "name": "Gundam", "number": "GD01-001", "rarity": "LR+", "setCode": "GD01", "type": "Unit"},
   {"color": "Blue", "colors": ["Blue"], "externalLinks": {"tcgPlayerId": 645375}, "finish": "Holofoil", "id": "gd01-001_645375_holofoil", "name": "Gundam", "number": "GD01-001", "rarity": "LR++", "setCode": "GD01", "type": "Unit"},
@@ -100,6 +105,11 @@ func TestGundamResolve(t *testing.T) {
 			"a promo shelf reads the promo set", 913375,
 			cm.CatalogProduct{Name: "Gundam Deathscythe Hell (GD03-021) (V.1 - Rare)", Number: "GD03-021", Rarity: "Rare", Version: 1},
 			"Unnumbered Promos", nil, "gd03-021_670579_holofoil",
+		},
+		{
+			"a Special Rare reprint reads the sp row", 920585,
+			cm.CatalogProduct{Name: "Argama (GD02-129)", Number: "GD02-129", Rarity: "Special Rare"},
+			"Stardust Trails", nil, "gd02-129_727898_holofoil",
 		},
 		{
 			"two links crossed by CardTrader are read the other way", 905979,

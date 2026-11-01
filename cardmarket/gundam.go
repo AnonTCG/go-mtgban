@@ -10,6 +10,7 @@ var gundamRarities = map[string]string{
 	"Legendary Rare +":  "LR+",
 	"Legendary Rare ++": "LR++",
 	"Rare +":            "R+",
+	"Special Rare":      "SP",
 	"Uncommon +":        "U+",
 	"Common +":          "C+",
 	"Common ++":         "C++",
