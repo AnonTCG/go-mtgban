@@ -77,6 +77,8 @@ func TestFileListed(t *testing.T) {
 		// The foil 30th Anniversary Tokyo card, whose name finds only the
 		// unfoiled media promo.
 		"SGL-MTG-PRM-30C_2023_002-JAF": hit("Shivan Dragon", "Promo", "ja", "002", foil, promo),
+		"SGL-MTG-PRM-DM_2023_003-JAF":  hit("Serra Angel", "Promo", "ja", "DM_2023_003", foil, promo),
+		"SGL-MTG-PRM-JSS_J03_001-ENF":  hit("Giant Growth", "Promo", "en", "008", foil, promo),
 	}
 
 	scg, err := NewScraper(b, "")
@@ -121,6 +123,9 @@ func TestFileListed(t *testing.T) {
 		"SGL-MTG-WCHP-99KB_ULG_126-ENN":  "WC99 kb126",
 		"SGL-MTG-WCHP-01JT_MMQ_324-ENN":  "WC01 jt324",
 		"SGL-MTG-WCHP-03PK_JUD_062s-ENN": "WC03 pk62sb",
+		"SGL-MTG-PRM-30C_2023_002-JAF":   "P30T 2",
+		"SGL-MTG-PRM-DM_2023_003-JAF":    "PMDA 3",
+		"SGL-MTG-PRM-JSS_J03_001-ENF":    "PSUS 8",
 	}
 	if !maps.Equal(got, want) {
 		t.Errorf("got %v, want %v", got, want)
@@ -131,7 +136,7 @@ func TestFileListed(t *testing.T) {
 		}
 	}
 
-	summary := "[SCG] 6 singles only the sell list carries, 0 worded in a way the catalog never spelled, 1 landed on another printing"
+	summary := "[SCG] 8 singles only the sell list carries, 0 worded in a way the catalog never spelled, 0 landed on another printing"
 	if !slices.Contains(logs, summary) {
 		t.Errorf("the run said %q, want the summary %q", logs, summary)
 	}

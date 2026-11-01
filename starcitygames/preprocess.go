@@ -132,6 +132,13 @@ var conventionPrefixes = map[string]bool{
 	"FEST": true, "CF": true, "MC": true, "MFCMD": true,
 }
 
+// soleShelfSets maps the SCG SKU prefixes of promo shelves that each hold one
+// printing of a card to the set that shelf is, the collector number being the
+// card's place in that set rather than the sku's own count.
+var soleShelfSets = map[string]string{
+	"DM": "PMDA", "JSS": "PSUS", "30C": "P30T",
+}
+
 // isPlayPromoSet reports whether a set code is one of the Wizards Play Network /
 // store-promo families: PW* (Wizards Play), PLG* (Love Your LGS), PL<year>
 // (Play), PSPL.
@@ -396,6 +403,12 @@ func ProcessSKU(b *matcher.Backend, cardName, SKU string) (*matcher.InputCard, e
 			}
 		case strings.HasPrefix(number, "PT_"):
 			setCode = "PPRO"
+			cards := b.MatchInSet(cardName, setCode)
+			if len(cards) == 1 {
+				number = cards[0].Number
+			}
+		case len(fields) > 2 && soleShelfSets[fields[0]] != "":
+			setCode = soleShelfSets[fields[0]]
 			cards := b.MatchInSet(cardName, setCode)
 			if len(cards) == 1 {
 				number = cards[0].Number
