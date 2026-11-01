@@ -30,6 +30,13 @@ Four guards keep the buylist rules from widening:
   share a set and number or it is the shelf's own set. Without the shelf test
   `Seel 41`, whose body says Platinum, would land the plain Base Set card
   instead of the Shadowless one.
+- The finish a Pokemon display name ends on wins over `selectedFinish` only by
+  way of the landed card's own siblings (`MatchIDFinish`), so a finish the
+  card was never printed in changes nothing. `VS Seeker (CLC)` is named
+  Holofoil while its id and sku say Normal, and stays Normal for that reason.
+  Only a print run the card was not printed in drops the listing: Lapras and
+  Miracle Energy are sold as a plain `1st Edition` beside their real
+  holofoils, and landed on the Unlimited Holofoil's id.
 
 Converting every `[...]` to `(...)` is wrong as well: `Dragapult - 091/192
 [Rebel Clash]` names an origin set, so only `[Winner]` is read.

@@ -640,13 +640,17 @@ func TestPreprocess(t *testing.T) {
 // sizedDatastore holds a Burger King promo whose printed size belongs to the
 // set it was first printed in, two cosmos holo promos of one set and number
 // told apart by their own size, and the Evolving Skies card a cosmos holo
-// promo of the miscellaneous shelf is cut from, rows copied verbatim.
+// promo of the miscellaneous shelf is cut from, and a plain 1st Edition so the
+// datastore sells that finish, rows copied verbatim.
 const sizedDatastore = `{"data": {
  "game": "pokemon",
  "sets": {
   "BKP": {"abbreviation": "BKP", "baseSetSize": 122, "name": "XY - BREAKpoint", "releaseDate": "2016-02-03"},
   "BKP-2175": {"abbreviation": "BKP", "name": "Burger King Promos", "releaseDate": "2008-07-07", "type": "promo"},
+  "FO": {"abbreviation": "FO", "baseSetSize": 62, "name": "Fossil", "releaseDate": "1999-10-10"},
+  "LA": {"abbreviation": "LA", "baseSetSize": 146, "name": "Legends Awakened", "releaseDate": "2008-08-20"},
   "MCAP": {"abbreviation": "MCAP", "name": "Miscellaneous Cards & Products", "releaseDate": "1999-01-09"},
+  "N4": {"abbreviation": "N4", "baseSetSize": 105, "name": "Neo Destiny", "releaseDate": "2002-02-28"},
   "ROS": {"abbreviation": "ROS", "baseSetSize": 108, "name": "XY - Roaring Skies", "releaseDate": "2015-05-06"},
   "SWSH07": {"abbreviation": "SWSH07", "baseSetSize": 203, "name": "SWSH07: Evolving Skies", "releaseDate": "2021-08-27"}
  },
@@ -655,7 +659,14 @@ const sizedDatastore = `{"data": {
   {"externalLinks": {"tcgPlayerId": 220117}, "finish": "Holofoil", "id": "013-098_220117_holofoil", "name": "Flareon", "number": "013", "promoTypes": ["cosmosholo"], "rarity": "Promo", "setCode": "MCAP", "total": "098", "type": "Fire", "variant": "Cosmos Holo"},
   {"externalLinks": {"tcgPlayerId": 654775}, "finish": "Holofoil", "id": "013-131_654775_holofoil", "name": "Flareon", "number": "013", "promoTypes": ["cosmosholo"], "rarity": "Rare", "setCode": "MCAP", "total": "131", "type": "Fire", "variant": "Cosmos Holo"},
   {"externalLinks": {"tcgPlayerId": 98141, "tcgdexId": "xy6-105"}, "finish": "Holofoil", "id": "105-108_98141_holofoil", "name": "M Rayquaza EX", "number": "105", "promoTypes": ["fullart"], "rarity": "Ultra Rare", "setCode": "ROS", "total": "108", "type": "Colorless", "types": ["Colorless"], "variant": "Full Art"},
-  {"externalLinks": {"tcgPlayerId": 246875, "tcgdexId": "swsh7-82"}, "finish": "Holofoil", "id": "082-203_246875_holofoil", "name": "Galarian Zapdos", "number": "082", "rarity": "Holo Rare", "setCode": "SWSH07", "total": "203", "type": "Fighting", "types": ["Fighting"]}
+  {"externalLinks": {"tcgPlayerId": 246875, "tcgdexId": "swsh7-82"}, "finish": "Holofoil", "id": "082-203_246875_holofoil", "name": "Galarian Zapdos", "number": "082", "rarity": "Holo Rare", "setCode": "SWSH07", "total": "203", "type": "Fighting", "types": ["Fighting"]},
+  {"externalLinks": {"tcgPlayerId": 84534, "tcgdexId": "dp6-90"}, "finish": "Normal", "id": "90-146_84534", "name": "Cubone", "number": "90", "rarity": "Common", "setCode": "LA", "total": "146", "type": "Fighting", "types": ["Fighting"]},
+  {"externalLinks": {"tcgPlayerId": 84534, "tcgdexId": "dp6-90"}, "finish": "Reverse Holofoil", "id": "90-146_84534_reverseholofoil", "name": "Cubone", "number": "90", "rarity": "Common", "setCode": "LA", "total": "146", "type": "Fighting", "types": ["Fighting"]},
+  {"externalLinks": {"tcgPlayerId": 84660, "tcgdexId": "neo4-11"}, "finish": "1st Edition Holofoil", "id": "011-105_84660_1steditionholofoil", "name": "Dark Tyranitar", "number": "011", "rarity": "Holo Rare", "setCode": "N4", "total": "105", "type": "Fighting", "types": ["Fighting"]},
+  {"externalLinks": {"tcgPlayerId": 84660, "tcgdexId": "neo4-11"}, "finish": "Unlimited Holofoil", "id": "011-105_84660_unlimitedholofoil", "name": "Dark Tyranitar", "number": "011", "rarity": "Holo Rare", "setCode": "N4", "total": "105", "type": "Fighting", "types": ["Fighting"]},
+  {"externalLinks": {"tcgPlayerId": 44419, "tcgdexId": "base3-10"}, "finish": "1st Edition Holofoil", "id": "10-62_44419_1steditionholofoil", "name": "Lapras", "number": "10", "rarity": "Holo Rare", "setCode": "FO", "total": "62", "type": "Water", "types": ["Water"]},
+  {"externalLinks": {"tcgPlayerId": 44419, "tcgdexId": "base3-10"}, "finish": "Unlimited Holofoil", "id": "10-62_44419_unlimitedholofoil", "name": "Lapras", "number": "10", "rarity": "Holo Rare", "setCode": "FO", "total": "62", "type": "Water", "types": ["Water"]},
+  {"externalLinks": {"tcgPlayerId": 44425, "tcgdexId": "base3-17"}, "finish": "1st Edition", "id": "17-62_44425_1stedition", "name": "Articuno", "number": "17", "rarity": "Rare", "setCode": "FO", "total": "62", "type": "Water", "types": ["Water"]}
  ]
 }}`
 
@@ -692,6 +703,66 @@ func TestResolveProductSizedNumber(t *testing.T) {
 			ProductData:    GNProductData{SetName: tt.setName},
 		}
 		uuid, err := gn.resolveProduct(modeBuylist, product)
+		if err != nil || uuid != tt.uuid {
+			t.Errorf("%q: got %q (%v); want %q", tt.displayName, uuid, err, tt.uuid)
+		}
+	}
+}
+
+// TestResolveProductPokemonStatedFinish pins that the finish a display name
+// ends its shelf on places the listing where the storefront's selectedFinish
+// says another, that a finish the card was never printed in leaves it alone,
+// and that a print run nobody made is no printing, unless the datastore sells
+// no such finish at all.
+func TestResolveProductPokemonStatedFinish(t *testing.T) {
+	b, err := matcher.Open("pokemon", strings.NewReader(sizedDatastore))
+	if err != nil {
+		t.Fatal(err)
+	}
+	gn, err := NewScraper(b)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// The same rows without Articuno, the one plain 1st Edition.
+	head, row, found := strings.Cut(sizedDatastore, `,
+  {"externalLinks": {"tcgPlayerId": 44425`)
+	if !found {
+		t.Fatal("no plain 1st Edition row to trim")
+	}
+	_, tail, _ := strings.Cut(row, "\n")
+	b, err = matcher.Open("pokemon", strings.NewReader(head+"\n"+tail))
+	if err != nil {
+		t.Fatal(err)
+	}
+	trimmed, err := NewScraper(b)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	tests := []struct {
+		scraper     *Gamenerdz
+		displayName string
+		setName     string
+		finish      string
+		uuid        string
+	}{
+		{gn, "Cubone 90/146 - Legends Awakened Reverse Holofoil", "Legends Awakened", "Normal", "90-146_84534_reverseholofoil"},
+		{gn, "Cubone 90/146 - Legends Awakened Reverse Holofoil (LP)", "Legends Awakened", "Reverse Holofoil", "90-146_84534_reverseholofoil"},
+		{gn, "Cubone 90/146 - Legends Awakened", "Legends Awakened", "Normal", "90-146_84534"},
+		{gn, "Dark Tyranitar 11/105 - Neo Destiny 1st Edition Holofoil", "Neo Destiny", "Unlimited Holofoil", "011-105_84660_1steditionholofoil"},
+		{gn, "Dark Tyranitar 11/105 - Neo Destiny Unlimited Holofoil", "Neo Destiny", "Unlimited Holofoil", "011-105_84660_unlimitedholofoil"},
+		{gn, "Lapras 10/62 - Fossil 1st Edition", "Fossil", "1st Edition", ""},
+		{trimmed, "Lapras 10/62 - Fossil 1st Edition", "Fossil", "1st Edition", "10-62_44419_unlimitedholofoil"},
+		{gn, "Flareon - 13/131 (Cosmos Holo) 13 - Miscellaneous Cards  Products Holofoil", "Miscellaneous Cards & Products", "Holofoil", "013-131_654775_holofoil"},
+	}
+	for _, tt := range tests {
+		product := GNProduct{
+			DisplayName:    tt.displayName,
+			SelectedFinish: tt.finish,
+			ProductData:    GNProductData{SetName: tt.setName},
+		}
+		uuid, err := tt.scraper.resolveProduct(modeBuylist, product)
 		if err != nil || uuid != tt.uuid {
 			t.Errorf("%q: got %q (%v); want %q", tt.displayName, uuid, err, tt.uuid)
 		}

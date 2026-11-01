@@ -10,9 +10,10 @@ import (
 )
 
 // preprocess turns a storefront product into the matcher's input, in the
-// grammar its game's display names follow. The finish always comes from the
+// grammar its game's display names follow. The finish comes from the
 // selectedFinish field, which names the printing in each game's own words;
-// the display name only restates it as a tail on the set.
+// the display name restates it as a tail on the set, and for Pokemon
+// pokemonStatedPrinting reads that tail where the field disagrees.
 func preprocess(b *matcher.Backend, product GNProduct, game matcher.Game) (*matcher.InputCard, error) {
 	switch game {
 	case matcher.GameLorcana:
@@ -834,6 +835,44 @@ func pokemonCatalogName(b *matcher.Backend, name string) string {
 		}
 	}
 	return name
+}
+
+// pokemonStatedFinish is the finish a display name ends its shelf on, "Neo
+// Destiny 1st Edition Holofoil", read by the catalog's own finish names and
+// zero when the shelf ends on none. The grade after it is not part of it.
+func pokemonStatedFinish(displayName string) matcher.Finish {
+	tail := displayName[strings.LastIndex(displayName, " - ")+1:]
+	tail = strings.TrimSpace(gradeTag.ReplaceAllString(tail, ""))
+
+	var stated matcher.Finish
+	for _, finish := range matcher.Finishes {
+		if len(finish.TCGplayer) > len(stated.TCGplayer) && strings.HasSuffix(tail, " "+finish.TCGplayer) {
+			stated = finish
+		}
+	}
+	return stated
+}
+
+// pokemonStatedPrinting answers the printing of the finish the display name
+// states, where the storefront's selectedFinish names another: it says Normal
+// on a Reverse Holofoil and Unlimited Holofoil on a 1st Edition Holofoil,
+// while the name and the sku both state the finish. A finish the landed card
+// was not printed in leaves the landing alone, except for a print run: the
+// storefront lists a 1st Edition beside the holofoil of a card that never had
+// a plain one, which is no printing at all, and the answer is empty.
+func pokemonStatedPrinting(b *matcher.Backend, cardID string, product GNProduct) string {
+	stated := pokemonStatedFinish(product.DisplayName)
+	if stated.Slug == "" {
+		return cardID
+	}
+	sibling, err := b.MatchIDFinish(cardID, stated.TCGplayer)
+	if err == nil {
+		return sibling
+	}
+	if stated.Run != "" && errors.Is(err, matcher.ErrCardWrongFinish) {
+		return ""
+	}
+	return cardID
 }
 
 // A Pokemon display name reads

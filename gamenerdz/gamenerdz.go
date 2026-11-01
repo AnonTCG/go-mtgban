@@ -362,6 +362,12 @@ func (gn *Gamenerdz) resolveProduct(mode string, product GNProduct) (string, err
 	if gn.backend.Game == matcher.GamePokemon && gn.leftShelf(cardID, product) {
 		return "", nil
 	}
+	if gn.backend.Game == matcher.GamePokemon {
+		cardID = pokemonStatedPrinting(gn.backend, cardID, product)
+		if cardID == "" {
+			return "", nil
+		}
+	}
 
 	// The finish a listing names has to be one the printing was sold in.
 	// This storefront mints a "-F-" sku beside the plain one whether or not
