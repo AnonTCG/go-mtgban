@@ -6,6 +6,21 @@ import (
 	"github.com/mtgban/go-mtgban/matcher"
 )
 
+func TestPokemonInsert(t *testing.T) {
+	for name, want := range map[string]bool{
+		"Online Code Card (Elite Trainer Box)":          true,
+		"Live Code Card (151 Ultra-Premium Collection)": true,
+		"VSTAR Marker": true,
+		"Eevee Evolutions Tin [Flareon V] (Live Code Card)": false,
+		"Pikachu VSTAR": false,
+	} {
+		got := pokemonInsertRe.MatchString(name)
+		if got != want {
+			t.Errorf("pokemonInsertRe(%q) = %t, want %t", name, got, want)
+		}
+	}
+}
+
 func TestGameInput(t *testing.T) {
 	for _, tt := range []struct {
 		game    matcher.Game

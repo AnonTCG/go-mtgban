@@ -280,11 +280,19 @@ func classicName(b *matcher.Backend, name string) string {
 	return name
 }
 
+// pokemonInsertRe matches the products the Pokemon shelves hold that are no
+// card: the code cards of a box and the VSTAR marker.
+var pokemonInsertRe = regexp.MustCompile(`^((Online|Live) Code Card|VSTAR Marker$)`)
+
 // preprocessGame reads a card of any game but Magic, whose listings name the
 // card, its set and its collector number plainly.
 func preprocessGame(b *matcher.Backend, card *Card, index int) (*matcher.InputCard, error) {
 	// Graded slabs are sold on shelves of their own
 	if strings.Contains(card.Edition, "Gradat") {
+		return nil, matcher.ErrUnsupported
+	}
+
+	if b.Game == matcher.GamePokemon && pokemonInsertRe.MatchString(card.Name) {
 		return nil, matcher.ErrUnsupported
 	}
 
