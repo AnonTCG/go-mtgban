@@ -109,3 +109,31 @@ func TestResolveUUIDsFollowsTheProductNumber(t *testing.T) {
 		}
 	}
 }
+
+// TestResolveUUIDsKeepsTokenProductsOnTokens pins the Token-rarity guard:
+// mtgjson links 372511, the Nissa, Who Shakes the World emblem, and 775672,
+// The Capitoline Triad emblem, to the real cards of the same name, whose own
+// products would then lose their price to the emblem's.
+func TestResolveUUIDsKeepsTokenProductsOnTokens(t *testing.T) {
+	b := realDatastore(t)
+	r := &resolver{backend: b, gameID: cm.GameMagic}
+
+	for _, tt := range []struct {
+		name    string
+		product cm.Product
+		uuid    string
+		kept    bool
+	}{
+		{"Nissa emblem handed the BLC 84 card", cm.Product{IDProduct: 372511, Name: "Nissa, Who Shakes the World Emblem", ExpansionName: "War of the Spark", Rarity: "Token"}, "e4c4a598-77f3-5773-bf87-5acbf1cc4916", false},
+		{"Nissa emblem handed its own TWAR 19 token", cm.Product{IDProduct: 372511, Name: "Nissa, Who Shakes the World Emblem", ExpansionName: "War of the Spark", Rarity: "Token"}, "7f8a2b3a-365f-5825-8d10-4ce16e3cd201", true},
+		{"Capitoline Triad emblem handed the ACR 1 card", cm.Product{IDProduct: 775672, Name: "The Capitoline Triad Emblem", ExpansionName: "Universes Beyond: Assassin's Creed: Tokens", Rarity: "Token"}, "d1c00a42-14a5-5480-a704-b1c457f177db", false},
+		{"a card product keeps its own card", cm.Product{IDProduct: 778271, Name: "Nissa, Who Shakes the World (V.1)", ExpansionName: "Commander: Bloomburrow"}, "e4c4a598-77f3-5773-bf87-5acbf1cc4916", true},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			cardID, cardIDFoil := r.resolveUUIDs(&tt.product, []string{tt.uuid})
+			if kept := cardID != "" || cardIDFoil != ""; kept != tt.kept {
+				t.Errorf("resolveUUIDs kept = %v (%q, %q), want %v", kept, cardID, cardIDFoil, tt.kept)
+			}
+		})
+	}
+}

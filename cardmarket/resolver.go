@@ -896,6 +896,11 @@ func (r *resolver) resolveUUIDs(product *cm.Product, uuids []string) (string, st
 		if r.gameID == cm.GameMagic && !plausiblePrinting(r.backend, product.ExpansionName, uuid) {
 			continue
 		}
+		// mtgjson also links a few real cards to the emblem or token
+		// product of the same name; a Token product prices tokens only.
+		if r.gameID == cm.GameMagic && product.Rarity == "Token" && co.Layout != "token" {
+			continue
+		}
 		sameNumber := strings.EqualFold(co.PlainNumber, product.Number)
 		if co.Foil || co.Etched {
 			if sameNumber && !foilMatched {
