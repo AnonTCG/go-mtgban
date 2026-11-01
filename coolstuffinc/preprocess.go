@@ -87,6 +87,9 @@ var numFixes = map[string]string{
 	"SLDMikuYouthValkJPN":             "SLD1588",
 	"SLD1112JPN":                      "SLD1112",
 	"396167":                          "THB009",
+	"mid265u":                         "PMID265p",
+	"446707":                          "INR71",
+	"StrategicBetrayal0422":           "TDM422",
 	// The images of Tellah 416385 and 416386 are swapped on CSI's side,
 	// and so are those of the two Copy Land products.
 	"FIN0510": "FIN349",
