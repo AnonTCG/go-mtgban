@@ -138,6 +138,7 @@ func TestPokemonStampLinks(t *testing.T) {
 		{858724, "Sinistcha", "022", "Twilight Masquerade", "BLE", "022", ""},
 		{858734, "Sylveon", "040", "Prismatic Evolutions: Additionals", "MCAP", "040", ""},
 		{862171, "Team Rocket's Zapdos", "070", "Destined Rivals: Additionals", "MCAP", "070", ""},
+		{868033, "Dual Ball", "UL 72", "WCD 2012", "WCD2012", "78", ""},
 		{868432, "Lillie's Determination", "MEG 119", "Southeast Asia Promos", "SEA", "119", ""},
 		{882196, "Riolu", "61", "Diamond & Pearl", "CCP", "061", ""},
 		{882197, "Glameow", "83", "Diamond & Pearl", "CCP", "083", ""},
