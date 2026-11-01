@@ -158,8 +158,12 @@ func (tcg *TCGGameIndex) productEntries(result tcgplayer.ProductPriceSet, produc
 	}
 
 	var entries []genericChan
+	var directLow float64
+	if tcg.direct() {
+		directLow = getDirectPrice(result.DirectLowPrice)
+	}
 	prices := []float64{
-		result.LowPrice, result.MarketPrice, result.MidPrice, result.DirectLowPrice,
+		result.LowPrice, result.MarketPrice, result.MidPrice, directLow,
 	}
 
 	for i := range prices {
@@ -230,10 +234,19 @@ func (tcg *TCGGameIndex) Inventory() mtgban.InventoryRecord {
 	return tcg.inventory
 }
 
-// MarketNames names the sub-sellers this market splits into. See
-// mtgban.Market.
+// MarketNames names the sub-sellers this market splits into, Direct's low
+// for a category TCGplayer sells through Direct. See mtgban.Market.
 func (tcg *TCGGameIndex) MarketNames() []string {
+	if tcg.direct() {
+		return availableIndexNames
+	}
 	return availableIndexNames[:len(availableIndexNames)-1]
+}
+
+// direct reports whether the category sells through TCGplayer Direct, as
+// its catalog dump says.
+func (tcg *TCGGameIndex) direct() bool {
+	return tcg.catalog != nil && tcg.catalog.Category.IsDirect
 }
 
 // InfoForScraper describes one of the sub-scrapers named above.

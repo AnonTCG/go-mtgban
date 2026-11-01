@@ -987,7 +987,9 @@ row.
 (index pricing) in `tcgplayer/game.go` and `gameindex.go` price the
 products the game's catalog dump lists (`TCGPLAYER_CATALOG_PATH`, handed to
 them as `tcgplayer.WithCatalog`), with its skus and printings; only prices
-come from the live API. They are built from one table:
+come from the live API. Where the dump marks the category `isDirect` (Pokemon
+and Yu-Gi-Oh today), they also publish TCG Direct, its net after fees as the
+TCG Direct (net) buylist, and TCG Direct Low. They are built from one table:
 
 ```go
 var tcgGames = map[matcher.Game]int{

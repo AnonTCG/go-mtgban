@@ -114,10 +114,11 @@ func EditionMap(ctx context.Context, tcg *tcgplayer.Client, category int) (map[i
 }
 
 // genericChan is one inventory entry a page produced, for the card it is
-// filed under.
+// filed under, and the buylist entry it makes beside it, if any.
 type genericChan struct {
 	key   string
 	entry mtgban.InventoryEntry
+	bl    *mtgban.BuylistEntry
 }
 
 // loadPages hands every page offset of total to process across concurrency

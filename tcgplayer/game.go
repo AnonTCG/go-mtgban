@@ -21,10 +21,12 @@ import (
 type TCGGame struct {
 	logCallback    mtgban.LogCallbackFunc
 	inventoryDate  time.Time
+	buylistDate    time.Time
 	affiliate      string
 	maxConcurrency int
 
 	inventory mtgban.InventoryRecord
+	buylist   mtgban.BuylistRecord
 
 	// catalog lists the products priced, and names the category and its
 	// printings.
@@ -89,6 +91,7 @@ func NewScraperGame(b *matcher.Backend, publicID, privateID string) (*TCGGame, e
 	tcg := TCGGame{}
 	tcg.backend = b
 	tcg.inventory = mtgban.InventoryRecord{}
+	tcg.buylist = mtgban.BuylistRecord{}
 	tcg.client = client
 	tcg.maxConcurrency = defaultConcurrency
 
@@ -197,14 +200,11 @@ func (tcg *TCGGame) skuEntries(result tcgplayer.SKUPriceSet, sku tcgplayer.SKU, 
 				Price:      result.LowestListingPrice,
 				Quantity:   1,
 				URL:        GenerateProductURL(sku.ProductID, "", tcg.affiliate, "", "", false),
-				SellerName: gameMarketNames[0],
+				SellerName: gameListingName,
 				OriginalID: fmt.Sprint(sku.ProductID),
 				InstanceID: fmt.Sprint(sku.SKUID),
 			},
 		}}
-	}
-	if result.LowestListingPrice == 0 && result.MarketPrice == 0 {
-		return nil
 	}
 	if isUnsupportedProduct(&product) {
 		return nil
@@ -225,6 +225,10 @@ func (tcg *TCGGame) skuEntries(result tcgplayer.SKUPriceSet, sku tcgplayer.SKU, 
 	if errors.Is(err, matcher.ErrUnsupported) {
 		return nil
 	} else if err != nil {
+		// A row nobody prices loses nothing but its $0 listing
+		if result.LowestListingPrice == 0 && result.MarketPrice == 0 && result.DirectLowPrice == 0 {
+			return nil
+		}
 		// Name the card, not just the price row: a sku id alone
 		// says nothing about which product failed to match.
 		tcg.printf("%v for %q %s (product %d)", err, cardName, printing, sku.ProductID)
@@ -244,27 +248,43 @@ func (tcg *TCGGame) skuEntries(result tcgplayer.SKUPriceSet, sku tcgplayer.SKU, 
 
 	condition := SKUConditionMap[sku.ConditionID]
 
-	link := GenerateProductURL(sku.ProductID, printing, tcg.affiliate, condition, "", false)
-
-	// Sorted as in gameMarketNames
-	prices := []float64{result.LowestListingPrice, result.MarketPrice}
-	var out []genericChan
-	for i, price := range prices {
-		if price == 0 {
-			continue
-		}
-		out = append(out, genericChan{
+	entry := func(name string, price float64, isDirect bool) genericChan {
+		return genericChan{
 			key: cardID,
 			entry: mtgban.InventoryEntry{
 				Conditions: condition,
 				Price:      price,
 				Quantity:   1,
-				URL:        link,
-				SellerName: gameMarketNames[i],
+				URL:        GenerateProductURL(sku.ProductID, printing, tcg.affiliate, condition, "", isDirect),
+				SellerName: name,
+				Bundle:     isDirect,
 				OriginalID: fmt.Sprint(sku.ProductID),
 				InstanceID: fmt.Sprint(sku.SKUID),
 			},
-		})
+		}
+	}
+
+	// The lowest listing stays at $0, so the sku is still found through
+	// it; Direct and the market price only where TCGplayer quotes one.
+	out := []genericChan{entry(gameListingName, result.LowestListingPrice, false)}
+	direct := getDirectPrice(result.DirectLowPrice)
+	if tcg.direct() && direct > 0 {
+		out = append(out, entry(gameDirectName, direct, true))
+		net := DirectPriceAfterFees(direct)
+		if net > 0 {
+			last := &out[len(out)-1]
+			last.bl = &mtgban.BuylistEntry{
+				Conditions: condition,
+				BuyPrice:   net,
+				URL:        last.entry.URL,
+				VendorName: gameDirectNetName,
+				OriginalID: last.entry.OriginalID,
+				InstanceID: last.entry.InstanceID,
+			}
+		}
+	}
+	if result.MarketPrice > 0 {
+		out = append(out, entry(trendsName, result.MarketPrice, false))
 	}
 	return out
 }
@@ -303,6 +323,12 @@ func (tcg *TCGGame) Load(ctx context.Context) error {
 			if err != nil {
 				tcg.printf("%s", err.Error())
 			}
+			if result.bl != nil {
+				err := tcg.buylist.Add(result.key, result.bl)
+				if err != nil {
+					tcg.printf("%s", err.Error())
+				}
+			}
 		},
 		tcg.printf,
 	)
@@ -311,6 +337,7 @@ func (tcg *TCGGame) Load(ctx context.Context) error {
 	}
 
 	tcg.inventoryDate = time.Now()
+	tcg.buylistDate = time.Now()
 
 	return nil
 }
@@ -320,26 +347,53 @@ func (tcg *TCGGame) Inventory() mtgban.InventoryRecord {
 	return tcg.inventory
 }
 
-// gameMarketNames are TCGGame's sub-sellers: the lowest listing of a sku,
-// and the market price TCGplayer quotes for it.
-var gameMarketNames = []string{
-	"TCGplayer", trendsName,
+// Buylist returns what Load collected: the Direct net of fees, for a
+// category TCGplayer sells through Direct. See mtgban.Vendor.
+func (tcg *TCGGame) Buylist() mtgban.BuylistRecord {
+	return tcg.buylist
 }
+
+// direct reports whether the category sells through TCGplayer Direct, as
+// its catalog dump says.
+func (tcg *TCGGame) direct() bool {
+	return tcg.catalog != nil && tcg.catalog.Category.IsDirect
+}
+
+// TCGGame's sub-scrapers: the lowest listing of a sku, its Direct listing
+// and what that nets the seller after fees, and the market price TCGplayer
+// quotes for it.
+const (
+	gameListingName   = "TCGplayer"
+	gameDirectName    = "TCG Direct"
+	gameDirectNetName = "TCG Direct (net)"
+)
 
 // MarketNames names the sub-sellers this market splits into, the lowest
 // listing alone for sealed product. See mtgban.Market.
 func (tcg *TCGGame) MarketNames() []string {
 	if tcg.sealed {
-		return gameMarketNames[:1]
+		return []string{gameListingName}
 	}
-	return gameMarketNames
+	if tcg.direct() {
+		return []string{gameListingName, gameDirectName, trendsName}
+	}
+	return []string{gameListingName, trendsName}
+}
+
+// TraderNames names the sub-vendors this trader splits into: Direct's net,
+// for singles of a category sold through Direct. See mtgban.Trader.
+func (tcg *TCGGame) TraderNames() []string {
+	if tcg.sealed || !tcg.direct() {
+		return nil
+	}
+	return []string{gameDirectNetName}
 }
 
 // InfoForScraper describes one of the sub-scrapers named above. The lowest
 // listing keeps the scraper's own name and shorthand.
 func (tcg *TCGGame) InfoForScraper(name string) mtgban.ScraperInfo {
 	info := tcg.Info()
-	if name != gameMarketNames[0] {
+	if name != gameListingName {
 		info.Name = name
 		info.Shorthand = name2shorthand[name]
 	}
@@ -352,6 +406,7 @@ func (tcg *TCGGame) Info() (info mtgban.ScraperInfo) {
 	info.Name = "TCGplayer"
 	info.Shorthand = "TCGPlayer"
 	info.InventoryTimestamp = &tcg.inventoryDate
+	info.BuylistTimestamp = &tcg.buylistDate
 	info.NoQuantityInventory = true
 	info.Game = tcg.backend.Game
 	if tcg.sealed {

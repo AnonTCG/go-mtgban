@@ -128,8 +128,10 @@ func TestGameSKUEntry(t *testing.T) {
 	for _, tt := range []struct {
 		desc   string
 		sealed bool
+		direct bool
 		result tcgplayer.SKUPriceSet
 		want   []string
+		net    []string
 		logged bool
 	}{
 		{
@@ -157,13 +159,47 @@ func TestGameSKUEntry(t *testing.T) {
 			},
 		},
 		{
-			desc:   "a grade with no listing and no sales",
+			desc:   "a grade with no listing and no sales keeps its sku at $0",
 			result: tcgplayer.SKUPriceSet{SKUID: 8560580},
+			want:   []string{"Gundam ST01-001 foil: TCGplayer MP 0.00 https://www.tcgplayer.com/product/616528?Condition=Moderately+Played&Language=all&Printing=Holofoil&direct=false"},
 		},
 		{
 			desc:   "a grade with sales but no listing",
 			result: tcgplayer.SKUPriceSet{SKUID: 8560580, MarketPrice: 21.5},
-			want:   []string{"Gundam ST01-001 foil: TCGplayer Trends MP 21.50 https://www.tcgplayer.com/product/616528?Condition=Moderately+Played&Language=all&Printing=Holofoil&direct=false"},
+			want: []string{
+				"Gundam ST01-001 foil: TCGplayer MP 0.00 https://www.tcgplayer.com/product/616528?Condition=Moderately+Played&Language=all&Printing=Holofoil&direct=false",
+				"Gundam ST01-001 foil: TCGplayer Trends MP 21.50 https://www.tcgplayer.com/product/616528?Condition=Moderately+Played&Language=all&Printing=Holofoil&direct=false",
+			},
+		},
+		{
+			desc:   "a Direct listing, and what it nets",
+			direct: true,
+			result: tcgplayer.SKUPriceSet{SKUID: 8560578, LowestListingPrice: 29, DirectLowPrice: 30, MarketPrice: 48.27},
+			want: []string{
+				"Gundam ST01-001 foil: TCGplayer NM 29.00 https://www.tcgplayer.com/product/616528?Condition=Near+Mint&Language=all&Printing=Holofoil&direct=false",
+				"Gundam ST01-001 foil: TCG Direct NM 30.00 https://www.tcgplayer.com/product/616528?Condition=Near+Mint&Language=all&Printing=Holofoil&direct=true",
+				"Gundam ST01-001 foil: TCGplayer Trends NM 48.27 https://www.tcgplayer.com/product/616528?Condition=Near+Mint&Language=all&Printing=Holofoil&direct=false",
+			},
+			net: []string{"TCG Direct (net) NM 25.45"},
+		},
+		{
+			desc:   "Direct is floored, and under $2.50 it nets half",
+			direct: true,
+			result: tcgplayer.SKUPriceSet{SKUID: 8560649, LowestListingPrice: 0.25, DirectLowPrice: 0.1},
+			want: []string{
+				"Gundam (MA Form) ST01-002: TCGplayer NM 0.25 https://www.tcgplayer.com/product/616532?Condition=Near+Mint&Language=all&Printing=Normal&direct=false",
+				"Gundam (MA Form) ST01-002: TCG Direct NM 0.40 https://www.tcgplayer.com/product/616532?Condition=Near+Mint&Language=all&Printing=Normal&direct=true",
+			},
+			net: []string{"TCG Direct (net) NM 0.20"},
+		},
+		{
+			desc:   "no Direct where the category has none",
+			result: tcgplayer.SKUPriceSet{SKUID: 8560578, LowestListingPrice: 29, DirectLowPrice: 30},
+			want:   []string{"Gundam ST01-001 foil: TCGplayer NM 29.00 https://www.tcgplayer.com/product/616528?Condition=Near+Mint&Language=all&Printing=Holofoil&direct=false"},
+		},
+		{
+			desc:   "a row nobody prices is dropped quietly when no card owns it",
+			result: tcgplayer.SKUPriceSet{SKUID: 2},
 		},
 		{
 			desc:   "a finish the printing is not sold in is reported",
@@ -184,13 +220,23 @@ func TestGameSKUEntry(t *testing.T) {
 	} {
 		t.Run(tt.desc, func(t *testing.T) {
 			tcg, logs := gameScraper(t, tt.sealed)
+			tcg.catalog = &tcgplayer.CatalogDump{Category: tcgplayer.Category{IsDirect: tt.direct}}
 			s := sku[tt.result.SKUID]
-			var got []string
+			var got, net []string
 			for _, out := range tcg.skuEntries(tt.result, s, product[s.ProductID]) {
+				if out.entry.Bundle != (out.entry.SellerName == "TCG Direct") {
+					t.Errorf("%s bundled: %v", out.entry.SellerName, out.entry.Bundle)
+				}
 				got = append(got, describe(tcg.backend, out))
+				if out.bl != nil {
+					net = append(net, fmt.Sprintf("%s %s %.2f", out.bl.VendorName, out.bl.Conditions, out.bl.BuyPrice))
+				}
 			}
 			if !slices.Equal(got, tt.want) {
 				t.Errorf("got  %q\nwant %q", got, tt.want)
+			}
+			if !slices.Equal(net, tt.net) {
+				t.Errorf("buylist %q, want %q", net, tt.net)
 			}
 			if tt.logged != (len(*logs) > 0) {
 				t.Errorf("logged %q, want a report: %v", *logs, tt.logged)
@@ -202,19 +248,25 @@ func TestGameSKUEntry(t *testing.T) {
 	}
 }
 
-// TestGameMarketNames pins the shorthands the sub-sellers dump under: the
-// lowest listing keeps the scraper's own, which sealed product has alone.
+// TestGameMarketNames pins the shorthands the sub-scrapers dump under: the
+// lowest listing keeps the scraper's own, which sealed product has alone,
+// and Direct is there for a category sold through it.
 func TestGameMarketNames(t *testing.T) {
 	for _, tt := range []struct {
 		sealed   bool
+		direct   bool
 		want     []string
 		metadata []string
+		vendors  []string
 	}{
-		{false, []string{"TCGPlayer", "TCGTrends"}, []string{"TCGTrends"}},
-		{true, []string{"TCGSealed"}, nil},
+		{false, false, []string{"TCGPlayer", "TCGTrends"}, []string{"TCGTrends"}, nil},
+		{false, true, []string{"TCGPlayer", "TCGDirect", "TCGTrends"}, []string{"TCGTrends"}, []string{"TCGDirectNet"}},
+		{true, false, []string{"TCGSealed"}, nil, nil},
+		{true, true, []string{"TCGSealed"}, nil, nil},
 	} {
 		tcg, _ := gameScraper(t, tt.sealed)
-		var got, metadata []string
+		tcg.catalog = &tcgplayer.CatalogDump{Category: tcgplayer.Category{IsDirect: tt.direct}}
+		var got, metadata, vendors []string
 		for _, name := range tcg.MarketNames() {
 			info := tcg.InfoForScraper(name)
 			got = append(got, info.Shorthand)
@@ -222,11 +274,17 @@ func TestGameMarketNames(t *testing.T) {
 				metadata = append(metadata, info.Shorthand)
 			}
 		}
+		for _, name := range tcg.TraderNames() {
+			vendors = append(vendors, tcg.InfoForScraper(name).Shorthand)
+		}
 		if !slices.Equal(got, tt.want) {
-			t.Errorf("sealed %v: shorthands %v, want %v", tt.sealed, got, tt.want)
+			t.Errorf("sealed %v direct %v: shorthands %v, want %v", tt.sealed, tt.direct, got, tt.want)
 		}
 		if !slices.Equal(metadata, tt.metadata) {
-			t.Errorf("sealed %v: metadata-only shorthands %v, want %v", tt.sealed, metadata, tt.metadata)
+			t.Errorf("sealed %v direct %v: metadata-only shorthands %v, want %v", tt.sealed, tt.direct, metadata, tt.metadata)
+		}
+		if !slices.Equal(vendors, tt.vendors) {
+			t.Errorf("sealed %v direct %v: vendor shorthands %v, want %v", tt.sealed, tt.direct, vendors, tt.vendors)
 		}
 	}
 }
@@ -252,6 +310,7 @@ func TestGameIndexProductEntries(t *testing.T) {
 
 	for _, tt := range []struct {
 		desc   string
+		direct bool
 		result tcgplayer.ProductPriceSet
 		want   []string
 		logged bool
@@ -270,7 +329,24 @@ func TestGameIndexProductEntries(t *testing.T) {
 			result: tcgplayer.ProductPriceSet{ProductID: 616528, SubTypeName: "Normal"},
 		},
 		{
+			desc:   "no direct price where the category has no Direct",
+			result: tcgplayer.ProductPriceSet{ProductID: 616532, LowPrice: 0.66, DirectLowPrice: 0.7, SubTypeName: "Normal"},
+			want: []string{
+				"Gundam (MA Form) ST01-002: TCG Low 0.66 https://www.tcgplayer.com/product/616532?Language=all&Printing=Normal&direct=false",
+			},
+		},
+		{
+			desc:   "Direct's low is floored",
+			direct: true,
+			result: tcgplayer.ProductPriceSet{ProductID: 616532, LowPrice: 0.25, DirectLowPrice: 0.1, SubTypeName: "Normal"},
+			want: []string{
+				"Gundam (MA Form) ST01-002: TCG Low 0.25 https://www.tcgplayer.com/product/616532?Language=all&Printing=Normal&direct=false",
+				"Gundam (MA Form) ST01-002: TCG Direct Low 0.40 https://www.tcgplayer.com/product/616532?Language=all&Printing=Normal&direct=true",
+			},
+		},
+		{
 			desc:   "the direct price links to direct listings",
+			direct: true,
 			result: tcgplayer.ProductPriceSet{ProductID: 616532, LowPrice: 0.66, MarketPrice: 0.79, MidPrice: 0.99, DirectLowPrice: 0.7, SubTypeName: "Normal"},
 			want: []string{
 				"Gundam (MA Form) ST01-002: TCG Low 0.66 https://www.tcgplayer.com/product/616532?Language=all&Printing=Normal&direct=false",
@@ -302,6 +378,7 @@ func TestGameIndexProductEntries(t *testing.T) {
 	} {
 		t.Run(tt.desc, func(t *testing.T) {
 			logs = nil
+			tcg.catalog = &tcgplayer.CatalogDump{Category: tcgplayer.Category{IsDirect: tt.direct}}
 			var got []string
 			for _, out := range tcg.productEntries(tt.result, product[tt.result.ProductID]) {
 				if out.entry.Bundle != (out.entry.SellerName == "TCG Direct Low") {
