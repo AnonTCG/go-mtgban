@@ -84,13 +84,23 @@ func TestOffShelf(t *testing.T) {
 			refusal: errTwin,
 		},
 		{
-			// The product above, given a link CardTrader does not hold.
-			what: "a deck reprint the bridge links to a product we lack is a refusal",
+			// The product above, given a link to a product TCGplayer deleted.
+			what: "a deck reprint the bridge links to a product we lack is a twin",
 			product: cm.Product{
 				IDProduct: 900308, Name: "Zephyr(Navy) (OP12-046)",
 				Number: "OP12-046", ExpansionName: "Starter Deck: Blue Kuzan",
 			},
 			bridge:  581008,
+			refusal: errTwin,
+		},
+		{
+			// The same product, linked to the booster product we carry.
+			what: "a deck reprint the bridge links to a product we carry is a refusal",
+			product: cm.Product{
+				IDProduct: 900308, Name: "Zephyr(Navy) (OP12-046)",
+				Number: "OP12-046", ExpansionName: "Starter Deck: Blue Kuzan",
+			},
+			bridge:  643781,
 			refusal: errNoPrinting,
 		},
 		{

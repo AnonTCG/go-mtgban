@@ -137,11 +137,16 @@ func onePieceTrophy(product *cm.Product) bool {
 // onePieceDeckReprint reports whether a starter deck's card is a booster
 // card reprinted under its own code, which no catalog lists apart: the
 // name lands on the booster printing another shelf prices already. A
-// product the bridge links names a printing of its own, whose absence is a
-// refusal.
+// product linked to a TCGplayer product the datastore carries names a
+// printing of its own, whose absence is a refusal; a link to a TCGplayer
+// product the datastore does not carry (deleted, or not minted yet) names
+// nothing.
 func (r *resolver) onePieceDeckReprint(product *cm.Product) bool {
-	_, linked := r.tcgLink(product.IDProduct)
-	return strings.HasPrefix(product.ExpansionName, "Starter Deck:") && !linked
+	if !strings.HasPrefix(product.ExpansionName, "Starter Deck:") {
+		return false
+	}
+	tcgID, linked := r.tcgLink(product.IDProduct)
+	return !linked || r.backend.ConvertID(matcher.IDSpaceTCGplayer, fmt.Sprint(tcgID)) == ""
 }
 
 // offCode reports whether the product's name carries a collector number
