@@ -31,15 +31,15 @@ func TestCardmarketNeedsItsBridge(t *testing.T) {
 	}
 	t.Setenv("CARDMARKET_CATALOG_PATH", catalog)
 
-	_, err = scraperResources(matcher.GamePokemon, "cardmarket_sealed")
+	_, err = scraperResources(&matcher.Backend{Game: matcher.GamePokemon}, "cardmarket_sealed")
 	if err == nil || !strings.Contains(err.Error(), "CARDTRADER_TOKEN_BEARER") {
 		t.Errorf("sealed was built without a bridge: %v", err)
 	}
-	_, err = scraperResources(matcher.GameYuGiOh, "cardmarket")
+	_, err = scraperResources(&matcher.Backend{Game: matcher.GameYuGiOh}, "cardmarket")
 	if err == nil || !strings.Contains(err.Error(), "CARDTRADER_TOKEN_BEARER") {
 		t.Errorf("singles was built without a bridge: %v", err)
 	}
-	_, err = scraperResources(matcher.GameYuGiOh, "cardmarket_market")
+	_, err = scraperResources(&matcher.Backend{Game: matcher.GameYuGiOh}, "cardmarket_market")
 	if err == nil || !strings.Contains(err.Error(), "CARDTRADER_TOKEN_BEARER") {
 		t.Errorf("market was built without a bridge: %v", err)
 	}

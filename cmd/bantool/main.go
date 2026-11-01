@@ -271,11 +271,36 @@ func tcgSYPCatalog() (tcgplayer.SYPCatalog, error) {
 	return tcgplayer.LoadSYPCatalog(reader)
 }
 
+// tcgCatalogLinks reads the catalog dump for the products the datastore
+// names no card for (see tcgplayer.LoadCatalogLinks). The links only add
+// prices, so a dump that will not load costs those and nothing else.
+func tcgCatalogLinks(b *matcher.Backend) tcgplayer.SKUMap {
+	path := os.Getenv("TCGPLAYER_CATALOG_PATH")
+	if path == "" {
+		log.Println("no TCGPLAYER_CATALOG_PATH, pricing only the products the datastore names")
+		return nil
+	}
+	reader, err := openPath(path, os.Getenv("B2_KEY_ID_DATASTORE"), os.Getenv("B2_APP_KEY_DATASTORE"))
+	if err != nil {
+		log.Printf("catalog links unavailable: %v", err)
+		return nil
+	}
+	defer reader.Close()
+	links, err := tcgplayer.LoadCatalogLinks(b, reader)
+	if err != nil {
+		log.Printf("catalog links unavailable: %v", err)
+		return nil
+	}
+	log.Printf("catalog links name %d cards the datastore gives no product", len(links))
+	return links
+}
+
 // scraperResources loads the catalogs, sku lists and bridge a key needs
 // beyond its own secrets and flags, and wraps each as the typed
 // mtgban.Option its package exports. Loading stays bantool's job; the
 // constructor a key registered receives loaded data only.
-func scraperResources(game matcher.Game, key string) ([]mtgban.Option, error) {
+func scraperResources(b *matcher.Backend, key string) ([]mtgban.Option, error) {
+	game := b.Game
 	var opts []mtgban.Option
 
 	switch key {
@@ -330,6 +355,12 @@ func scraperResources(game matcher.Game, key string) ([]mtgban.Option, error) {
 			opts = append(opts, cardgamecorner.WithBridge(bridge))
 		}
 
+	case "tcg_index":
+		if game != matcher.GameMagic {
+			break
+		}
+		opts = append(opts, tcgplayer.WithCatalogLinks(tcgCatalogLinks(b)))
+
 	case "tcg_market", "tcg_sealed":
 		if game != matcher.GameMagic {
 			break
@@ -338,12 +369,18 @@ func scraperResources(game matcher.Game, key string) ([]mtgban.Option, error) {
 		if err != nil {
 			return nil, err
 		}
+		if key == "tcg_market" {
+			skus = skus.WithLinks(tcgCatalogLinks(b))
+		}
 		opts = append(opts, tcgplayer.WithSKUs(skus))
 
 	case "mintcard":
 		skus, err := tcgSKUs()
 		if err != nil {
 			return nil, err
+		}
+		if game == matcher.GameMagic {
+			skus = skus.WithLinks(tcgCatalogLinks(b))
 		}
 		opts = append(opts, mintcard.WithSKUs(skus))
 
@@ -381,7 +418,7 @@ func (envAuthenticator) Secret(name string) (string, error) {
 // target); and any catalog, sku list or bridge scraperResources loads.
 // Secrets are not read here either: envAuthenticator goes along as an
 // option and answers each constructor's own Secret* names directly.
-func scraperOptions(game matcher.Game, key string, opt *scraperOption, maxConcurrency int) ([]mtgban.Option, error) {
+func scraperOptions(b *matcher.Backend, key string, opt *scraperOption, maxConcurrency int) ([]mtgban.Option, error) {
 	opts := []mtgban.Option{
 		mtgban.WithLogCallback(log.Printf),
 		mtgban.WithAuthenticator(envAuthenticator{}),
@@ -400,7 +437,7 @@ func scraperOptions(game matcher.Game, key string, opt *scraperOption, maxConcur
 		opts = append(opts, mtgban.WithAffiliate(v))
 	}
 
-	resources, err := scraperResources(game, key)
+	resources, err := scraperResources(b, key)
 	if err != nil {
 		return nil, err
 	}
@@ -960,7 +997,7 @@ func run() int {
 			continue
 		}
 
-		opts, err := scraperOptions(game, key, opt, maxConcurrency)
+		opts, err := scraperOptions(backend, key, opt, maxConcurrency)
 		if err != nil {
 			log.Println(err)
 			return 1
