@@ -59,6 +59,30 @@ var yugiohPIDs = map[string]string{
 	"114599": "26594",  // STON-ENSP1 Grandmaster of the Six Samurai (Super Rare), not the Secret Rare STON-EN000
 	"412920": "626808", // RA04-EN024 Aleister the Invoker (Platinum Secret Rare) Facing Forward, not EN278
 	"412921": "626809", // RA04-EN024 (Quarter Century Secret Rare) Facing Forward
+	"413375": "627267", // RA04-EN106 Dark Magician (Platinum Secret Rare) Red Armor = Arkana
+	"413376": "627272", // RA04-EN106 (Quarter Century Secret Rare) Red Armor = Arkana
+	"413377": "627268", // RA04-EN106 (Platinum Secret Rare) Magic Ring Around Body = 6th Art
+	"413378": "627273", // RA04-EN106 (Quarter Century Secret Rare) Magic Ring Around Body = 6th Art
+	"413379": "627271", // RA04-EN106 (Platinum Secret Rare) Pointing Staff with One Hand = 9th Art
+	"413380": "627276", // RA04-EN106 (Quarter Century Secret Rare) Pointing Staff with One Hand = 9th Art
+	"413381": "627269", // RA04-EN106 (Platinum Secret Rare) Black Armor, Black Staff = 7th Art
+	"413382": "627274", // RA04-EN106 (Quarter Century Secret Rare) Black Armor, Black Staff = 7th Art
+	"413383": "627270", // RA04-EN106 (Platinum Secret Rare) Both Hands on Staff = 8th Art
+	"413384": "627275", // RA04-EN106 (Quarter Century Secret Rare) Both Hands on Staff = 8th Art
+	"413385": "627278", // RA04-EN107 Dark Magician Girl (Platinum Secret Rare) Pointing Staff to Top Left = 7th Art
+	"413386": "627280", // RA04-EN107 (Quarter Century Secret Rare) Pointing Staff to Top Left = 7th Art
+	"413387": "627277", // RA04-EN107 (Platinum Secret Rare) Holding Hat = 3rd Art
+	"413388": "627279", // RA04-EN107 (Quarter Century Secret Rare) Holding Hat = 3rd Art
+	"413389": "627281", // RA04-EN108 Blue-Eyes White Dragon (Platinum Secret Rare) Facing Left = 7th Art
+	"413390": "627283", // RA04-EN108 (Quarter Century Secret Rare) Facing Left = 7th Art
+	"413391": "627282", // RA04-EN108 (Platinum Secret Rare) Facing Right = 8th Art
+	"413392": "627284", // RA04-EN108 (Quarter Century Secret Rare) Facing Right = 8th Art
+	"413393": "627285", // RA04-EN109 Red-Eyes Black Dragon (Platinum Secret Rare) White Light in Mouth = 4th Art
+	"413394": "627288", // RA04-EN109 (Quarter Century Secret Rare) White Light in Mouth = 4th Art
+	"413395": "627286", // RA04-EN109 (Platinum Secret Rare) Facing Left = 7th Art
+	"413396": "627289", // RA04-EN109 (Quarter Century Secret Rare) Facing Left = 7th Art
+	"413397": "627287", // RA04-EN109 (Platinum Secret Rare) Flying Right = 8th Art
+	"413398": "627290", // RA04-EN109 (Quarter Century Secret Rare) Flying Right = 8th Art
 	"327178": "254483", // MGED-EN141 Firewall Dragon (Orange Background) = Red Alternate Art
 }
 
