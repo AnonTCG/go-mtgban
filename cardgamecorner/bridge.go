@@ -57,13 +57,23 @@ func (cgc *Cardgamecorner) matchByProductImage(card *Card, input *matcher.InputC
 }
 
 // statesNumber reports whether the listing states the collector number a
-// printing carries: a One Piece name states its code, and a Pokemon listing
-// states a number, or has none and its SKU ends in the card's.
+// printing carries. A One Piece name states its code, which the store cuts
+// short or gets wrong on a few, where the number field still holds the right
+// card's; a Pokemon listing states a number, or has none and its SKU ends in
+// the card's.
 func (cgc *Cardgamecorner) statesNumber(card *Card, number string) bool {
 	switch cgc.backend.Game {
 	case matcher.GameOnePiece:
 		code := listedCodeRe.FindStringSubmatch(card.Name)
-		return code != nil && sameCode(number, code[1])
+		if code != nil && sameCode(number, code[1]) {
+			return true
+		}
+		field := strings.TrimSpace(card.Number)
+		if field == "" {
+			return false
+		}
+		// A bare "057" is the part of "OP06-057" after the set
+		return sameCode(number, field) || strings.HasSuffix(number, "-"+field)
 	case matcher.GamePokemon:
 		listed := trailingNumber(card.Number)
 		if card.Number == "" {
