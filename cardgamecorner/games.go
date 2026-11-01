@@ -45,6 +45,7 @@ var shelfSets = map[matcher.Game]map[string]string{
 		"Unnumbered Promos":          "OP-PR",
 		"Premium Bandai Promo":       "OP-PR",
 		"Special Tournaments Promos": "OP-PR",
+		"Reprints":                   "OP-RP",
 	},
 	matcher.GamePokemon: {
 		"Base":              "BS",
