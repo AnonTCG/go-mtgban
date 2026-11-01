@@ -58,11 +58,14 @@ func (af *Arcanafrisia) Load(ctx context.Context) error {
 		return err
 	}
 
-	cards, err := GetBuylist(ctx)
+	cards, cut, err := GetBuylist(ctx)
 	if err != nil {
 		return err
 	}
 	af.printf("Found %d buylist entries", len(cards))
+	if cut {
+		af.printf("buylist feed was cut short after %d complete entries", len(cards))
+	}
 
 	for _, card := range cards {
 		cardID, err := af.backend.MatchID(card.ScryfallID, card.Finish == "foil")

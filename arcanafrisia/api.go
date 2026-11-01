@@ -1,9 +1,10 @@
 package arcanafrisia
 
 import (
-	"bufio"
+	"bytes"
 	"context"
 	"encoding/csv"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -30,33 +31,48 @@ type Card struct {
 	URL             string
 }
 
-// GetBuylist downloads the whole buylist in one call.
-func GetBuylist(ctx context.Context) ([]Card, error) {
+// GetBuylist downloads the whole buylist in one call. It also reports whether
+// the server cut the feed short, in which case only the complete records are
+// returned.
+func GetBuylist(ctx context.Context) ([]Card, bool, error) {
 	// Bust any cache in front of the feed so the daily scrape gets a fresh copy
 	url := buylistURL + "?v=" + strconv.FormatInt(time.Now().Unix(), 10)
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, http.NoBody)
 	if err != nil {
-		return nil, err
+		return nil, false, err
 	}
 
 	resp, err := mtgban.NewHTTPClient().Do(req)
 	if err != nil {
-		return nil, err
+		return nil, false, err
 	}
 	defer resp.Body.Close()
 
-	// Discard a possible UTF-8 BOM before it trips up the csv parser
-	buf := bufio.NewReader(resp.Body)
-	bom, err := buf.Peek(3)
-	if err == nil && string(bom) == "\ufeff" {
-		buf.Discard(3)
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, false, err
 	}
+	return parseBuylist(body)
+}
 
-	reader := csv.NewReader(buf)
+// parseBuylist reads a buylist body. The server stops the response after about
+// a minute wherever it is, so the text after the last newline is a partial
+// record and is dropped, which the returned bool reports; no field in the feed
+// holds a newline.
+func parseBuylist(body []byte) ([]Card, bool, error) {
+	// Discard a possible UTF-8 BOM before it trips up the csv parser
+	body = bytes.TrimPrefix(body, []byte("\ufeff"))
+	end := bytes.LastIndexByte(body, '\n')
+	if end < 0 {
+		return nil, false, errors.New("could not read csv header")
+	}
+	cut := end < len(body)-1
+
+	reader := csv.NewReader(bytes.NewReader(body[:end+1]))
 
 	header, err := reader.Read()
 	if err != nil {
-		return nil, fmt.Errorf("could not read csv header: %w", err)
+		return nil, false, fmt.Errorf("could not read csv header: %w", err)
 	}
 	column := map[string]int{}
 	for i, name := range header {
@@ -70,7 +86,7 @@ func GetBuylist(ctx context.Context) ([]Card, error) {
 			break
 		}
 		if err != nil {
-			return nil, err
+			return nil, false, err
 		}
 
 		price, err := strconv.ParseFloat(record[column["unit_price_eur"]], 64)
@@ -94,5 +110,5 @@ func GetBuylist(ctx context.Context) ([]Card, error) {
 		})
 	}
 
-	return cards, nil
+	return cards, cut, nil
 }
