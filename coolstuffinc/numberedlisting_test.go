@@ -41,6 +41,7 @@ func TestNumberedListingReachesTheNameRules(t *testing.T) {
 		{"Prof. Elm's Training Method - 148/165", "Expedition", "148", "148-165_88389"},
 		// Nidoran, sold without the sex the catalog names it by.
 		{"Nidoran - 57/101", "Ex Dragon Frontiers", "57", "57-101_87731"},
+		{"Nidoran(M) - 55/102", "Base Set", "55", "055-102_42399"},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			card := pokemonListing(b, tt.name, tt.edition, tt.variation, false)

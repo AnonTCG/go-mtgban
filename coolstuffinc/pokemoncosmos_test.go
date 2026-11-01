@@ -27,8 +27,10 @@ func TestPokemonCosmosHolo(t *testing.T) {
 			"Munkidori (Holo) - 095/167", "SV Twilight Masquerade", "", "Holo Rare", "095-167_550139_holofoil"},
 		{"a bare holo bracket beside a note saying it may be cosmos holo",
 			"Mimikyu (Holo) - 081/189", "SWSH Darkness Ablaze", "Can be Regular or Cosmos Holo", "Holo Rare", "081-189_219467"},
-		{"the cosmos step leaves a printing the miscellaneous shelf lacks alone",
-			"Greavard (Holo Promo) - 100/197", "SV Obsidian Flames", "", "Promo", "100-197_509947"},
+		{"a Deck Exclusives promo, holo and cosmos holo alike",
+			"Professor's Research (Cosmo Holo) - 060/072", "SWSH Shining Fates", "Professor Juniper, Cosmo Holo Foiling", "Promo", "060-072_276703_holofoil"},
+		{"the cosmos step leaves a printing no cosmos shelf holds alone",
+			"Pikachu (Holo Promo) - 025/185", "SWSH Vivid Voltage", "", "Promo", "25_161749"},
 	} {
 		t.Run(tt.desc, func(t *testing.T) {
 			card := pokemonCosmosHolo(b, pokemonListing(b, tt.name, tt.edition, tt.notes, false), tt.rarity)

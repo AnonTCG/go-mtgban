@@ -194,6 +194,7 @@ var pokemonListingIDs = map[string]string{
 	"Mega Greninja ex - MEP081 Jumbo Size|Pokemon Oversized Cards": "704880",
 	"Pikachu (Pokemon Day Stamp) - 9/17|POP Series 6":              "276377",
 	"Pikachu (Pokemon Day Stamp) - 15/17|POP Series 9":             "701479",
+	"Professor's Research (Holo) - 060/072|SWSH Shining Fates":     "239642",
 }
 
 // pokemonListing reads a Pokemon listing the way the catalog names it. The
@@ -457,6 +458,7 @@ var pokemonRespellings = strings.NewReplacer(
 	"Rayquaza-GX (Shiny) - 177a", "Rayquaza-GX (Alt Art) - 177a",
 	"Zoroark-GX (Shiny) - 77a", "Zoroark-GX (Alt Art) - 77a",
 	" - NON HOLO", " - NON-HOLO",
+	"Nidoran(M)", "Nidoran M",
 	"Victory Cup 1st Place", "Victory Cup",
 	"Victory Cup 2nd Place", "Victory Cup",
 	"Victory Cup 3rd Place", "Victory Cup",
@@ -728,12 +730,13 @@ var pokemonCosmosHedge = regexp.MustCompile(`(?i)\bor Cosmos Holo\b`)
 var pokemonCosmosShelves = []struct{ edition, set string }{
 	{"Miscellaneous Cards & Products", "MCAP"},
 	{"Blister Exclusives", "BLE"},
+	{"Deck Exclusives", "PR-1840"},
 }
 
 // pokemonCosmosHolo answers a listing sold under a main set with one of those
-// brackets as the collection-box holo the catalog files on a miscellaneous or
-// blister shelf, and leaves the listing as it is unless that printing exists
-// at the listing's own number.
+// brackets as the collection-box holo the catalog files on one of
+// pokemonCosmosShelves, and leaves the listing as it is unless that printing
+// exists at the listing's own number.
 //
 // The storefront keeps the set's number and total on it, so the base set's
 // nonfoil answers for it, a $2.99 Charmeleon priced as the $0.29 one. A
