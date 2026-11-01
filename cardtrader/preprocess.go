@@ -430,7 +430,8 @@ func Preprocess(b *matcher.Backend, bp *Blueprint) (*matcher.InputCard, error) {
 			edition = bp.Version
 			variant = number
 		}
-	case "The List":
+	case "The List", "The List - Mystery Booster Commander Edition":
+		edition = "The List"
 		switch cardName {
 		case "Everythingamajig", "Ineffable Blessing":
 			variant = strings.Fields(bp.Version)[0]
