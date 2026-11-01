@@ -470,23 +470,21 @@ func Preprocess(b *matcher.Backend, bp *Blueprint) (*matcher.InputCard, error) {
 		}
 	default:
 		if strings.HasPrefix(edition, "Secret Lair Commander Deck") {
-			// An id that got this far resolved nowhere, a deck reprint the
-			// catalog does not hold yet; the number would guess at another card.
-			if bp.ScryfallID != "" || bp.TCGplayerProductID() != 0 {
-				return nil, fmt.Errorf("unknown printing %q for %q", edition, cardName)
-			}
-			// The cards themselves are ordinary SLD or The List printings.
-			if len(b.MatchInSetNumber(cardName, "SLD", number)) > 0 {
+			// An id that got this far resolved nowhere: find the List printing
+			// by name and number, else refuse, since the number alone would
+			// guess at another card. Only an id-less card may be an SLD print.
+			hasID := bp.ScryfallID != "" || bp.TCGplayerProductID() != 0
+			n := plstNumber(b, cardName, number)
+			if !hasID && len(b.MatchInSetNumber(cardName, "SLD", number)) > 0 {
 				edition = "Secret Lair Drop"
 				variant = number
+			} else if n != "" {
+				edition = "The List"
+				variant = n
+			} else if hasID {
+				return nil, fmt.Errorf("unknown printing %q for %q", edition, cardName)
 			} else {
-				n := plstNumber(b, cardName, number)
-				if n != "" {
-					edition = "The List"
-					variant = n
-				} else {
-					variant = number
-				}
+				variant = number
 			}
 		} else if strings.HasPrefix(edition, "Secret Lair") {
 			variant = number
