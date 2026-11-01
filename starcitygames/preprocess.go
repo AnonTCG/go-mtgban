@@ -284,6 +284,10 @@ func ProcessSKU(b *matcher.Backend, cardName, SKU string) (*matcher.InputCard, e
 
 	switch setCode {
 	case "WCHP":
+		number = fields[3]
+		if len(number) < 2 {
+			return nil, fmt.Errorf("malformed SKU: %s", SKU)
+		}
 		year := number[:2]
 		setCode = "WC" + year
 		if year == "96" {

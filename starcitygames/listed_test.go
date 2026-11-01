@@ -70,8 +70,7 @@ func TestFileListed(t *testing.T) {
 		"SGL-MTG-WCHP-99KB_ULG_126-ENN": hit("Grim Monolith", "World Championships", "en", "126", nonfoil, rare),
 		// Foreign Black Border is Italian only.
 		"SGL-MTG-3BB-105-DEN": hit("Demonic Tutor", "3rd Edition - Black Border", "de", "105", nonfoil, rare),
-		// No 2001 deck holds a Rishadan Port; the wording finds Jon
-		// Finkel's from 2000.
+		// The year leads the number, so 2000-2004 keep it.
 		"SGL-MTG-WCHP-01JT_MMQ_324-ENN": hit("Rishadan Port", "World Championships", "en", "324", nonfoil, rare),
 		// A sideboard card the main deck also plays.
 		"SGL-MTG-WCHP-03PK_JUD_062s-ENN": hit("Cabal Therapy", "World Championships", "en", "062", nonfoil, rare),
@@ -116,10 +115,12 @@ func TestFileListed(t *testing.T) {
 		}
 	}
 	want := map[string]string{
-		"SGL-MTG-3BB-88-ITN":            "FBB 88",
-		"SGL-MTG-PRM-30A_2023_004-ENF":  "P30A 4",
-		"SGL-MTG-3BB-105-ITN":           "FBB 105",
-		"SGL-MTG-WCHP-99KB_ULG_126-ENN": "WC99 kb126",
+		"SGL-MTG-3BB-88-ITN":             "FBB 88",
+		"SGL-MTG-PRM-30A_2023_004-ENF":   "P30A 4",
+		"SGL-MTG-3BB-105-ITN":            "FBB 105",
+		"SGL-MTG-WCHP-99KB_ULG_126-ENN":  "WC99 kb126",
+		"SGL-MTG-WCHP-01JT_MMQ_324-ENN":  "WC01 jt324",
+		"SGL-MTG-WCHP-03PK_JUD_062s-ENN": "WC03 pk62sb",
 	}
 	if !maps.Equal(got, want) {
 		t.Errorf("got %v, want %v", got, want)
@@ -130,7 +131,7 @@ func TestFileListed(t *testing.T) {
 		}
 	}
 
-	summary := "[SCG] 6 singles only the sell list carries, 0 worded in a way the catalog never spelled, 3 landed on another printing"
+	summary := "[SCG] 6 singles only the sell list carries, 0 worded in a way the catalog never spelled, 1 landed on another printing"
 	if !slices.Contains(logs, summary) {
 		t.Errorf("the run said %q, want the summary %q", logs, summary)
 	}
