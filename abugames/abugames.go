@@ -253,6 +253,26 @@ func (abu *ABUGames) processEntry(ctx context.Context, filter string, channel ch
 						InstanceID: doc.ID,
 						VendorName: availableTraderNames[1],
 					}
+
+					// ABU has no SP grade for foils and no MP one for
+					// non-foils, so pay the grade below there too.
+					var gap mtgban.Condition
+					if cond == mtgban.MP && theCard.Foil {
+						gap = mtgban.SP
+					} else if cond == mtgban.HP && !theCard.Foil {
+						gap = mtgban.MP
+					}
+					if gap != "" {
+						gapBuy, gapTrade := *buyEntry, *tradeEntry
+						gapBuy.Conditions = gap
+						gapTrade.Conditions = gap
+						channel <- resultChan{
+							theCard:    *theCard,
+							cardID:     cardID,
+							buyEntry:   &gapBuy,
+							tradeEntry: &gapTrade,
+						}
+					}
 				}
 			}
 
