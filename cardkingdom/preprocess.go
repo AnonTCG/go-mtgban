@@ -781,6 +781,10 @@ var gradedScryfallIDs = map[string]string{
 	"331275": "e1e88b41-7ae5-40fc-8947-5f5aa03388be", // ODY 344
 	"331402": "16ffb489-3c9c-43e2-b407-aae1ba55035a", // SLD 7034
 	"334364": "d7741b03-c16a-426c-8847-622b5fc1236f", // PWCS 2023-4
+	"334652": "81690ce7-0651-40e4-9769-baebe10e2cbf", // FIN 551a
+	"334653": "ac3db85f-8cc3-4869-a555-882b62a1726b", // FIN 551b
+	"334693": "81690ce7-0651-40e4-9769-baebe10e2cbf", // FIN 551a
+	"335186": "5d393449-bdbe-4638-ba0b-7ec83f81b51e", // MAR 41
 }
 
 var supportedScores = []string{
