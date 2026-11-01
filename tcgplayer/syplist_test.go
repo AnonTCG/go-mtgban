@@ -57,15 +57,15 @@ func TestNewScraperSYPGames(t *testing.T) {
 // the datastore it was built on.
 func TestInfoNamesTheGame(t *testing.T) {
 	b := &matcher.Backend{Game: matcher.GameMagic}
-	market, err := NewScraperMarket(b, "public", "private")
+	market, err := NewScraperGame(b, "public", "private")
 	if err != nil {
 		t.Fatal(err)
 	}
-	index, err := NewScraperIndex(b, "public", "private")
+	index, err := NewScraperGameIndex(b, "public", "private")
 	if err != nil {
 		t.Fatal(err)
 	}
-	sealed, err := NewScraperSealed(b, "public", "private")
+	sealed, err := NewScraperGameSealed(b, "public", "private")
 	if err != nil {
 		t.Fatal(err)
 	}

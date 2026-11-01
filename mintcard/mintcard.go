@@ -13,6 +13,8 @@ import (
 	"github.com/mtgban/go-mtgban/matcher"
 	"github.com/mtgban/go-mtgban/mtgban"
 	"github.com/mtgban/go-mtgban/tcgplayer"
+
+	api "github.com/mtgban/go-tcgplayer"
 )
 
 // MTGMintCard prices MTG Mint Card's singles, both what they sell and what
@@ -27,7 +29,9 @@ type MTGMintCard struct {
 	inventory mtgban.InventoryRecord
 	buylist   mtgban.BuylistRecord
 
-	skusData tcgplayer.SKUMap
+	// catalog is TCGplayer's catalog dump, which names the sku a listing
+	// carries.
+	catalog *api.CatalogDump
 
 	backend *matcher.Backend
 }
@@ -249,8 +253,10 @@ func (mint *MTGMintCard) Load(ctx context.Context) error {
 	}
 	mint.printf("Found %d editions", len(productList))
 
-	mint.printf("Converting TCGSKU into reusable format")
-	sku2uuid := mint.buildSku2UUID()
+	sku2uuid, err := tcgplayer.SKUCards(mint.backend, mint.catalog)
+	if err != nil {
+		return err
+	}
 	mint.printf("Found %d skus", len(sku2uuid))
 
 	for edition, product := range productList {
@@ -271,75 +277,6 @@ func (mint *MTGMintCard) Load(ctx context.Context) error {
 	mint.buylistDate = time.Now()
 
 	return nil
-}
-
-// skuFinish is the finish a sku's own printing/finish fields name, kept
-// beside the id MatchID resolved for it so that id can later be checked
-// against what it actually landed on.
-type skuFinish struct {
-	id           string
-	foil, etched bool
-}
-
-// buildSku2UUID turns the raw TCGplayer sku catalog into a sku id -> uuid
-// map, deterministically: ranging over the catalog to fill it directly
-// would let whichever uuid Go's map iteration visits last win a sku two
-// different uuids both claim, changing the mapping from run to run.
-func (mint *MTGMintCard) buildSku2UUID() map[int]string {
-	candidates := map[int][]skuFinish{}
-	for uuid, skus := range mint.skusData {
-		for _, sku := range skus {
-			// Skip non-English printings
-			if sku.Language != "ENGLISH" {
-				continue
-			}
-
-			// Convert tcg sku ids into ban ids
-			foil, etched := sku.Printing == "FOIL", sku.Finish == "ETCHED"
-			id, err := mint.backend.MatchID(uuid, foil, etched)
-			if err != nil {
-				continue
-			}
-			candidates[sku.SkuID] = append(candidates[sku.SkuID], skuFinish{id, foil, etched})
-		}
-	}
-
-	sku2uuid := map[int]string{}
-	for skuID, matches := range candidates {
-		// Dedup by id first: the catalog occasionally lists one uuid's own
-		// sku twice, which is not an ambiguity even if that uuid's finish
-		// does not match what the sku claims.
-		byID := map[string]skuFinish{}
-		for _, m := range matches {
-			byID[m.id] = m
-		}
-		if len(byID) == 1 {
-			for id := range byID {
-				sku2uuid[skuID] = id
-			}
-			continue
-		}
-		// More than one uuid claims this sku: keep it only if exactly one
-		// candidate actually resolved to the finish the sku itself names,
-		// since MatchID falls back to a mismatched finish rather than
-		// fail - and, like MatchID itself, never to foil for an etched
-		// request.
-		resolved := map[string]bool{}
-		for id, m := range byID {
-			co, err := mint.backend.GetUUID(id)
-			isFoil := m.foil && !m.etched
-			if err != nil || co.Foil != isFoil || co.Etched != m.etched {
-				continue
-			}
-			resolved[id] = true
-		}
-		if len(resolved) == 1 {
-			for id := range resolved {
-				sku2uuid[skuID] = id
-			}
-		}
-	}
-	return sku2uuid
 }
 
 // Inventory returns what Load collected. See mtgban.Seller.

@@ -13,11 +13,10 @@ import (
 	"github.com/mtgban/go-tcgplayer"
 )
 
-// TCGGame is the retail scraper for any single-game TCGplayer category
-// (Lorcana, Riftbound, ...): it prices the skus the category's catalog dump
-// lists, each resolved to a card by its product id and finish; Magic has its
-// own SKU-driven scrapers. tcgGames below maps each game to the category it
-// is served from.
+// TCGGame is the retail scraper for every game's TCGplayer category: it
+// prices the skus the category's catalog dump lists, each resolved to a card
+// by its product id, finish and language (see resolver). tcgGames below maps
+// each game to the category it is served from.
 type TCGGame struct {
 	logCallback    mtgban.LogCallbackFunc
 	inventoryDate  time.Time
@@ -32,7 +31,12 @@ type TCGGame struct {
 	// printings.
 	catalog *tcgplayer.CatalogDump
 
-	printings map[int]string
+	printings     map[int]string
+	languageNames map[int]string
+
+	// resolve ties each single's sku to the printing it sells.
+	resolve *resolver
+	english int
 
 	category     int
 	categoryName string
@@ -60,10 +64,11 @@ func (tcg *TCGGame) printf(format string, a ...any) {
 }
 
 // tcgGames maps every game TCGGame and TCGGameIndex can be built for to the
-// TCGplayer category carrying it. Magic is deliberately absent: it is
-// identified by SKU and has its own scrapers. Supporting one more game is one
-// entry here, provided the matcher has a datastore for it.
+// TCGplayer category carrying it. Supporting one more game is one entry
+// here, provided the matcher has a datastore for it and the datastore
+// publish writes its catalog dump.
 var tcgGames = map[matcher.Game]int{
+	matcher.GameMagic:         tcgplayer.CategoryMagic,
 	matcher.GameLorcana:       tcgplayer.CategoryLorcana,
 	matcher.GameRiftbound:     tcgplayer.CategoryRiftbound,
 	matcher.GameOnePiece:      tcgplayer.CategoryOnePiece,
@@ -99,6 +104,7 @@ func NewScraperGame(b *matcher.Backend, publicID, privateID string) (*TCGGame, e
 	tcg.productTypes = tcgplayer.SinglesProductTypes(category)
 
 	tcg.printings = map[int]string{}
+	tcg.languageNames = map[int]string{}
 
 	return &tcg, nil
 }
@@ -118,83 +124,120 @@ func NewScraperGameSealed(b *matcher.Backend, publicID, privateID string) (*TCGG
 	return tcg, nil
 }
 
-func (tcg *TCGGame) processPage(ctx context.Context, channel chan<- genericChan, products []tcgplayer.Product) error {
-	productMap, skuMap, skuIDs := tcg.skusToPrice(products)
-
-	for i := 0; i < len(skuIDs); i += tcgplayer.MaxIDsInRequest {
-		start := i
-		end := min(i+tcgplayer.MaxIDsInRequest, len(skuIDs))
-
-		results, err := tcg.client.GetMarketPricesBySKUs(ctx, skuIDs[start:end])
-		if err != nil {
-			return err
+func (tcg *TCGGame) priceSKUs(ctx context.Context, channel chan<- genericChan, skus []resolvedSKU) error {
+	ids := make([]int, len(skus))
+	bySKU := map[int]resolvedSKU{}
+	for i, sku := range skus {
+		ids[i] = sku.SKUID
+		bySKU[sku.SKUID] = sku
+	}
+	results, err := tcg.client.GetMarketPricesBySKUs(ctx, ids)
+	if err != nil {
+		return err
+	}
+	for _, result := range results {
+		sku, found := bySKU[result.SKUID]
+		if !found {
+			continue
 		}
-
-		for _, result := range results {
-			sku := skuMap[result.SKUID]
-			product, found := productMap[sku.ProductID]
-			if !found {
-				continue
-			}
-			for _, out := range tcg.skuEntries(result, sku, product) {
-				channel <- out
-			}
+		for _, out := range tcg.skuEntries(result, sku) {
+			channel <- out
 		}
 	}
-
 	return nil
 }
 
-// skusToPrice keeps the skus a page's products are priced by: English ones,
-// unopened in the sealed mode and in a grade it reads otherwise.
-func (tcg *TCGGame) skusToPrice(products []tcgplayer.Product) (map[int]tcgplayer.Product, map[int]tcgplayer.SKU, []int) {
-	productMap := map[int]tcgplayer.Product{}
-	skuMap := map[int]tcgplayer.SKU{}
-	var skuIDs []int
-	for _, product := range products {
-		productMap[product.ProductID] = product
+// resolvedSKU is a sku to price and the card it resolved to.
+type resolvedSKU struct {
+	tcgplayer.SKU
+	cardID string
+}
 
+// skusToPrice resolves the skus the products are priced by, unopened in
+// the sealed mode and in a grade it reads otherwise, before any is asked
+// for. Only the failures that say something about the datastore are
+// reported one by one; the rest are counted.
+func (tcg *TCGGame) skusToPrice(products []tcgplayer.Product) []resolvedSKU {
+	var out []resolvedSKU
+	skipped := map[string]int{}
+	for i := range products {
+		product := &products[i]
+		if !tcg.sealed && isUnsupportedProduct(product) {
+			continue
+		}
 		for _, sku := range product.Skus {
 			if tcg.sealed {
-				if sku.ConditionID != SKUConditionUnopened {
+				if sku.ConditionID != SKUConditionUnopened || sku.LanguageID != tcg.english {
 					continue
 				}
-			} else {
-				_, found := SKUConditionMap[sku.ConditionID]
-				if !found {
+				// The product id is the sealed entry's whole identity
+				uuids := tcg.sealedMap[sku.ProductID]
+				if len(uuids) != 1 {
+					skipped["product no sealed entry owns"]++
 					continue
 				}
-			}
-			// Only English
-			if sku.LanguageID != 1 {
+				out = append(out, resolvedSKU{sku, uuids[0]})
 				continue
 			}
-
-			skuIDs = append(skuIDs, sku.SKUID)
-			skuMap[sku.SKUID] = sku
+			_, found := SKUConditionMap[sku.ConditionID]
+			if !found {
+				continue
+			}
+			printing, found := tcg.printings[sku.PrintingID]
+			if !found {
+				skipped["printing the catalog does not name"]++
+				continue
+			}
+			cardID, err := tcg.resolve.sku(sku, printing)
+			switch {
+			case err == nil:
+				out = append(out, resolvedSKU{sku, cardID})
+			case errors.Is(err, errUnownedProduct):
+				skipped["product no card owns"]++
+			case errors.Is(err, errRefusedProduct):
+				skipped["product id claimed by more than one set"]++
+			case errors.Is(err, matcher.ErrCardWrongFinish):
+				skipped["finish the printing is not sold in"]++
+			case errors.Is(err, matcher.ErrCardUnknownID):
+				skipped["language the printing has no copy in"]++
+			case errors.Is(err, matcher.ErrUnsupported):
+				skipped["printing the matcher does not support"]++
+			default:
+				tcg.reportSKU(err, product, sku, printing)
+			}
 		}
 	}
+	for reason, n := range skipped {
+		tcg.printf("Skipped %d skus of a %s", n, reason)
+	}
+	return out
+}
 
-	return productMap, skuMap, skuIDs
+// reportSKU says which product a sku failed to resolve for: a sku id alone
+// says nothing about it.
+func (tcg *TCGGame) reportSKU(err error, product *tcgplayer.Product, sku tcgplayer.SKU, printing string) {
+	tcg.printf("%v for %q %s (product %d)", err, product.Name, printing, sku.ProductID)
+	var alias *matcher.AliasingError
+	if errors.As(err, &alias) {
+		probes := alias.Probe()
+		tcg.printf("%d %s got ids: %s", sku.ProductID, product.Name, probes)
+		for _, probe := range probes {
+			co, _ := tcg.backend.GetUUID(probe)
+			tcg.printf("%s: %s", probe, co)
+		}
+	}
 }
 
 // skuEntries are the inventory entries a sku makes: its lowest listing, and
-// for singles its market price, each where TCGplayer quotes one. None where
-// the sku names nothing the scraper prices.
-func (tcg *TCGGame) skuEntries(result tcgplayer.SKUPriceSet, sku tcgplayer.SKU, product tcgplayer.Product) []genericChan {
+// for singles its Direct listing and market price, each where TCGplayer
+// quotes one.
+func (tcg *TCGGame) skuEntries(result tcgplayer.SKUPriceSet, sku resolvedSKU) []genericChan {
 	if tcg.sealed {
 		if result.LowestListingPrice == 0 {
 			return nil
 		}
-		// The product id is the sealed entry's whole identity;
-		// anything the map does not name is a product the
-		// datastore does not carry
-		uuids := tcg.sealedMap[sku.ProductID]
-		if len(uuids) != 1 {
-			return nil
-		}
 		return []genericChan{{
-			key: uuids[0],
+			key: sku.cardID,
 			entry: mtgban.InventoryEntry{
 				Conditions: mtgban.NM,
 				Price:      result.LowestListingPrice,
@@ -206,56 +249,20 @@ func (tcg *TCGGame) skuEntries(result tcgplayer.SKUPriceSet, sku tcgplayer.SKU, 
 			},
 		}}
 	}
-	if isUnsupportedProduct(&product) {
-		return nil
-	}
-
-	cardName := product.Name
-	// A sku is a printing in one finish, and every game datastore
-	// stamps the product id on the printing it names: the id and
-	// the finish identify the sku, and a product the datastore does
-	// not carry is reported rather than guessed from its wording.
-	printing := tcg.printings[sku.PrintingID]
-	theCard := &matcher.InputCard{
-		ID:     fmt.Sprint(sku.ProductID),
-		Finish: printing,
-		Foil:   printing != "Normal",
-	}
-	cardID, err := tcg.backend.Match(theCard)
-	if errors.Is(err, matcher.ErrUnsupported) {
-		return nil
-	} else if err != nil {
-		// A row nobody prices loses nothing but its $0 listing
-		if result.LowestListingPrice == 0 && result.MarketPrice == 0 && result.DirectLowPrice == 0 {
-			return nil
-		}
-		// Name the card, not just the price row: a sku id alone
-		// says nothing about which product failed to match.
-		tcg.printf("%v for %q %s (product %d)", err, cardName, printing, sku.ProductID)
-		tcg.printf("%+v", result)
-
-		var alias *matcher.AliasingError
-		if errors.As(err, &alias) {
-			probes := alias.Probe()
-			tcg.printf("%d %s got ids: %s", sku.ProductID, cardName, probes)
-			for _, probe := range probes {
-				co, _ := tcg.backend.GetUUID(probe)
-				tcg.printf("%s: %s", probe, co)
-			}
-		}
-		return nil
-	}
 
 	condition := SKUConditionMap[sku.ConditionID]
+	printing := tcg.printings[sku.PrintingID]
+	// The link filters the listings to the sku's language, as its price
+	language := tcg.languageNames[sku.LanguageID]
 
 	entry := func(name string, price float64, isDirect bool) genericChan {
 		return genericChan{
-			key: cardID,
+			key: sku.cardID,
 			entry: mtgban.InventoryEntry{
 				Conditions: condition,
 				Price:      price,
 				Quantity:   1,
-				URL:        GenerateProductURL(sku.ProductID, printing, tcg.affiliate, condition, "", isDirect),
+				URL:        GenerateProductURL(sku.ProductID, printing, tcg.affiliate, condition, language, isDirect),
 				SellerName: name,
 				Bundle:     isDirect,
 				OriginalID: fmt.Sprint(sku.ProductID),
@@ -302,6 +309,9 @@ func (tcg *TCGGame) Load(ctx context.Context) error {
 		tcg.printf("%d - %s", printing.PrintingID, printing.Name)
 		tcg.printings[printing.PrintingID] = printing.Name
 	}
+	for _, language := range tcg.catalog.Languages {
+		tcg.languageNames[language.LanguageID] = language.Name
+	}
 
 	products, err := catalogProducts(tcg.catalog, tcg.productTypes)
 	if err != nil {
@@ -309,14 +319,28 @@ func (tcg *TCGGame) Load(ctx context.Context) error {
 	}
 	tcg.printf("Found %d products", len(products))
 
+	tcg.english, err = catalogEnglish(tcg.catalog)
+	if err != nil {
+		return err
+	}
 	if tcg.sealed {
 		tcg.sealedMap = tcg.backend.BuildSealedProductMap("tcgplayerProductId")
 		tcg.printf("Loaded %d sealed products", len(tcg.sealedMap))
+	} else {
+		tcg.resolve, err = newResolver(tcg.backend, tcg.catalog)
+		if err != nil {
+			return err
+		}
+		for id, sets := range tcg.resolve.refused {
+			tcg.printf("skipping id %s, claimed by more than one set: %v", id, sets)
+		}
 	}
+	skus := tcg.skusToPrice(products)
+	tcg.printf("Pricing %d skus", len(skus))
 
-	err = loadPages(ctx, tcg.maxConcurrency, len(products),
-		func(ctx context.Context, page int, channel chan<- genericChan) error {
-			return tcg.processPage(ctx, channel, catalogPage(products, page))
+	err = loadPages(ctx, tcg.maxConcurrency, len(skus),
+		func(ctx context.Context, offset int, channel chan<- genericChan) error {
+			return tcg.priceSKUs(ctx, channel, skus[offset:min(offset+tcgplayer.MaxIDsInRequest, len(skus))])
 		},
 		func(result genericChan) {
 			err := tcg.inventory.Add(result.key, &result.entry)

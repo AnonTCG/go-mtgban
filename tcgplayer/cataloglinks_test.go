@@ -2,7 +2,6 @@ package tcgplayer
 
 import (
 	"strconv"
-	"strings"
 	"testing"
 
 	"github.com/mtgban/go-mtgban/matcher"
@@ -110,6 +109,7 @@ func TestCatalogLinks(t *testing.T) {
 		return set.Name
 	}
 	dump := tcgplayer.CatalogDump{
+		Languages:  []tcgplayer.Language{{LanguageID: 1, Name: "English"}, {LanguageID: 7, Name: "Japanese"}},
 		Conditions: []tcgplayer.Condition{{ConditionID: 1, Name: "Near Mint"}, {ConditionID: 2, Name: "Lightly Played"}},
 		Printings:  []tcgplayer.Printing{{PrintingID: 1, Name: "Normal"}, {PrintingID: 2, Name: "Foil"}},
 		Groups: []tcgplayer.Group{
@@ -141,61 +141,29 @@ func TestCatalogLinks(t *testing.T) {
 
 	links := catalogLinks(b, &dump)
 
-	want := map[string]int{
-		cards[0].Identifiers["mtgjsonId"]: 900000001,
-		cards[1].Identifiers["mtgjsonId"]: 900000002,
+	want := map[int]string{
+		900000001: cards[0].UUID,
+		900000002: cards[1].UUID,
 	}
 	if len(links) != len(want) {
 		t.Errorf("got %d links, want %d: %v", len(links), len(want), links)
 	}
-	for uuid, id := range want {
-		skus := links[uuid]
-		if len(skus) != 2 {
-			t.Fatalf("%s: got %d skus, want the 2 English ones: %v", uuid, len(skus), skus)
-		}
-		for _, sku := range skus {
-			if sku.ProductID != id || sku.Language != "ENGLISH" {
-				t.Errorf("%s: got %+v, want product %d in English", uuid, sku, id)
-			}
-		}
-		if skus[0].Condition != "NEAR MINT" || skus[0].Printing != "NON FOIL" ||
-			skus[1].Condition != "LIGHTLY PLAYED" || skus[1].Printing != "FOIL" {
-			t.Errorf("%s: skus read as %+v", uuid, skus)
+	for id, uuid := range want {
+		if links[id] != uuid {
+			t.Errorf("product %d links %q, want %q", id, links[id], uuid)
 		}
 	}
 
-	// The index prices the linked product's rows as the card's own
-	co, _ := b.GetUUID(cards[0].Identifiers["mtgjsonId"])
-	printings := productPrintings(b, nil, links)
+	// The resolver prices the linked product's rows as the card's own
+	r, err := newResolver(b, &dump)
+	if err != nil {
+		t.Fatal(err)
+	}
+	co, _ := b.GetUUID(cards[0].UUID)
 	for subtype, finish := range map[string]string{"Normal": matcher.FinishNonfoil, "Foil": matcher.FinishFoil} {
-		got := printings["900000001"][subtype]
-		if got != co.FoilUUIDs[finish] {
-			t.Errorf("product 900000001 %s prices %q, want %q", subtype, got, co.FoilUUIDs[finish])
+		got, err := r.product(900000001, subtype)
+		if err != nil || got != co.FoilUUIDs[finish] {
+			t.Errorf("product 900000001 %s resolves to %q (%v), want %q", subtype, got, err, co.FoilUUIDs[finish])
 		}
-	}
-}
-
-// TestSKUMapWithLinks pins that links only fill cards the sku catalog has
-// nothing for, and that neither map is changed.
-func TestSKUMapWithLinks(t *testing.T) {
-	skus := SKUMap{"a": {{SkuID: 1}}}
-	links := SKUMap{"a": {{SkuID: 2}}, "b": {{SkuID: 3}}}
-
-	merged := skus.WithLinks(links)
-
-	if merged["a"][0].SkuID != 1 || merged["b"][0].SkuID != 3 || len(merged) != 2 {
-		t.Errorf("merged is %v", merged)
-	}
-	if len(skus) != 1 || len(links) != 2 {
-		t.Errorf("inputs changed: %v %v", skus, links)
-	}
-}
-
-// TestLoadCatalogLinksRefusesEmpty pins that a dump naming nothing is an
-// error rather than a run that links nothing and reports success.
-func TestLoadCatalogLinksRefusesEmpty(t *testing.T) {
-	_, err := LoadCatalogLinks(&matcher.Backend{}, strings.NewReader(`{"products": []}`))
-	if err == nil {
-		t.Error("an empty dump was accepted")
 	}
 }

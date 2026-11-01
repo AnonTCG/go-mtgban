@@ -10,7 +10,6 @@ import (
 
 	"github.com/mtgban/go-mtgban/internal/datastore"
 	"github.com/mtgban/go-mtgban/matcher"
-	"github.com/mtgban/go-mtgban/tcgplayer"
 
 	_ "github.com/mtgban/go-mtgban/matcher/magic"
 )
@@ -200,77 +199,6 @@ func TestPreprocessTokenFlavorSwap(t *testing.T) {
 	co, _ := b.GetUUID(cardID)
 	if co.SetCode != "MPR" || co.Number != "6" {
 		t.Errorf("Match(%q) = %s %s, want MPR 6", theCard, co.SetCode, co.Number)
-	}
-}
-
-// TestBuildSkuToUUID pins buildSku2UUID's tie-break on a hand-built
-// fixture: two different uuids rivaling one sku id is dropped unless
-// exactly one resolves to the finish the sku names, and one uuid's own
-// sku list repeating that id - not a rival claim - is kept regardless.
-func TestBuildSkuToUUID(t *testing.T) {
-	const uuidA, uuidB, uuidC, uuidD, uuidE, uuidF, uuidG, uuidH = "uuid-a", "uuid-b", "uuid-c", "uuid-d", "uuid-e", "uuid-f", "uuid-g", "uuid-h"
-	newCard := func(uuid, name, number string, foil bool, finishes ...string) *matcher.CardObject {
-		return &matcher.CardObject{
-			Card: matcher.Card{Name: name, SetCode: "TST", Number: number, UUID: uuid, Finishes: finishes},
-			Foil: foil,
-		}
-	}
-	b := &matcher.Backend{UUIDs: map[string]*matcher.CardObject{
-		uuidA: newCard(uuidA, "Card A", "1", false, "nonfoil"),
-		uuidB: newCard(uuidB, "Card B", "2", false, "nonfoil"),
-		uuidC: newCard(uuidC, "Card C", "3", false, "nonfoil"),
-		uuidD: newCard(uuidD, "Card D", "4", false, "nonfoil"),
-		uuidE: newCard(uuidE, "Card E", "5", true, "foil"),
-		uuidG: newCard(uuidG, "Card G", "6", false, "nonfoil"),
-		uuidH: newCard(uuidH, "Card H", "8", true, "foil"),
-	}}
-	etchedF := newCard(uuidF, "Card F", "7", false, "etched")
-	etchedF.Etched = true
-	b.UUIDs[uuidF] = etchedF
-
-	skus := tcgplayer.SKUMap{}
-	// Id 100 is claimed by two different, equally nonfoil cards: still
-	// ambiguous once the finish check runs, so it is dropped.
-	skus[uuidA] = append(skus[uuidA], tcgplayer.TCGSku{SkuID: 100, Language: "ENGLISH", Printing: "NON FOIL"})
-	skus[uuidB] = append(skus[uuidB], tcgplayer.TCGSku{SkuID: 100, Language: "ENGLISH", Printing: "NON FOIL"})
-	// Id 200 is repeated within card C's own sku list - a catalog
-	// duplicate, not a rival claim - and is kept.
-	skus[uuidC] = append(skus[uuidC], tcgplayer.TCGSku{SkuID: 200, Language: "ENGLISH", Printing: "NON FOIL"})
-	skus[uuidC] = append(skus[uuidC], tcgplayer.TCGSku{SkuID: 200, Language: "ENGLISH", Printing: "NON FOIL"})
-	// Id 300 names only card D: unambiguous outright.
-	skus[uuidD] = append(skus[uuidD], tcgplayer.TCGSku{SkuID: 300, Language: "ENGLISH", Printing: "NON FOIL"})
-	// Id 400 is claimed by both D (nonfoil only, so a foil request falls
-	// back to its own nonfoil id - a mismatch) and E (sold foil outright,
-	// a match): the mismatch breaks the tie in E's favor.
-	skus[uuidD] = append(skus[uuidD], tcgplayer.TCGSku{SkuID: 400, Language: "ENGLISH", Printing: "FOIL"})
-	skus[uuidE] = append(skus[uuidE], tcgplayer.TCGSku{SkuID: 400, Language: "ENGLISH", Printing: "FOIL"})
-	// Id 600 is repeated within card G's own sku list, both mistagged
-	// FOIL for a card G only sells nonfoil: still one uuid, so the
-	// mismatch must not drop it the way it would if two rival uuids gave
-	// the same wrong finish.
-	skus[uuidG] = append(skus[uuidG], tcgplayer.TCGSku{SkuID: 600, Language: "ENGLISH", Printing: "FOIL"})
-	skus[uuidG] = append(skus[uuidG], tcgplayer.TCGSku{SkuID: 600, Language: "ENGLISH", Printing: "FOIL"})
-
-	// Id 500 is an etched sku claimed by F (sold etched) and H (sold only
-	// foil, so the etched request falls back to its foil id): an etched
-	// sku is never foil, so F alone matches.
-	skus[uuidF] = append(skus[uuidF], tcgplayer.TCGSku{SkuID: 500, Language: "ENGLISH", Printing: "FOIL", Finish: "ETCHED"})
-	skus[uuidH] = append(skus[uuidH], tcgplayer.TCGSku{SkuID: 500, Language: "ENGLISH", Printing: "FOIL", Finish: "ETCHED"})
-
-	mint := &MTGMintCard{backend: b, skusData: skus}
-	got := mint.buildSku2UUID()
-
-	want := map[int]string{200: uuidC, 300: uuidD, 400: uuidE, 500: uuidF, 600: uuidG}
-	for sku, id := range want {
-		if got[sku] != id {
-			t.Errorf("buildSku2UUID()[%d] = %q, want %q", sku, got[sku], id)
-		}
-	}
-	if id, found := got[100]; found {
-		t.Errorf("buildSku2UUID()[100] = %q, want unmapped (still ambiguous)", id)
-	}
-	if len(got) != len(want) {
-		t.Errorf("buildSku2UUID() = %v, want exactly %v", got, want)
 	}
 }
 

@@ -32,6 +32,9 @@ type TCGGameIndex struct {
 	// printings are the names of the finishes the category sells.
 	printings []string
 
+	// resolve ties each price row to the printing it prices.
+	resolve *resolver
+
 	category     int
 	categoryName string
 
@@ -39,6 +42,12 @@ type TCGGameIndex struct {
 
 	backend *matcher.Backend
 	client  *tcgplayer.Client
+}
+
+// availableIndexNames are the index's sub-sellers, in the order of the
+// prices a product row quotes.
+var availableIndexNames = []string{
+	"TCG Low", "TCG Market", "TCG Mid", "TCG Direct Low",
 }
 
 func (tcg *TCGGameIndex) printf(format string, a ...any) {
@@ -77,9 +86,9 @@ func NewScraperGameIndex(b *matcher.Backend, publicID, privateID string) (*TCGGa
 	return &tcg, nil
 }
 
-func (tcg *TCGGameIndex) processPage(ctx context.Context, channel chan<- genericChan, products []tcgplayer.Product) error {
-	productMap := map[int]tcgplayer.Product{}
+func (tcg *TCGGameIndex) priceProducts(ctx context.Context, channel chan<- genericChan, products []*tcgplayer.Product) error {
 	ids := make([]int, len(products))
+	productMap := map[int]*tcgplayer.Product{}
 	for i, product := range products {
 		ids[i] = product.ProductID
 		productMap[product.ProductID] = product
@@ -103,26 +112,30 @@ func (tcg *TCGGameIndex) processPage(ctx context.Context, channel chan<- generic
 	return nil
 }
 
+// productsToPrice keeps the products a card owns, before any is asked for:
+// the catalog lists every product the category sells.
+func (tcg *TCGGameIndex) productsToPrice(products []tcgplayer.Product) []*tcgplayer.Product {
+	var out []*tcgplayer.Product
+	for i := range products {
+		product := &products[i]
+		if isUnsupportedProduct(product) || !tcg.resolve.owns(product.ProductID) {
+			continue
+		}
+		out = append(out, product)
+	}
+	return out
+}
+
 // productEntries are the inventory entries a product's price row makes, one
 // per price it quotes, or none where the row names nothing the scraper
 // prices.
-func (tcg *TCGGameIndex) productEntries(result tcgplayer.ProductPriceSet, product tcgplayer.Product) []genericChan {
+func (tcg *TCGGameIndex) productEntries(result tcgplayer.ProductPriceSet, product *tcgplayer.Product) []genericChan {
 	if result.LowPrice == 0 && result.MarketPrice == 0 && result.MidPrice == 0 && result.DirectLowPrice == 0 {
-		return nil
-	}
-	if isUnsupportedProduct(&product) {
 		return nil
 	}
 
 	cardName := product.Name
-	// See TCGGame.processPage: the product id and the finish identify
-	// the price row.
-	theCard := &matcher.InputCard{
-		ID:     fmt.Sprint(result.ProductID),
-		Finish: result.SubTypeName,
-		Foil:   result.SubTypeName != "Normal",
-	}
-	cardID, err := tcg.backend.Match(theCard)
+	cardID, err := tcg.resolve.product(result.ProductID, result.SubTypeName)
 	if errors.Is(err, matcher.ErrUnsupported) {
 		return nil
 	} else if err != nil {
@@ -208,9 +221,19 @@ func (tcg *TCGGameIndex) Load(ctx context.Context) error {
 	}
 	tcg.printf("Found %d products", len(products))
 
-	err = loadPages(ctx, tcg.maxConcurrency, len(products),
-		func(ctx context.Context, page int, channel chan<- genericChan) error {
-			return tcg.processPage(ctx, channel, catalogPage(products, page))
+	tcg.resolve, err = newResolver(tcg.backend, tcg.catalog)
+	if err != nil {
+		return err
+	}
+	for id, sets := range tcg.resolve.refused {
+		tcg.printf("skipping id %s, claimed by more than one set: %v", id, sets)
+	}
+	priced := tcg.productsToPrice(products)
+	tcg.printf("Pricing %d products a card owns", len(priced))
+
+	err = loadPages(ctx, tcg.maxConcurrency, len(priced),
+		func(ctx context.Context, offset int, channel chan<- genericChan) error {
+			return tcg.priceProducts(ctx, channel, priced[offset:min(offset+tcgplayer.MaxIDsInRequest, len(priced))])
 		},
 		func(result genericChan) {
 			err := tcg.inventory.Add(result.key, &result.entry)

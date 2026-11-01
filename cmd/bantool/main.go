@@ -35,7 +35,6 @@ import (
 	"github.com/mtgban/go-mtgban/cardmarket"
 	"github.com/mtgban/go-mtgban/cardtrader"
 	"github.com/mtgban/go-mtgban/matcher"
-	"github.com/mtgban/go-mtgban/mintcard"
 	"github.com/mtgban/go-mtgban/mtgban"
 	"github.com/mtgban/go-mtgban/tcgplayer"
 	"github.com/mtgban/simplecloud"
@@ -51,6 +50,7 @@ import (
 	_ "github.com/mtgban/go-mtgban/matcher/games"
 	_ "github.com/mtgban/go-mtgban/merlion"
 	_ "github.com/mtgban/go-mtgban/miniaturemarket"
+	_ "github.com/mtgban/go-mtgban/mintcard"
 	_ "github.com/mtgban/go-mtgban/mtgseattle"
 	_ "github.com/mtgban/go-mtgban/sealedev"
 	_ "github.com/mtgban/go-mtgban/starcitygames"
@@ -234,28 +234,6 @@ func mkmCatalog() (*cm.Catalog, error) {
 	return cm.LoadCatalog(reader)
 }
 
-// tcgSKUs reads the sku catalog tcg_market and tcg_sealed resolve their
-// Magic listings against, and mintcard resolves all of its listings against,
-// since mintcard prices skus TCGplayer itself hosts.
-func tcgSKUs() (tcgplayer.SKUMap, error) {
-	path := os.Getenv("MTGJSON_TCGSKU_PATH")
-	if path == "" {
-		return nil, errors.New("missing MTGJSON_TCGSKU_PATH env var")
-	}
-	start := time.Now()
-	reader, err := openPath(path, os.Getenv("B2_KEY_ID_DATASTORE"), os.Getenv("B2_APP_KEY_DATASTORE"))
-	if err != nil {
-		return nil, err
-	}
-	defer reader.Close()
-	skus, err := tcgplayer.LoadTCGSKUs(reader)
-	if err != nil {
-		return nil, err
-	}
-	log.Println("loading skus took:", time.Since(start))
-	return skus, nil
-}
-
 // tcgSYPCatalog reads the catalog tcg_syplist resolves its skus against: the
 // list names a sku and the datastore names products, and the catalog is the
 // step between the two - the same file the datastore generators build from.
@@ -272,8 +250,9 @@ func tcgSYPCatalog() (tcgplayer.SYPCatalog, error) {
 	return tcgplayer.LoadSYPCatalog(reader)
 }
 
-// tcgCatalog reads the catalog dump every game's tcg_index, tcg_market and
-// tcg_sealed but Magic's price: the products they list and their skus.
+// tcgCatalog reads the catalog dump tcg_index, tcg_market and tcg_sealed
+// price from, and mintcard names its listings' skus by: the products the
+// category sells and their skus.
 func tcgCatalog() (*tcgapi.CatalogDump, error) {
 	path := os.Getenv("TCGPLAYER_CATALOG_PATH")
 	if path == "" {
@@ -291,30 +270,6 @@ func tcgCatalog() (*tcgapi.CatalogDump, error) {
 	}
 	log.Println("loading catalog took:", time.Since(start))
 	return catalog, nil
-}
-
-// tcgCatalogLinks reads the catalog dump for the products the datastore
-// names no card for (see tcgplayer.LoadCatalogLinks). The links only add
-// prices, so a dump that will not load costs those and nothing else.
-func tcgCatalogLinks(b *matcher.Backend) tcgplayer.SKUMap {
-	path := os.Getenv("TCGPLAYER_CATALOG_PATH")
-	if path == "" {
-		log.Println("no TCGPLAYER_CATALOG_PATH, pricing only the products the datastore names")
-		return nil
-	}
-	reader, err := openPath(path, os.Getenv("B2_KEY_ID_DATASTORE"), os.Getenv("B2_APP_KEY_DATASTORE"))
-	if err != nil {
-		log.Printf("catalog links unavailable: %v", err)
-		return nil
-	}
-	defer reader.Close()
-	links, err := tcgplayer.LoadCatalogLinks(b, reader)
-	if err != nil {
-		log.Printf("catalog links unavailable: %v", err)
-		return nil
-	}
-	log.Printf("catalog links name %d cards the datastore gives no product", len(links))
-	return links
 }
 
 // scraperResources loads the catalogs, sku lists and bridge a key needs
@@ -377,37 +332,12 @@ func scraperResources(b *matcher.Backend, key string) ([]mtgban.Option, error) {
 			opts = append(opts, cardgamecorner.WithBridge(bridge))
 		}
 
-	case "tcg_index", "tcg_market", "tcg_sealed":
-		if game != matcher.GameMagic {
-			catalog, err := tcgCatalog()
-			if err != nil {
-				return nil, err
-			}
-			opts = append(opts, tcgplayer.WithCatalog(catalog))
-			break
-		}
-		if key == "tcg_index" {
-			opts = append(opts, tcgplayer.WithCatalogLinks(tcgCatalogLinks(b)))
-			break
-		}
-		skus, err := tcgSKUs()
+	case "tcg_index", "tcg_market", "tcg_sealed", "mintcard":
+		catalog, err := tcgCatalog()
 		if err != nil {
 			return nil, err
 		}
-		if key == "tcg_market" {
-			skus = skus.WithLinks(tcgCatalogLinks(b))
-		}
-		opts = append(opts, tcgplayer.WithSKUs(skus))
-
-	case "mintcard":
-		skus, err := tcgSKUs()
-		if err != nil {
-			return nil, err
-		}
-		if game == matcher.GameMagic {
-			skus = skus.WithLinks(tcgCatalogLinks(b))
-		}
-		opts = append(opts, mintcard.WithSKUs(skus))
+		opts = append(opts, tcgplayer.WithCatalog(catalog))
 
 	case "tcg_syplist":
 		catalog, err := tcgSYPCatalog()

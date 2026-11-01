@@ -6,34 +6,27 @@ import (
 	"github.com/mtgban/go-mtgban/matcher"
 	"github.com/mtgban/go-mtgban/mtgban"
 	"github.com/mtgban/go-mtgban/tcgplayer"
+
+	api "github.com/mtgban/go-tcgplayer"
 )
-
-// ResourceSKUs is the typed resource the constructor reads its sku catalog
-// from: the same catalog tcgplayer's Magic scrapers resolve against, since
-// mintcard prices skus TCGplayer itself hosts.
-const ResourceSKUs = "mintcard.skus"
-
-// WithSKUs hands the scraper the sku catalog LoadTCGSKUs returns, which is
-// required: without it a listing has no sku id to resolve to a printing.
-func WithSKUs(skus tcgplayer.SKUMap) mtgban.Option {
-	return mtgban.WithResource(ResourceSKUs, skus)
-}
 
 func init() {
 	mtgban.Register("mintcard", []matcher.Game{matcher.GameMagic}, newScraper)
 }
 
 func newScraper(b *matcher.Backend, opts mtgban.Options) (mtgban.Scraper, error) {
-	skus, err := mtgban.Resource[tcgplayer.SKUMap](opts, ResourceSKUs)
+	// The catalog names the sku each listing carries, the same catalog the
+	// tcgplayer scrapers price from
+	catalog, err := mtgban.Resource[*api.CatalogDump](opts, tcgplayer.ResourceCatalog)
 	if err != nil {
 		return nil, err
 	}
-	if skus == nil {
-		return nil, errors.New("mintcard needs WithSKUs")
+	if catalog == nil {
+		return nil, errors.New("mintcard needs tcgplayer.WithCatalog")
 	}
 
 	scraper := NewScraper(b)
-	scraper.skusData = skus
+	scraper.catalog = catalog
 	scraper.logCallback = opts.LogCallback
 	scraper.partner = opts.Affiliate
 	return scraper, nil

@@ -138,9 +138,9 @@ On the scraper side, the only multi-game knowledge that exists is a lookup
 table: `tcgGames` (`tcgplayer/game.go`) maps an `mtgmatcher.Game` to the TCGplayer
 category serving it, and both generic TCGplayer scrapers — `TCGGame` and
 `TCGGameIndex` — refuse to be constructed for a game absent from it. Magic
-is deliberately absent: it is identified by SKU and has its own scrapers. The
-generic pair resolves identity solely through `mtgmatcher`; supporting one more
-game there is one table entry plus a matcher datastore.
+is in it like every other game. The generic pair resolves identity solely
+through `mtgmatcher`; supporting one more game there is one table entry plus
+a matcher datastore.
 
 ## Alternatives considered
 

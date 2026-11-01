@@ -17,7 +17,7 @@ func TestLoadPagesFailsWhenAPageDoes(t *testing.T) {
 	var consumed int
 	run := func(failAt int) error {
 		pages, consumed = nil, 0
-		return loadPages(context.Background(), 2, 250,
+		return loadPages(context.Background(), 2, 600,
 			func(ctx context.Context, page int, channel chan<- genericChan) error {
 				mtx.Lock()
 				pages = append(pages, page)
@@ -37,11 +37,11 @@ func TestLoadPagesFailsWhenAPageDoes(t *testing.T) {
 		t.Errorf("loadPages() with every page good error = %v, want nil", err)
 	}
 	slices.Sort(pages)
-	if !slices.Equal(pages, []int{0, 100, 200}) || consumed != 3 {
-		t.Errorf("loadPages() visited %v and consumed %d, want [0 100 200] and 3", pages, consumed)
+	if !slices.Equal(pages, []int{0, 250, 500}) || consumed != 3 {
+		t.Errorf("loadPages() visited %v and consumed %d, want [0 250 500] and 3", pages, consumed)
 	}
 
-	err := run(100)
+	err := run(250)
 	if err == nil || !strings.Contains(err.Error(), "1 of 3 pages") {
 		t.Errorf("loadPages() with a failed page error = %v, want 1 of 3 pages reported", err)
 	}

@@ -1218,8 +1218,6 @@ func (ap *AllPrintings) newBackend() *matcher.Backend {
 
 				card.Identifiers = newIdentifiers
 				card.Identifiers["tcgplayerProductId"] = alternativeID
-				// Signal that the TCG SKUs from MTGJSON need to be refreshed
-				card.Identifiers["needsNewTCGSKUs"] = "true"
 
 				// Append the new card
 				filteredCards = append(filteredCards, card)

@@ -20,19 +20,9 @@ const (
 // The typed resources tcg_index, tcg_market, tcg_sealed and tcg_syplist
 // read out of their Options.
 const (
-	ResourceSKUs         = "tcgplayer.skus"
-	ResourceSYPCatalog   = "tcgplayer.sypcatalog"
-	ResourceCatalogLinks = "tcgplayer.cataloglinks"
-	ResourceCatalog      = "tcgplayer.catalog"
+	ResourceSYPCatalog = "tcgplayer.sypcatalog"
+	ResourceCatalog    = "tcgplayer.catalog"
 )
-
-// WithSKUs hands the Magic market and sealed scrapers the sku catalog
-// LoadTCGSKUs returns, which is what resolves a card to the skus the
-// partner API prices. The other games read their skus from the catalog
-// dump WithCatalog hands them.
-func WithSKUs(skus SKUMap) mtgban.Option {
-	return mtgban.WithResource(ResourceSKUs, skus)
-}
 
 // WithSYPCatalog hands the SYP scraper the catalog LoadSYPCatalog returns,
 // which is the step between a sku id the list names and the product and
@@ -41,21 +31,14 @@ func WithSYPCatalog(catalog SYPCatalog) mtgban.Option {
 	return mtgban.WithResource(ResourceSYPCatalog, catalog)
 }
 
-// WithCatalogLinks hands the Magic index scraper the links LoadCatalogLinks
-// returns, so it prices the products the datastore names no card for. The
-// sku-driven scrapers take the same links merged into WithSKUs instead.
-func WithCatalogLinks(links SKUMap) mtgban.Option {
-	return mtgban.WithResource(ResourceCatalogLinks, links)
-}
-
-// WithCatalog hands every game's index, market and sealed scrapers but
-// Magic's the catalog dump LoadCatalog returns: the products they price,
-// with their skus, and the category's printings.
+// WithCatalog hands the index, market and sealed scrapers the catalog dump
+// LoadCatalog returns: the products they price, with their skus, and the
+// category's printings and languages.
 func WithCatalog(catalog *tcgplayer.CatalogDump) mtgban.Option {
 	return mtgban.WithResource(ResourceCatalog, catalog)
 }
 
-// gameCatalog is the catalog a non-Magic scraper built for key prices.
+// gameCatalog is the catalog a scraper built for key prices.
 func gameCatalog(opts mtgban.Options, key string) (*tcgplayer.CatalogDump, error) {
 	catalog, err := mtgban.Resource[*tcgplayer.CatalogDump](opts, ResourceCatalog)
 	if err != nil {
@@ -79,36 +62,12 @@ func tcgCredentials(opts mtgban.Options) (publicID, privateID string, err error)
 	return publicID, privateID, nil
 }
 
-// newTCGIndexScraper builds tcg_index: Magic is priced by its own sku-driven
-// scraper, every other game by the shared TCGGameIndex over the catalog
-// dump.
+// newTCGIndexScraper builds tcg_index: TCGGameIndex over the catalog dump.
 func newTCGIndexScraper(b *matcher.Backend, opts mtgban.Options) (mtgban.Scraper, error) {
 	publicID, privateID, err := tcgCredentials(opts)
 	if err != nil {
 		return nil, err
 	}
-
-	game := b.Game
-
-	if game == matcher.GameMagic {
-		links, err := mtgban.Resource[SKUMap](opts, ResourceCatalogLinks)
-		if err != nil {
-			return nil, err
-		}
-
-		scraper, err := NewScraperIndex(b, publicID, privateID)
-		if err != nil {
-			return nil, err
-		}
-		scraper.links = links
-		scraper.logCallback = opts.LogCallback
-		scraper.affiliate = opts.Affiliate
-		if opts.MaxConcurrency != 0 {
-			scraper.maxConcurrency = opts.MaxConcurrency
-		}
-		return scraper, nil
-	}
-
 	catalog, err := gameCatalog(opts, "tcg_index")
 	if err != nil {
 		return nil, err
@@ -127,96 +86,34 @@ func newTCGIndexScraper(b *matcher.Backend, opts mtgban.Options) (mtgban.Scraper
 	return scraper, nil
 }
 
-// newTCGMarketScraper builds tcg_market: Magic's Market scraper needs the
-// sku catalog to run, every other game's TCGGame the catalog dump.
+// newTCGMarketScraper builds tcg_market: TCGGame over the catalog dump.
 func newTCGMarketScraper(b *matcher.Backend, opts mtgban.Options) (mtgban.Scraper, error) {
-	publicID, privateID, err := tcgCredentials(opts)
-	if err != nil {
-		return nil, err
-	}
-
-	game := b.Game
-
-	if game == matcher.GameMagic {
-		skus, err := mtgban.Resource[SKUMap](opts, ResourceSKUs)
-		if err != nil {
-			return nil, err
-		}
-		if skus == nil {
-			return nil, errors.New("tcg_market needs WithSKUs on Magic")
-		}
-
-		scraper, err := NewScraperMarket(b, publicID, privateID)
-		if err != nil {
-			return nil, err
-		}
-		scraper.skusData = skus
-		scraper.logCallback = opts.LogCallback
-		scraper.affiliate = opts.Affiliate
-		if opts.MaxConcurrency != 0 {
-			scraper.maxConcurrency = opts.MaxConcurrency
-		}
-		return scraper, nil
-	}
-
-	catalog, err := gameCatalog(opts, "tcg_market")
-	if err != nil {
-		return nil, err
-	}
-
-	scraper, err := NewScraperGame(b, publicID, privateID)
-	if err != nil {
-		return nil, err
-	}
-	scraper.catalog = catalog
-	scraper.logCallback = opts.LogCallback
-	scraper.affiliate = opts.Affiliate
-	if opts.MaxConcurrency != 0 {
-		scraper.maxConcurrency = opts.MaxConcurrency
-	}
-	return scraper, nil
+	return newTCGGameScraper(b, opts, "tcg_market", false)
 }
 
-// newTCGSealedScraper builds tcg_sealed: Magic's Sealed scraper needs the
-// sku catalog the same way its Market sibling does, every other game's
-// TCGGame the catalog dump, resolving sealed products through the
-// datastore's sealed product map.
+// newTCGSealedScraper builds tcg_sealed: TCGGame over the catalog dump,
+// resolving sealed products through the datastore's sealed product map.
 func newTCGSealedScraper(b *matcher.Backend, opts mtgban.Options) (mtgban.Scraper, error) {
+	return newTCGGameScraper(b, opts, "tcg_sealed", true)
+}
+
+// newTCGGameScraper builds key's TCGGame, in the sealed mode or for singles.
+func newTCGGameScraper(b *matcher.Backend, opts mtgban.Options, key string, sealed bool) (mtgban.Scraper, error) {
 	publicID, privateID, err := tcgCredentials(opts)
 	if err != nil {
 		return nil, err
 	}
-
-	game := b.Game
-
-	if game == matcher.GameMagic {
-		skus, err := mtgban.Resource[SKUMap](opts, ResourceSKUs)
-		if err != nil {
-			return nil, err
-		}
-		if skus == nil {
-			return nil, errors.New("tcg_sealed needs WithSKUs on Magic")
-		}
-
-		scraper, err := NewScraperSealed(b, publicID, privateID)
-		if err != nil {
-			return nil, err
-		}
-		scraper.skusData = skus
-		scraper.logCallback = opts.LogCallback
-		scraper.affiliate = opts.Affiliate
-		if opts.MaxConcurrency != 0 {
-			scraper.maxConcurrency = opts.MaxConcurrency
-		}
-		return scraper, nil
-	}
-
-	catalog, err := gameCatalog(opts, "tcg_sealed")
+	catalog, err := gameCatalog(opts, key)
 	if err != nil {
 		return nil, err
 	}
 
-	scraper, err := NewScraperGameSealed(b, publicID, privateID)
+	var scraper *TCGGame
+	if sealed {
+		scraper, err = NewScraperGameSealed(b, publicID, privateID)
+	} else {
+		scraper, err = NewScraperGame(b, publicID, privateID)
+	}
 	if err != nil {
 		return nil, err
 	}

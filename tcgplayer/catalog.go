@@ -47,12 +47,6 @@ func catalogProducts(dump *tcgplayer.CatalogDump, types []string) ([]tcgplayer.P
 	return out, nil
 }
 
-// catalogPage is the page of products loadPages hands out at offset, sized
-// as the API's own pages so pricing makes the same calls.
-func catalogPage(products []tcgplayer.Product, offset int) []tcgplayer.Product {
-	return products[offset:min(offset+tcgplayer.MaxItemsInResponse, len(products))]
-}
-
 // checkCatalog fails a dump of some other category than the scraper's.
 func checkCatalog(dump *tcgplayer.CatalogDump, category int) error {
 	if dump == nil {

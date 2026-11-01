@@ -121,12 +121,13 @@ type genericChan struct {
 	bl    *mtgban.BuylistEntry
 }
 
-// loadPages hands every page offset of total to process across concurrency
-// workers and fails when any page did. WorkerPool only logs a worker's
-// error, which would leave an inventory missing whole pages looking loaded.
+// loadPages hands the offset of every request's worth of total ids to
+// process across concurrency workers, and fails when any request did.
+// WorkerPool only logs a worker's error, which would leave an inventory
+// missing whole requests looking loaded.
 func loadPages(ctx context.Context, concurrency, total int, process func(context.Context, int, chan<- genericChan) error, consume func(genericChan), logf func(string, ...any)) error {
-	pageNums := make([]int, 0, total/tcgplayer.MaxItemsInResponse+1)
-	for i := 0; i < total; i += tcgplayer.MaxItemsInResponse {
+	pageNums := make([]int, 0, total/tcgplayer.MaxIDsInRequest+1)
+	for i := 0; i < total; i += tcgplayer.MaxIDsInRequest {
 		pageNums = append(pageNums, i)
 	}
 

@@ -3,7 +3,6 @@ package tcgplayer
 import (
 	"context"
 	"encoding/csv"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -34,6 +33,21 @@ var conditionNames = map[mtgban.Condition]string{
 	mtgban.PO: "Damaged",
 }
 
+// tcgLanguageName spells a language the way TCGplayer's catalog and links
+// do, which differs from the datastore's for three of them.
+func tcgLanguageName(language string) string {
+	language = matcher.Title(language)
+	switch language {
+	case "Portuguese (Brazil)":
+		return "Portuguese"
+	case "Chinese Simplified":
+		return "Chinese (S)"
+	case "Chinese Traditional":
+		return "Chinese (T)"
+	}
+	return language
+}
+
 // GenerateProductURL builds the storefront link for a product, narrowed to a
 // printing, condition and language, and carrying an affiliate tag when one is
 // given.
@@ -51,16 +65,7 @@ func GenerateProductURL(productID int, printing, affiliate string, condition mtg
 		v.Set("Condition", name)
 	}
 	if language != "" {
-		language = matcher.Title(language)
-		switch language {
-		case "Portuguese (Brazil)":
-			language = "Portuguese"
-		case "Chinese Simplified":
-			language = "Chinese (S)"
-		case "Chinese Traditional":
-			language = "Chinese (T)"
-		}
-		v.Set("Language", language)
+		v.Set("Language", tcgLanguageName(language))
 	} else {
 		v.Set("Language", "all")
 	}
@@ -87,37 +92,6 @@ func GenerateProductURL(productID int, printing, affiliate string, condition mtg
 	u.RawQuery = v.Encode()
 
 	return u.String()
-}
-
-// TCGSku is one sellable variant of a product: a printing in a condition and a
-// language, which is the unit TCGplayer prices.
-type TCGSku struct {
-	Condition string `json:"condition"`
-	Language  string `json:"language"`
-	Printing  string `json:"printing"`
-	Finish    string `json:"finish"`
-	ProductID int    `json:"productId"`
-	SkuID     int    `json:"skuId"`
-}
-
-// SKUMap indexes every sku by the uuid of the printing it belongs to, so a
-// scraper can go from a matched card to the ids the APIs want.
-type SKUMap map[string][]TCGSku
-
-// LoadTCGSKUs reads the sku catalog, which is published as a file rather than
-// served, and indexes it by uuid.
-func LoadTCGSKUs(reader io.Reader) (SKUMap, error) {
-	var payload struct {
-		Data map[string][]TCGSku `json:"data"`
-	}
-	err := json.NewDecoder(reader).Decode(&payload)
-	if err != nil {
-		return nil, err
-	}
-	if len(payload.Data) == 0 {
-		return nil, errors.New("empty SKU file")
-	}
-	return payload.Data, nil
 }
 
 // ErrSYPNotAuthenticated is returned when the store answers the SYP export

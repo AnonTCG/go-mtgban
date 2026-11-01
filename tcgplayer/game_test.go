@@ -64,6 +64,12 @@ func gameScraper(t *testing.T, sealed bool) (*TCGGame, *[]string) {
 		tcg.sealedMap = b.BuildSealedProductMap("tcgplayerProductId")
 	}
 	tcg.printings = map[int]string{168: "Normal", 169: "Holofoil"}
+	tcg.languageNames = map[int]string{1: "English", 7: "Japanese"}
+	tcg.english = 1
+	tcg.resolve, err = newResolver(b, gameCatalogDump())
+	if err != nil {
+		t.Fatal(err)
+	}
 	var logs []string
 	tcg.logCallback = func(format string, a ...any) {
 		logs = append(logs, fmt.Sprintf(format, a...))
@@ -99,15 +105,15 @@ func TestGameSKUsToPrice(t *testing.T) {
 	} {
 		t.Run(tt.desc, func(t *testing.T) {
 			tcg, _ := gameScraper(t, tt.sealed)
-			productMap, skuMap, skuIDs := tcg.skusToPrice(gameProducts)
-			if !slices.Equal(skuIDs, tt.want) {
-				t.Errorf("skus %v, want %v", skuIDs, tt.want)
-			}
-			for _, id := range skuIDs {
-				_, found := productMap[skuMap[id].ProductID]
-				if !found {
-					t.Errorf("sku %d has no product", id)
+			var got []int
+			for _, sku := range tcg.skusToPrice(gameProducts) {
+				got = append(got, sku.SKUID)
+				if sku.cardID == "" {
+					t.Errorf("sku %d resolved to no card", sku.SKUID)
 				}
+			}
+			if !slices.Equal(got, tt.want) {
+				t.Errorf("skus %v, want %v", got, tt.want)
 			}
 		})
 	}
@@ -124,6 +130,8 @@ func TestGameSKUEntry(t *testing.T) {
 	}
 	// A normal sku of a product printed in holofoil alone
 	sku[2] = tcgplayer.SKU{SKUID: 2, ProductID: 616528, LanguageID: 1, PrintingID: 168, ConditionID: 1}
+	// A printing the catalog's table does not name
+	sku[3] = tcgplayer.SKU{SKUID: 3, ProductID: 616528, LanguageID: 1, PrintingID: 999, ConditionID: 1}
 
 	for _, tt := range []struct {
 		desc   string
@@ -132,43 +140,43 @@ func TestGameSKUEntry(t *testing.T) {
 		result tcgplayer.SKUPriceSet
 		want   []string
 		net    []string
-		logged bool
+		report string
 	}{
 		{
 			desc:   "a holofoil single at near mint",
 			result: tcgplayer.SKUPriceSet{SKUID: 8560578, LowestListingPrice: 29, MarketPrice: 48.27},
 			want: []string{
-				"Gundam ST01-001 foil: TCGplayer NM 29.00 https://www.tcgplayer.com/product/616528?Condition=Near+Mint&Language=all&Printing=Holofoil&direct=false",
-				"Gundam ST01-001 foil: TCGplayer Trends NM 48.27 https://www.tcgplayer.com/product/616528?Condition=Near+Mint&Language=all&Printing=Holofoil&direct=false",
+				"Gundam ST01-001 foil: TCGplayer NM 29.00 https://www.tcgplayer.com/product/616528?Condition=Near+Mint&Language=English&Printing=Holofoil&direct=false",
+				"Gundam ST01-001 foil: TCGplayer Trends NM 48.27 https://www.tcgplayer.com/product/616528?Condition=Near+Mint&Language=English&Printing=Holofoil&direct=false",
 			},
 		},
 		{
 			desc:   "lightly played reads as SP",
 			result: tcgplayer.SKUPriceSet{SKUID: 8560579, LowestListingPrice: 33.98, MarketPrice: 33.74},
 			want: []string{
-				"Gundam ST01-001 foil: TCGplayer SP 33.98 https://www.tcgplayer.com/product/616528?Condition=Lightly+Played&Language=all&Printing=Holofoil&direct=false",
-				"Gundam ST01-001 foil: TCGplayer Trends SP 33.74 https://www.tcgplayer.com/product/616528?Condition=Lightly+Played&Language=all&Printing=Holofoil&direct=false",
+				"Gundam ST01-001 foil: TCGplayer SP 33.98 https://www.tcgplayer.com/product/616528?Condition=Lightly+Played&Language=English&Printing=Holofoil&direct=false",
+				"Gundam ST01-001 foil: TCGplayer Trends SP 33.74 https://www.tcgplayer.com/product/616528?Condition=Lightly+Played&Language=English&Printing=Holofoil&direct=false",
 			},
 		},
 		{
 			desc:   "a normal single",
 			result: tcgplayer.SKUPriceSet{SKUID: 8560649, LowestListingPrice: 2.15, MarketPrice: 0.79},
 			want: []string{
-				"Gundam (MA Form) ST01-002: TCGplayer NM 2.15 https://www.tcgplayer.com/product/616532?Condition=Near+Mint&Language=all&Printing=Normal&direct=false",
-				"Gundam (MA Form) ST01-002: TCGplayer Trends NM 0.79 https://www.tcgplayer.com/product/616532?Condition=Near+Mint&Language=all&Printing=Normal&direct=false",
+				"Gundam (MA Form) ST01-002: TCGplayer NM 2.15 https://www.tcgplayer.com/product/616532?Condition=Near+Mint&Language=English&Printing=Normal&direct=false",
+				"Gundam (MA Form) ST01-002: TCGplayer Trends NM 0.79 https://www.tcgplayer.com/product/616532?Condition=Near+Mint&Language=English&Printing=Normal&direct=false",
 			},
 		},
 		{
 			desc:   "a grade with no listing and no sales keeps its sku at $0",
 			result: tcgplayer.SKUPriceSet{SKUID: 8560580},
-			want:   []string{"Gundam ST01-001 foil: TCGplayer MP 0.00 https://www.tcgplayer.com/product/616528?Condition=Moderately+Played&Language=all&Printing=Holofoil&direct=false"},
+			want:   []string{"Gundam ST01-001 foil: TCGplayer MP 0.00 https://www.tcgplayer.com/product/616528?Condition=Moderately+Played&Language=English&Printing=Holofoil&direct=false"},
 		},
 		{
 			desc:   "a grade with sales but no listing",
 			result: tcgplayer.SKUPriceSet{SKUID: 8560580, MarketPrice: 21.5},
 			want: []string{
-				"Gundam ST01-001 foil: TCGplayer MP 0.00 https://www.tcgplayer.com/product/616528?Condition=Moderately+Played&Language=all&Printing=Holofoil&direct=false",
-				"Gundam ST01-001 foil: TCGplayer Trends MP 21.50 https://www.tcgplayer.com/product/616528?Condition=Moderately+Played&Language=all&Printing=Holofoil&direct=false",
+				"Gundam ST01-001 foil: TCGplayer MP 0.00 https://www.tcgplayer.com/product/616528?Condition=Moderately+Played&Language=English&Printing=Holofoil&direct=false",
+				"Gundam ST01-001 foil: TCGplayer Trends MP 21.50 https://www.tcgplayer.com/product/616528?Condition=Moderately+Played&Language=English&Printing=Holofoil&direct=false",
 			},
 		},
 		{
@@ -176,9 +184,9 @@ func TestGameSKUEntry(t *testing.T) {
 			direct: true,
 			result: tcgplayer.SKUPriceSet{SKUID: 8560578, LowestListingPrice: 29, DirectLowPrice: 30, MarketPrice: 48.27},
 			want: []string{
-				"Gundam ST01-001 foil: TCGplayer NM 29.00 https://www.tcgplayer.com/product/616528?Condition=Near+Mint&Language=all&Printing=Holofoil&direct=false",
-				"Gundam ST01-001 foil: TCG Direct NM 30.00 https://www.tcgplayer.com/product/616528?Condition=Near+Mint&Language=all&Printing=Holofoil&direct=true",
-				"Gundam ST01-001 foil: TCGplayer Trends NM 48.27 https://www.tcgplayer.com/product/616528?Condition=Near+Mint&Language=all&Printing=Holofoil&direct=false",
+				"Gundam ST01-001 foil: TCGplayer NM 29.00 https://www.tcgplayer.com/product/616528?Condition=Near+Mint&Language=English&Printing=Holofoil&direct=false",
+				"Gundam ST01-001 foil: TCG Direct NM 30.00 https://www.tcgplayer.com/product/616528?Condition=Near+Mint&Language=English&Printing=Holofoil&direct=true",
+				"Gundam ST01-001 foil: TCGplayer Trends NM 48.27 https://www.tcgplayer.com/product/616528?Condition=Near+Mint&Language=English&Printing=Holofoil&direct=false",
 			},
 			net: []string{"TCG Direct (net) NM 25.45"},
 		},
@@ -187,24 +195,25 @@ func TestGameSKUEntry(t *testing.T) {
 			direct: true,
 			result: tcgplayer.SKUPriceSet{SKUID: 8560649, LowestListingPrice: 0.25, DirectLowPrice: 0.1},
 			want: []string{
-				"Gundam (MA Form) ST01-002: TCGplayer NM 0.25 https://www.tcgplayer.com/product/616532?Condition=Near+Mint&Language=all&Printing=Normal&direct=false",
-				"Gundam (MA Form) ST01-002: TCG Direct NM 0.40 https://www.tcgplayer.com/product/616532?Condition=Near+Mint&Language=all&Printing=Normal&direct=true",
+				"Gundam (MA Form) ST01-002: TCGplayer NM 0.25 https://www.tcgplayer.com/product/616532?Condition=Near+Mint&Language=English&Printing=Normal&direct=false",
+				"Gundam (MA Form) ST01-002: TCG Direct NM 0.40 https://www.tcgplayer.com/product/616532?Condition=Near+Mint&Language=English&Printing=Normal&direct=true",
 			},
 			net: []string{"TCG Direct (net) NM 0.20"},
 		},
 		{
 			desc:   "no Direct where the category has none",
 			result: tcgplayer.SKUPriceSet{SKUID: 8560578, LowestListingPrice: 29, DirectLowPrice: 30},
-			want:   []string{"Gundam ST01-001 foil: TCGplayer NM 29.00 https://www.tcgplayer.com/product/616528?Condition=Near+Mint&Language=all&Printing=Holofoil&direct=false"},
+			want:   []string{"Gundam ST01-001 foil: TCGplayer NM 29.00 https://www.tcgplayer.com/product/616528?Condition=Near+Mint&Language=English&Printing=Holofoil&direct=false"},
 		},
 		{
-			desc:   "a row nobody prices is dropped quietly when no card owns it",
-			result: tcgplayer.SKUPriceSet{SKUID: 2},
-		},
-		{
-			desc:   "a finish the printing is not sold in is reported",
+			desc:   "a finish the printing is not sold in is counted, not priced",
 			result: tcgplayer.SKUPriceSet{SKUID: 2, LowestListingPrice: 10},
-			logged: true,
+			report: "Skipped 1 skus of a finish the printing is not sold in",
+		},
+		{
+			desc:   "a printing the catalog does not name is counted, not priced",
+			result: tcgplayer.SKUPriceSet{SKUID: 3, LowestListingPrice: 10},
+			report: "Skipped 1 skus of a printing the catalog does not name",
 		},
 		{
 			desc:   "the booster box",
@@ -222,14 +231,18 @@ func TestGameSKUEntry(t *testing.T) {
 			tcg, logs := gameScraper(t, tt.sealed)
 			tcg.catalog = &tcgplayer.CatalogDump{Category: tcgplayer.Category{IsDirect: tt.direct}}
 			s := sku[tt.result.SKUID]
+			p := product[s.ProductID]
+			p.Skus = []tcgplayer.SKU{s}
 			var got, net []string
-			for _, out := range tcg.skuEntries(tt.result, s, product[s.ProductID]) {
-				if out.entry.Bundle != (out.entry.SellerName == "TCG Direct") {
-					t.Errorf("%s bundled: %v", out.entry.SellerName, out.entry.Bundle)
-				}
-				got = append(got, describe(tcg.backend, out))
-				if out.bl != nil {
-					net = append(net, fmt.Sprintf("%s %s %.2f", out.bl.VendorName, out.bl.Conditions, out.bl.BuyPrice))
+			for _, resolved := range tcg.skusToPrice([]tcgplayer.Product{p}) {
+				for _, out := range tcg.skuEntries(tt.result, resolved) {
+					if out.entry.Bundle != (out.entry.SellerName == "TCG Direct") {
+						t.Errorf("%s bundled: %v", out.entry.SellerName, out.entry.Bundle)
+					}
+					got = append(got, describe(tcg.backend, out))
+					if out.bl != nil {
+						net = append(net, fmt.Sprintf("%s %s %.2f", out.bl.VendorName, out.bl.Conditions, out.bl.BuyPrice))
+					}
 				}
 			}
 			if !slices.Equal(got, tt.want) {
@@ -238,11 +251,9 @@ func TestGameSKUEntry(t *testing.T) {
 			if !slices.Equal(net, tt.net) {
 				t.Errorf("buylist %q, want %q", net, tt.net)
 			}
-			if tt.logged != (len(*logs) > 0) {
-				t.Errorf("logged %q, want a report: %v", *logs, tt.logged)
-			}
-			if tt.logged && !strings.Contains((*logs)[0], "(product 616528)") {
-				t.Errorf("report %q does not name the product", (*logs)[0])
+			reported := slices.ContainsFunc(*logs, func(line string) bool { return strings.HasSuffix(line, tt.report) })
+			if tt.report == "" && len(*logs) > 0 || tt.report != "" && !reported {
+				t.Errorf("logged %q, want %q", *logs, tt.report)
 			}
 		})
 	}
@@ -299,6 +310,10 @@ func TestGameIndexProductEntries(t *testing.T) {
 		t.Fatal(err)
 	}
 	tcg.printings = []string{"Normal", "Holofoil"}
+	tcg.resolve, err = newResolver(b, gameCatalogDump())
+	if err != nil {
+		t.Fatal(err)
+	}
 	var logs []string
 	tcg.logCallback = func(format string, a ...any) {
 		logs = append(logs, fmt.Sprintf(format, a...))
@@ -380,7 +395,8 @@ func TestGameIndexProductEntries(t *testing.T) {
 			logs = nil
 			tcg.catalog = &tcgplayer.CatalogDump{Category: tcgplayer.Category{IsDirect: tt.direct}}
 			var got []string
-			for _, out := range tcg.productEntries(tt.result, product[tt.result.ProductID]) {
+			p := product[tt.result.ProductID]
+			for _, out := range tcg.productEntries(tt.result, &p) {
 				if out.entry.Bundle != (out.entry.SellerName == "TCG Direct Low") {
 					t.Errorf("%s bundled: %v", out.entry.SellerName, out.entry.Bundle)
 				}

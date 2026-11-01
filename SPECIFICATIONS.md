@@ -973,7 +973,7 @@ row.
 
 | Package | Service & auth | Notes |
 |---|---|---|
-| `tcgplayer` | OAuth via `go-tcgplayer` + cookie-authed marketplace APIs | Largest: Market/Index/Sealed/SYP-list/per-seller scrapers, plus the table-driven single-game pair (see below); SKU map keyed by UUID; TCG Direct modeled as a Vendor with net-after-fees pricing |
+| `tcgplayer` | OAuth via `go-tcgplayer` + cookie-authed marketplace APIs | Largest: the table-driven market, index and sealed scrapers every game prices through (see below), plus the SYP-list and per-seller scrapers; TCG Direct modeled as a Vendor with net-after-fees pricing |
 | `cardmarket` | `Index` takes no credentials; `Market` and `Sealed` use OAuth 1.0 HMAC-SHA1 (gentle retry) | `Index` is a **Market** (`MarketNames → MKM Low/Trend`, `MetadataOnly`, `Family="MKM"`); `Market` prices live listings and `Sealed` sealed product; EUR→USD; Magic plus seven more games (all but Palworld), each built from an `matcher.Game` and mapped to Cardmarket's id inside the package |
 | `cardtrader` | Bearer token | `Market` (**Market**, 3 seller tiers, `Family="CT"`, `CountryFlag="EU"`); all eight non-Magic games, each built from an `matcher.Game` and mapped to Card Trader's id inside the package; `Sealed` mirror; bulk upload + cart APIs |
 | `cardkingdom` | Public pricelist via `go-cardkingdom` (file/URL-fed, no own client) | Full 4-condition buylist with price ratios; `CreditMultiplier 1.3`; singles + `sealed.go` + `graded.go` are three scrapers |
@@ -983,16 +983,17 @@ row.
 | `cardsphere` | Session cookie (gentle 3s) | Unregistered, not run by bantool; buylist-only; `BuyPrice ×0.87` fee **and** `CreditMultiplier 1.1` |
 | `mtgstocks` | Public API, fixed `curl` User-Agent | Unregistered, not run by bantool; MetadataOnly index (average/market interests) |
 
-**The tcgplayer single-game scrapers.** `TCGGame` (retail) and `TCGGameIndex`
+**The tcgplayer game scrapers.** `TCGGame` (retail) and `TCGGameIndex`
 (index pricing) in `tcgplayer/game.go` and `gameindex.go` price the
 products the game's catalog dump lists (`TCGPLAYER_CATALOG_PATH`, handed to
 them as `tcgplayer.WithCatalog`), with its skus and printings; only prices
-come from the live API. Where the dump marks the category `isDirect` (Pokemon
-and Yu-Gi-Oh today), they also publish TCG Direct, its net after fees as the
+come from the live API. Where the dump marks the category `isDirect` (Magic,
+Pokemon and Yu-Gi-Oh today), they also publish TCG Direct, its net after fees as the
 TCG Direct (net) buylist, and TCG Direct Low. They are built from one table:
 
 ```go
 var tcgGames = map[matcher.Game]int{
+    matcher.GameMagic:            tcgplayer.CategoryMagic,
     matcher.GameLorcana:          tcgplayer.CategoryLorcana,
     matcher.GameRiftbound:        tcgplayer.CategoryRiftbound,
     matcher.GameOnePiece:         tcgplayer.CategoryOnePiece,
@@ -1004,13 +1005,12 @@ var tcgGames = map[matcher.Game]int{
 }
 ```
 
-Every non-Magic game is in the table today; supporting a tenth would be one
-more entry here, provided the matcher has a datastore for it. Magic is
-deliberately absent: it is identified by SKU and has its own scrapers. Both
-game scrapers pass the printing name through the `InputCard.Variation`
-field alongside the collector number, so the game's rules can tell foil
-sub-types apart (this is what makes Lorcana's "Holofoil" convention
-resolvable - see §2.3).
+Every game is in the table today; supporting a tenth would be one more
+entry here, provided the matcher has a datastore for it. Both scrapers
+resolve a sku before pricing it (`tcgplayer/resolve.go`): its product id and
+printing name through `Match`, then for a sku in another language that
+printing's copy in it, where the datastore loads one. For Magic, the catalog
+links stand in for the products the datastore names no card for.
 
 ### HTML / crawler
 

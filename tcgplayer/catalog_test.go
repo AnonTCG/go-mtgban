@@ -62,6 +62,7 @@ func gameCatalogDump() *tcgplayer.CatalogDump {
 	return &tcgplayer.CatalogDump{
 		Category:  tcgplayer.Category{CategoryID: tcgplayer.CategoryGundam, Name: "Gundam Card Game"},
 		Printings: []tcgplayer.Printing{{PrintingID: 168, Name: "Normal"}, {PrintingID: 169, Name: "Holofoil"}},
+		Languages: []tcgplayer.Language{{LanguageID: 1, Name: "English"}, {LanguageID: 7, Name: "Japanese"}},
 		Products:  gameProducts,
 	}
 }
