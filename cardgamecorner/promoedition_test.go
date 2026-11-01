@@ -122,3 +122,25 @@ func TestPromoVersionMappingFallsBackToBundle(t *testing.T) {
 		})
 	}
 }
+
+// TestPromoShelfVersionNeedsPrerelease pins that the Promo shelf's second
+// version is read as the prerelease only for a card that has one; claiming a
+// prerelease Lightning Bolt names a printing that does not exist.
+func TestPromoShelfVersionNeedsPrerelease(t *testing.T) {
+	b := realDatastore(t)
+
+	for _, tt := range []struct {
+		name, version, want string
+	}{
+		{"Mizzium Meddler", "Version 2", "Prerelease"},
+		{"Lightning Bolt", "Version 2", ""},
+		{"Snapcaster Mage", "V.2", ""},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			_, _, got := internalPreprocess(b, tt.name, "Promo", tt.version, "")
+			if got != tt.want {
+				t.Errorf("internalPreprocess(%q, Promo, %q) variation = %q, want %q", tt.name, tt.version, got, tt.want)
+			}
+		})
+	}
+}

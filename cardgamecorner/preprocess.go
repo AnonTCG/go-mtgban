@@ -556,7 +556,12 @@ func internalPreprocess(b *matcher.Backend, cardName, edition, variation, extra 
 	case "Promo":
 		switch variation {
 		case "War of the Spark: Extras", "Version1", "Version 2", "V.2":
-			variation = "Prerelease"
+			// Naming a prerelease for a card that never had one names a
+			// printing that does not exist, and vetoes the image's hit.
+			variation = ""
+			if b.HasPrinting(cardName, "promo_type", magic.PromoTypePrerelease) {
+				variation = "Prerelease"
+			}
 		case "Core 2020: Extras", "Version 1", "V.1":
 			// Promo packs only start with Core Set 2020. For everything
 			// older this tag means the plain set promo, and naming a
