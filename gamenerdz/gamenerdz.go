@@ -246,9 +246,10 @@ var staleTCGIDs = map[int64]int64{
 // Clickslither's promos no set printed, Brisela's meld back face, a nonfoil
 // Dragon's Hoard WPN promo (made only in foil, which sells under its own
 // id), a Gengar and a Rayquaza cosmos holo TCGplayer has no product for, and
-// Fairy Energy from a starter set whose TCGplayer product was deleted. Keyed
-// by id, one id per finish, so that a revised display name does not bring
-// them back.
+// Fairy Energy from a starter set and a Release Event Leader Luffy, both
+// from TCGplayer products since deleted; no live Luffy carries the name, so
+// there is no id to move the Release Event one to. Keyed by id, one id per
+// finish, so that a revised display name does not bring them back.
 var unmadeProducts = map[string]bool{
 	"gNj4crD7UK": true,
 	"OqViCLFgBL": true,
@@ -258,6 +259,7 @@ var unmadeProducts = map[string]bool{
 	"vYLJJDFzKh": true,
 	"jBGWXInwmy": true,
 	"KxeSHdeeUG": true,
+	"EKoP4ASXOf": true,
 }
 
 // resolveProduct names the printing a product is. The retail feed carries
