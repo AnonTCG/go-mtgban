@@ -61,7 +61,39 @@ func TestMatchByProductImage(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.desc, func(t *testing.T) {
-			id, found := cgc.matchByProductImage(&Card{Name: tt.name, Extra: tt.image}, false)
+			id, found := cgc.matchByProductImage(&Card{Name: tt.name, Extra: tt.image}, &matcher.InputCard{})
+			if found != (tt.want != "") || id != tt.want {
+				t.Errorf("matchByProductImage() = %q, %v, want %q", id, found, tt.want)
+			}
+		})
+	}
+}
+
+// A Pokemon listing the wording refused is placed by its image, where the
+// printing's number is the listing's, or the SKU's where the listing has none.
+func TestMatchByProductImagePokemon(t *testing.T) {
+	b := pokemonDatastore(t)
+	cgc := &Cardgamecorner{backend: b, bridge: map[int]int{512480: 226508, 576743: 248731}}
+
+	leon := "/products/pokemon/leo/leon-vix-154/vivid-voltage-leon-viv-154-512480.jpg"
+	greninja := "/products/pokemon/gre/greninja/greninja-576743.jpg"
+	tests := []struct {
+		desc   string
+		image  string
+		number string
+		sku    string
+		want   string
+	}{
+		{"the listing has no number, the SKU ends in it", leon, "", "SWSH40154", "154-185_226508_holofoil"},
+		{"the SKU names another card", leon, "", "SWSH40155", ""},
+		{"the number names the printing", greninja, "144", "SWSH0144", "swsh144_248731_holofoil"},
+		{"the number names another card", greninja, "145", "SWSH0144", ""},
+		{"the number is the store's own", greninja, "SWSH144", "SWSH0144", "swsh144_248731_holofoil"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.desc, func(t *testing.T) {
+			card := &Card{Extra: tt.image, Number: tt.number, SKU: tt.sku}
+			id, found := cgc.matchByProductImage(card, &matcher.InputCard{Finish: "Holofoil"})
 			if found != (tt.want != "") || id != tt.want {
 				t.Errorf("matchByProductImage() = %q, %v, want %q", id, found, tt.want)
 			}

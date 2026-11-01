@@ -365,7 +365,7 @@ func scraperResources(b *matcher.Backend, key string) ([]mtgban.Option, error) {
 		opts = append(opts, cardmarket.WithBridge(bridge))
 
 	case "cardgamecorner":
-		if game != matcher.GameOnePiece {
+		if game != matcher.GameOnePiece && game != matcher.GamePokemon {
 			break
 		}
 		// The bridge only settles what the wording cannot, so a cardtrader

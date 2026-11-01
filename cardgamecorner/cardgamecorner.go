@@ -156,10 +156,17 @@ func (cgc *Cardgamecorner) processEntry(channel chan<- resultChan, cards []listi
 			retry := *theCard
 			cardID, byID := "", false
 			if cgc.backend.Game == matcher.GameOnePiece {
-				cardID, byID = cgc.matchByProductImage(&card, theCard.Foil)
+				cardID, byID = cgc.matchByProductImage(&card, &retry)
 			}
 			if !byID {
 				cardID, err = cgc.backend.Match(theCard)
+			}
+			// What the wording cannot place, the product image can
+			if err != nil && !errors.Is(err, matcher.ErrUnsupported) && cgc.backend.Game == matcher.GamePokemon {
+				id, found := cgc.matchByProductImage(&card, &retry)
+				if found {
+					cardID, err = id, nil
+				}
 			}
 			// The basic lands carry nothing but the store's own version tag,
 			// so retry them with the number their SKU spells, then the one
