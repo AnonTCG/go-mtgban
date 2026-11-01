@@ -14,10 +14,10 @@ one.
 
 ## The data source
 
-Retail and identity come from one export: `scgCatalogURL`, SCG's HawkSearch
-catalog download, authenticated with an `x-api-key` header. It streams as
-one long JSON array of every product across every game, and a single
-`StreamCatalog` pass fills the inventory.
+Retail, and the identity of every product it lists, come from one export:
+`scgCatalogURL`, SCG's HawkSearch catalog download, authenticated with an
+`x-api-key` header. It streams as one long JSON array of every product
+across every game, and a single `StreamCatalog` pass fills the inventory.
 
 **The export is exhaustive for what it covers - there is nothing else in it
 to find.** Dumped raw and diffed against `CatalogProduct`/`CatalogVariant`:
@@ -43,10 +43,11 @@ search-only key SCG's sell-your-cards frontend embeds:
 - **`sets_v2`**, queried by `SetIDs` to build sell-your-cards bookmark links
   (`SCGBuylistURL`).
 
-Resolution reads only the catalog export. When a fix needs data the catalog
-doesn't carry, check the index before assuming the data doesn't exist
-anywhere (see Aurora, below, where it did - `datastore-gen` grew the field,
-not this scraper).
+Resolution reads the catalog export, except for the singles only the index
+lists, which are worded from its own fields (see Buylist, below). When a
+fix needs data the catalog doesn't carry, check the index before assuming
+the data doesn't exist anywhere (see Aurora, below, where it did -
+`datastore-gen` grew the field, not this scraper).
 
 ## The core problem
 
