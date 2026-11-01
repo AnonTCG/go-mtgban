@@ -60,6 +60,14 @@ var listingCorrections = map[string]struct {
 	"8129659": {title: "Birds of Paradise (Retro Frame Serial Numbered) - FOIL", edition: "Dominaria Remastered", number: "336z", correctedEdition: "Ravnica Remastered", correctedNumber: "344z"},
 	"8130042": {title: "Lord of the Pit (Secret Lair Serial Numbered)", edition: "Secret Lair Drop", number: "893z", correctedNumber: "715"},
 	"8111157": {title: "Gandalf, Friend of the Shire (Play) - FOIL", edition: "The Lord of the Rings: Tales of Middle-earth", number: "1", correctedEdition: "MagicFest 2023"},
+	// The title leaves out or misspells the finish; card_style names the foil.
+	"7968107": {title: "Faramir, Steward of Gondor (Scroll Showcase)", edition: "The Lord of the Rings: Tales of Middle-earth Commander", number: "458", correctedTitle: "Faramir, Steward of Gondor (Scroll Showcase) - FOIL"},
+	"8111178": {title: "Exhume (Borderless) - FOIOL", edition: "Duskmourn: House of Horror Commander", number: "370", correctedTitle: "Exhume (Borderless) - FOIL"},
+	"7790548": {title: "Shelldock Isle (Secret Lair 437 Amayagido)", edition: "Secret Lair Drop", number: "437", correctedTitle: "Shelldock Isle (Secret Lair 437 Amayagido) - FOIL"},
+	"8093462": {title: "Porom's Silence Magic | Silence (Secret Lair)", edition: "Promo", number: "7003", correctedTitle: "Porom's Silence Magic | Silence (Secret Lair) - FOIL"},
+	"8134488": {title: "Angel's Grace (Japanese Alternate Art 132)", edition: "Secrets of Strixhaven Mystical Archive", number: "132", correctedTitle: "Angel's Grace (Japanese Alternate Art 132) - FOIL"},
+	"8163734": {title: "Angel's Grace (Japanese Alternate Art 132)", edition: "Secrets of Strixhaven Mystical Archive", number: "132", correctedTitle: "Angel's Grace (Japanese Alternate Art 132) - FOIL"},
+	"8149603": {title: "Angel's Grace (Japanese Alternate Art 132)", edition: "Secrets of Strixhaven Mystical Archive", number: "132", correctedTitle: "Angel's Grace (Japanese Alternate Art 132) - FOIL"},
 }
 
 func correctListing(card ABUCard) ABUCard {
