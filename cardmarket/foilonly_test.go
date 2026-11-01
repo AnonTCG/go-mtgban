@@ -167,3 +167,48 @@ func describePrinting(b *matcher.Backend, id string) string {
 	}
 	return co.SetCode + " " + co.Number + " " + finish
 }
+
+// TestSoldFoilApart replays the V.1 rows of the shelves that sell a card's
+// foil as the V.2 product through resolveMapped: a V.1 with a V.2 beside it
+// gives its foil column up, and one without keeps it.
+func TestSoldFoilApart(t *testing.T) {
+	b := realDatastore(t)
+	const m3c, w40k = 5657, 5074
+	catalog := &cm.Catalog{Data: cm.CatalogData{
+		Expansions: map[int]cm.CatalogExpansion{
+			m3c:  {Name: "Commander: Modern Horizons 3: Extras", Code: "XM3C"},
+			w40k: {Name: "Universes Beyond: Warhammer 40,000", Code: "40K"},
+		},
+		Products: map[int]cm.CatalogProduct{
+			773244: {ExpansionID: m3c, Name: "Barrowgoyf (V.1)", Number: "50", Version: 1},
+			774752: {ExpansionID: m3c, Name: "Barrowgoyf (V.2)", Number: "50", Version: 2},
+			675703: {ExpansionID: w40k, Name: "Celestine, the Living Saint (V.1)", Number: "10", Version: 1},
+			764123: {ExpansionID: w40k, Name: "Celestine, the Living Saint (V.2)", Number: "10", Version: 2},
+			671290: {ExpansionID: w40k, Name: "Sol Ring (V.1)", Number: "249", Version: 1},
+		},
+	}}
+	r := &resolver{backend: b, gameID: cm.GameMagic, catalog: catalog}
+
+	for _, tt := range []struct {
+		id        int
+		wantApart bool
+	}{
+		{773244, true},
+		{675703, true},
+		{671290, false},
+	} {
+		product := catalog.Data.Products[tt.id]
+		exp := catalog.Data.Expansions[product.ExpansionID]
+		res := r.resolveMapped(tt.id, product, cm.Expansion{IDExpansion: product.ExpansionID, Name: exp.Name, SetCode: exp.Code})
+		if res.cardID == "" {
+			t.Errorf("%d %q: no printing", tt.id, product.Name)
+			continue
+		}
+		if apart := res.cardIDFoil == res.cardID; apart != tt.wantApart {
+			t.Errorf("%d %q: foil column given up = %v, want %v", tt.id, product.Name, apart, tt.wantApart)
+		}
+		if !tt.wantApart && res.cardIDFoil == "" {
+			t.Errorf("%d %q: no foil printing kept", tt.id, product.Name)
+		}
+	}
+}

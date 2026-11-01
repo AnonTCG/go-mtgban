@@ -59,6 +59,12 @@ type resolver struct {
 	mcmPrintings   map[int][]string
 	mcmPrintingsMu sync.Mutex
 
+	// foilApart holds, for each expansion of foilApartShelves, the numbers
+	// whose foil is a "(V.2)" product of its own, built on first use; see
+	// soldFoilApart.
+	foilApart   map[int]map[string]bool
+	foilApartMu sync.Mutex
+
 	// fabDeckSets indexes a Flesh and Blood set's collector-number prefix
 	// onto every set that opens numbers on it, built on first use; see
 	// fabShelves and fabDeckSetIndex.
@@ -488,6 +494,37 @@ func foilOnlyShelf(product *cm.Product, setCode string) bool {
 		return (setCode == "LTC" || setCode == "LTR") && strings.HasSuffix(product.Name, "(V.2)")
 	}
 	return false
+}
+
+// foilApartShelves are the Magic expansions where the foil of a card is a
+// "(V.2)" product of its own and the "(V.1)" beside it keeps only a thin
+// foil column of mislisted copies. The V.1 gives that column up.
+var foilApartShelves = map[string]bool{
+	"Commander: Modern Horizons 3: Extras": true,
+	"Universes Beyond: Warhammer 40,000":   true,
+}
+
+// soldFoilApart reports whether mapped is the "(V.1)" of a card whose foil
+// Cardmarket sells as the "(V.2)" product at the same number.
+func (r *resolver) soldFoilApart(mapped cm.CatalogProduct, expansion cm.Expansion) bool {
+	if !foilApartShelves[expansion.Name] || mapped.Version != 1 || r.catalog == nil {
+		return false
+	}
+	r.foilApartMu.Lock()
+	defer r.foilApartMu.Unlock()
+	if r.foilApart == nil {
+		r.foilApart = map[int]map[string]bool{}
+		for _, product := range r.catalog.Data.Products {
+			if product.Version != 2 || !foilApartShelves[r.catalog.Data.Expansions[product.ExpansionID].Name] {
+				continue
+			}
+			if r.foilApart[product.ExpansionID] == nil {
+				r.foilApart[product.ExpansionID] = map[string]bool{}
+			}
+			r.foilApart[product.ExpansionID][product.Number] = true
+		}
+	}
+	return r.foilApart[expansion.IDExpansion][mapped.Number]
 }
 
 // resolveProduct answers a product with the printings its two price columns
@@ -1026,6 +1063,16 @@ func (r *resolver) numberedPrinting(product *cm.Product, uuids []string) string 
 // names is answered from what the catalog says of it, by resolveProduct, so
 // a product the datastore does not link yet is matched rather than lost.
 func (r *resolver) resolveMapped(id int, mapped cm.CatalogProduct, expansion cm.Expansion) resolved {
+	res := r.placeMapped(id, mapped, expansion)
+	if res.cardID != "" && r.gameID == cm.GameMagic && r.soldFoilApart(mapped, expansion) {
+		res.cardIDFoil = res.cardID
+	}
+	return res
+}
+
+// placeMapped names the printings of one id-mapped product, before the
+// shelf's own rules on its foil column.
+func (r *resolver) placeMapped(id int, mapped cm.CatalogProduct, expansion cm.Expansion) resolved {
 	product := &cm.Product{
 		IDProduct:     id,
 		Name:          mapped.Name,
