@@ -60,10 +60,21 @@ type sellListVariant struct {
 	BuyPrice     float64 `json:"buy_price"`
 }
 
+// sellListProduct is a product as the index describes it: its offers, and the
+// wording a product the catalog export does not list is resolved from. The
+// finish and rarity are numbers, or an empty string where a product has none.
+type sellListProduct struct {
+	Name            string            `json:"name"`
+	Language        string            `json:"language"`
+	Finish          any               `json:"finish"`
+	Rarity          any               `json:"rarity"`
+	CollectorNumber string            `json:"collector_number"`
+	SetName         string            `json:"set_name"`
+	Variants        []sellListVariant `json:"variants"`
+}
+
 type sellListResponse struct {
-	Hits []struct {
-		Variants []sellListVariant `json:"variants"`
-	} `json:"hits"`
+	Hits               []sellListProduct         `json:"hits"`
 	FacetDistribution  map[string]map[string]int `json:"facetDistribution"`
 	EstimatedTotalHits int                       `json:"estimatedTotalHits"`
 }
@@ -154,14 +165,16 @@ func (scg *SCGClient) sellListSlices(ctx context.Context, filter string, depth i
 }
 
 // sellListOffers returns what SCG pays for each single of a game it is
-// buying, by product sku and grade. The catalog export carries a Played or
-// Heavily Played variant for only some of them; the sell-your-cards index
-// carries every grade, with the status that says whether a price is a bid.
-func (scg *SCGClient) sellListOffers(ctx context.Context, game int) (map[string]map[mtgban.Condition]sellListVariant, error) {
+// buying, by product sku and grade, and the index's own description of each
+// of those products. The catalog export carries a Played or Heavily Played
+// variant for only some of them, and does not list some at all; the
+// sell-your-cards index carries every grade, with the status that says
+// whether a price is a bid.
+func (scg *SCGClient) sellListOffers(ctx context.Context, game int) (map[string]map[mtgban.Condition]sellListVariant, map[string]sellListProduct, error) {
 	filter := fmt.Sprintf("game_id = %d AND product_type_id = 1 AND primary_status IN [buying_at_cost, hotlist]", game)
 	sliced, err := scg.sellListSlices(ctx, filter, 0)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	var pages []sellListPageQuery
@@ -177,23 +190,27 @@ func (scg *SCGClient) sellListOffers(ctx context.Context, game int) (map[string]
 	var errs []error
 	var got int
 	out := map[string]map[mtgban.Condition]sellListVariant{}
+	products := map[string]sellListProduct{}
 	mtgban.WorkerPool(ctx, sellListConcurrency, pages,
-		func(ctx context.Context, page sellListPageQuery, results chan<- []sellListVariant) error {
+		func(ctx context.Context, page sellListPageQuery, results chan<- sellListProduct) error {
 			resp, err := scg.searchSellList(ctx, map[string]any{
 				"q": "", "limit": sellListPage, "offset": page.offset, "filter": page.filter,
-				"attributesToRetrieve": []string{"variants.sku", "variants.status", "variants.variant_value", "variants.buy_price"},
+				"attributesToRetrieve": []string{
+					"name", "language", "finish", "rarity", "collector_number", "set_name",
+					"variants.sku", "variants.status", "variants.variant_value", "variants.buy_price",
+				},
 			})
 			if err != nil {
 				return err
 			}
 			for _, hit := range resp.Hits {
-				results <- hit.Variants
+				results <- hit
 			}
 			return nil
 		},
-		func(variants []sellListVariant) {
+		func(hit sellListProduct) {
 			got++
-			for _, v := range variants {
+			for _, v := range hit.Variants {
 				grade, found := sellListGrades[v.VariantValue]
 				if !found || v.SKU == "" || v.BuyPrice < scgMinBuyPrice {
 					continue
@@ -207,6 +224,7 @@ func (scg *SCGClient) sellListOffers(ctx context.Context, game int) (map[string]
 					out[product] = map[mtgban.Condition]sellListVariant{}
 				}
 				out[product][grade] = v
+				products[product] = hit
 			}
 		},
 		func(format string, a ...any) {
@@ -216,12 +234,12 @@ func (scg *SCGClient) sellListOffers(ctx context.Context, game int) (map[string]
 		},
 	)
 	if len(errs) > 0 {
-		return nil, errs[0]
+		return nil, nil, errs[0]
 	}
 	if got != want {
-		return nil, fmt.Errorf("sell list returned %d of the %d products its facets count", got, want)
+		return nil, nil, fmt.Errorf("sell list returned %d of the %d products its facets count", got, want)
 	}
-	return out, nil
+	return out, products, nil
 }
 
 // scgLanguageCodes maps the catalog language names to the codes the

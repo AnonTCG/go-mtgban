@@ -34,8 +34,16 @@ type Starcitygames struct {
 	// for, so the pair is filed as one listing in either stream order.
 	buckets map[string]struct{}
 
-	setIDs  map[string]int
-	offers  map[string]map[mtgban.Condition]sellListVariant
+	setIDs map[string]int
+	offers map[string]map[mtgban.Condition]sellListVariant
+
+	// listed is the index's description of every product it bids on;
+	// catalogued is the skus the catalog export carried this run, and
+	// spellings how it words what the index numbers.
+	listed     map[string]sellListProduct
+	catalogued map[string]struct{}
+	spellings  catalogSpellings
+
 	client  *SCGClient
 	backend *matcher.Backend
 	gameID  int
@@ -63,6 +71,8 @@ func (scg *Starcitygames) reset() {
 	scg.inventory = mtgban.InventoryRecord{}
 	scg.buylist = mtgban.BuylistRecord{}
 	scg.buckets = map[string]struct{}{}
+	scg.catalogued = map[string]struct{}{}
+	scg.spellings = catalogSpellings{}
 }
 
 func (scg *Starcitygames) printf(format string, a ...any) {
@@ -72,13 +82,10 @@ func (scg *Starcitygames) printf(format string, a ...any) {
 }
 
 func (scg *Starcitygames) processProduct(p CatalogProduct) {
-	// A single malformed product must never abort the whole catalog stream;
-	// recover, log, and skip it.
-	defer func() {
-		if r := recover(); r != nil {
-			scg.printf("recovered from panic on %q (sku=%s): %v", p.Name, p.SKU, r)
-		}
-	}()
+	scg.catalogued[p.SKU] = struct{}{}
+	if hit, found := scg.listed[p.SKU]; found {
+		scg.spellings.learn(hit, p)
+	}
 
 	// This scraper handles singles only; sealed has its own scraper, and
 	// the catalog also carries supplies and bulk lots that are not cards
@@ -93,18 +100,33 @@ func (scg *Starcitygames) processProduct(p CatalogProduct) {
 	if gameFromCatalog(p.Game) != scg.gameID {
 		return
 	}
+	scg.fileProduct(p, false)
+}
+
+// fileProduct resolves a single and files its retail and buy offers. A
+// product only the sell list carries is held to the printing its sku names,
+// and misplaced reports one that resolved to another.
+func (scg *Starcitygames) fileProduct(p CatalogProduct, listed bool) (misplaced bool) {
+	// A single malformed product must never abort the whole catalog stream;
+	// recover, log, and skip it.
+	defer func() {
+		if r := recover(); r != nil {
+			scg.printf("recovered from panic on %q (sku=%s): %v", p.Name, p.SKU, r)
+		}
+	}()
+
 	if scg.targetEdition != "" && scg.targetEdition != p.Set {
-		return
+		return false
 	}
 
 	cardID, err := resolveProduct(scg.backend, scg.gameID, p)
 	if err != nil {
 		if errors.Is(err, matcher.ErrUnsupported) {
-			return
+			return false
 		}
 		// Skip tokens and similar
 		if strings.Contains(p.Name, "Token") || strings.HasPrefix(p.Name, "{") {
-			return
+			return false
 		}
 		scg.printf("%v for %q [%s %s #%s] sku=%s scryfall=%s", err, p.Name, p.Set, p.Finish, p.CollectorNumber, p.SKU, p.ScryfallID)
 
@@ -115,7 +137,10 @@ func (scg *Starcitygames) processProduct(p CatalogProduct) {
 				scg.printf("- %s", co)
 			}
 		}
-		return
+		return false
+	}
+	if listed && !listedLanding(scg.backend, p.SKU, cardID) {
+		return true
 	}
 
 	link := SCGProductURL(p.URL, "", scg.affiliate)
@@ -226,6 +251,7 @@ func (scg *Starcitygames) processProduct(p CatalogProduct) {
 			}
 		}
 	}
+	return false
 }
 
 // loadCatalog streams the catalog export and fills the inventory from it,
@@ -263,6 +289,7 @@ func (scg *Starcitygames) loadCatalog(ctx context.Context) error {
 		return fmt.Errorf("none of %d catalog products maps to %s", count, scg.backend.Game)
 	}
 	scg.printf("Processed %d products total", count)
+	scg.fileListed()
 
 	now := time.Now()
 	scg.inventoryDate = now
@@ -273,11 +300,12 @@ func (scg *Starcitygames) loadCatalog(ctx context.Context) error {
 // Load fetches everything this scraper offers. See mtgban.Scraper.
 func (scg *Starcitygames) Load(ctx context.Context) error {
 	var buylistErr error
-	offers, err := scg.client.sellListOffers(ctx, scg.gameID)
+	offers, listed, err := scg.client.sellListOffers(ctx, scg.gameID)
 	if err != nil {
 		buylistErr = fmt.Errorf("%w: %w", mtgban.ErrBuylistLoad, err)
 	}
 	scg.offers = offers
+	scg.listed = listed
 
 	err = scg.loadCatalog(ctx)
 	if err != nil {

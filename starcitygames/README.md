@@ -232,9 +232,23 @@ still holds that many, and `sellListOffers` refuses a crawl whose pages
 come back short of what the facets count. A failed crawl fails the buylist
 alone (`mtgban.ErrBuylistLoad`), and the inventory still publishes.
 
-The index also lists singles the catalog export does not carry at all, such
-as many foreign-language printings. With no catalog product to resolve
-them, they are not priced.
+The index also lists singles the catalog export does not carry at all:
+foreign-language printings, World Championship cards and Flesh and Blood
+promos, for the most part. Once the catalog has streamed, `fileListed`
+words each one as a catalog product (`listedProduct`) and files it through
+the same path, with no retail and no vendor id. The index numbers its
+finishes and rarities, so each id takes the spelling the catalog gives most
+of the products both list (`catalogSpellings`); a product whose language,
+finish or rarity the catalog never spelled that run is skipped, since a
+blank would read as English or plain.
+
+With no id, a wording miss widens to any printing of the name, so
+`listedLanding` holds the landing to the sku: its finish letter has to agree
+with the printing's foil, and a `WCHP` card has to stay in its year's set,
+its player's deck and its half of it (main or sideboard). On the
+2026-11-01 catalog the rules disagree with ten of its own landings (eight
+Flesh and Blood promos, two 1996 Order of the Ebon Hand), and refuse 33
+index-only ones that went to another year, player, half or finish.
 
 ## `AddUnique` - the backstop
 

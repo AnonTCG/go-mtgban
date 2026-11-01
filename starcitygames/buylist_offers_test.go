@@ -84,7 +84,7 @@ func TestSellListOffers(t *testing.T) {
 
 	scg := NewSCGClient("")
 	scg.sellListURL = srv.URL
-	got, err := scg.sellListOffers(context.Background(), GameFleshAndBlood)
+	got, _, err := scg.sellListOffers(context.Background(), GameFleshAndBlood)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -112,7 +112,7 @@ func TestSellListOffers(t *testing.T) {
 	}
 
 	delete(hits, base+" AND finish = 1 AND rarity = 4")
-	_, err = scg.sellListOffers(context.Background(), GameFleshAndBlood)
+	_, _, err = scg.sellListOffers(context.Background(), GameFleshAndBlood)
 	if err == nil || !strings.Contains(err.Error(), "3 of the 4") {
 		t.Errorf("a crawl missing a product was not refused: %v", err)
 	}
