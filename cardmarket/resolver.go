@@ -109,6 +109,7 @@ var productLinks = map[int]int{
 	915838: 721882, // Lorcana Q3 Mr. Incredible - Super Strong
 	915839: 721876, // Lorcana Q3 Christopher Robin - Hunny Sage
 	915840: 721878, // Lorcana Q3 Violet Parr - Super Resilient
+	917633: 726179, // Riftbound Clanging Sentry, Radiance Nexus Night promo numbered 0545
 }
 
 // errNoPrinting marks a product no route named a printing of ours for. It
