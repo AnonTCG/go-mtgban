@@ -9,7 +9,7 @@ import "testing"
 // foreign-language twin.
 func TestProductPrintings(t *testing.T) {
 	b := realDatastore(t)
-	printings := productPrintings(b, crossSetProductIDs(b))
+	printings := productPrintings(b, crossSetProductIDs(b), nil)
 
 	tests := []struct {
 		id, subtype, set, number string

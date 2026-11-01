@@ -31,6 +31,10 @@ type Index struct {
 	// printings maps a product id and the subtype of its price rows to
 	// the printing that product sells in that finish.
 	printings map[string]map[string]string
+
+	// links ties the catalog products the datastore names no card for to
+	// the card each one sells; see LoadCatalogLinks.
+	links SKUMap
 }
 
 var availableIndexNames = []string{
@@ -116,6 +120,7 @@ func (tcg *Index) processEntry(ctx context.Context, channel chan<- responseChan,
 					URL:        link,
 					SellerName: availableIndexNames[i],
 					Bundle:     isDirect,
+					OriginalID: fmt.Sprint(result.ProductID),
 				},
 			}
 
@@ -204,7 +209,7 @@ func cardsByNumber(b *matcher.Backend, set *matcher.Set) map[string]*matcher.Car
 // finish: "Normal" for nonfoil, "Foil" for foil, and for etched on an etched
 // product. A product claimed by more than one card keeps the first, the same
 // way requesting each id once always did.
-func productPrintings(b *matcher.Backend, collisions map[string][]string) map[string]map[string]string {
+func productPrintings(b *matcher.Backend, collisions map[string][]string, links SKUMap) map[string]map[string]string {
 	printings := map[string]map[string]string{}
 	add := func(id, subtype, cardID string) {
 		if id == "" || cardID == "" || collisions[id] != nil {
@@ -230,6 +235,9 @@ func productPrintings(b *matcher.Backend, collisions map[string][]string) map[st
 				continue
 			}
 			id := co.Identifiers["tcgplayerProductId"]
+			if id == "" {
+				id = linkedProductID(links, co.Identifiers["mtgjsonId"])
+			}
 			etchedID := co.Identifiers["tcgplayerEtchedProductId"]
 			if soldAsCopy(b, id, co.Language) || soldAsCopy(b, etchedID, co.Language) {
 				continue
@@ -274,7 +282,7 @@ func (tcg *Index) Load(ctx context.Context) error {
 	for id, sets := range collisions {
 		tcg.printf("skipping id %s, claimed by more than one set: %v", id, sets)
 	}
-	tcg.printings = productPrintings(tcg.backend, collisions)
+	tcg.printings = productPrintings(tcg.backend, collisions, tcg.links)
 
 	ids := slices.Collect(maps.Keys(tcg.printings))
 

@@ -15,11 +15,12 @@ const (
 	SecretAuth       = "TCGPLAYER_AUTH"
 )
 
-// The typed resources tcg_market, tcg_sealed and tcg_syplist read out of
-// their Options.
+// The typed resources tcg_index, tcg_market, tcg_sealed and tcg_syplist
+// read out of their Options.
 const (
-	ResourceSKUs       = "tcgplayer.skus"
-	ResourceSYPCatalog = "tcgplayer.sypcatalog"
+	ResourceSKUs         = "tcgplayer.skus"
+	ResourceSYPCatalog   = "tcgplayer.sypcatalog"
+	ResourceCatalogLinks = "tcgplayer.cataloglinks"
 )
 
 // WithSKUs hands the Magic market and sealed scrapers the sku catalog
@@ -35,6 +36,13 @@ func WithSKUs(skus SKUMap) mtgban.Option {
 // finish the datastore knows it by.
 func WithSYPCatalog(catalog SYPCatalog) mtgban.Option {
 	return mtgban.WithResource(ResourceSYPCatalog, catalog)
+}
+
+// WithCatalogLinks hands the Magic index scraper the links LoadCatalogLinks
+// returns, so it prices the products the datastore names no card for. The
+// sku-driven scrapers take the same links merged into WithSKUs instead.
+func WithCatalogLinks(links SKUMap) mtgban.Option {
+	return mtgban.WithResource(ResourceCatalogLinks, links)
 }
 
 func tcgCredentials(opts mtgban.Options) (publicID, privateID string, err error) {
@@ -60,10 +68,16 @@ func newTCGIndexScraper(b *matcher.Backend, opts mtgban.Options) (mtgban.Scraper
 	game := b.Game
 
 	if game == matcher.GameMagic {
+		links, err := mtgban.Resource[SKUMap](opts, ResourceCatalogLinks)
+		if err != nil {
+			return nil, err
+		}
+
 		scraper, err := NewScraperIndex(b, publicID, privateID)
 		if err != nil {
 			return nil, err
 		}
+		scraper.links = links
 		scraper.logCallback = opts.LogCallback
 		scraper.affiliate = opts.Affiliate
 		if opts.MaxConcurrency != 0 {
