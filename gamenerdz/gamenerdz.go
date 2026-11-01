@@ -262,6 +262,16 @@ var unmadeProducts = map[string]bool{
 	"EKoP4ASXOf": true,
 }
 
+// storefrontTCGIDs are the TCGplayer ids of buylist products whose retail
+// twin is out of stock, so the in-stock crawl never reads the id it carries: a
+// Store Championship Maleficent, The List's Aerial Responder written over
+// E01's 106 cards and a Foundations Burrog Befuddler whose tag names no set.
+var storefrontTCGIDs = map[string]int64{
+	"S22bO11LL8": 650187,
+	"zlv5Rh5Yws": 581243,
+	"wIm3oGGMHt": 591659,
+}
+
 // resolveProduct names the printing a product is. The retail feed carries
 // the catalog's own TCGplayer id for nearly every Magic product, and it
 // answers first: the display name is the storefront's own wording, and where
@@ -285,6 +295,10 @@ func (gn *Gamenerdz) resolveProduct(mode string, product GNProduct) (string, err
 		gn.retailIDs[product.ID] = tcgID
 	} else {
 		tcgID = gn.retailIDs[product.ID]
+	}
+	fixed, ok := storefrontTCGIDs[product.ID]
+	if ok && tcgID == 0 {
+		tcgID = fixed
 	}
 	live, found := staleTCGIDs[tcgID]
 	if found {

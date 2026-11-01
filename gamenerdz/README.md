@@ -47,6 +47,9 @@ Converting every `[...]` to `(...)` is wrong as well: `Dragapult - 091/192
   deleted, and the datastore has no such energy: not a datastore gap. It is
   skipped by its storefront id with eight other listings for printings never
   made (`unmadeProducts`).
+- Three buylist products have a retail twin out of stock, which the crawl
+  does not fetch, so the buylist has no id for them: the ids those twins
+  publish are kept in `storefrontTCGIDs`, keyed by storefront id.
 - Aquapolis listings written over a plain number (`Drowzee 74/147`) name two
   printings (74a, 74b) and stay refused unless the retail id names one.
 - A few retail ids name another card than their display: `Seel 41` carries
