@@ -35,15 +35,10 @@ type Starcitygames struct {
 	buckets map[string]struct{}
 
 	setIDs  map[string]int
+	offers  map[string]map[mtgban.Condition]sellListVariant
 	client  *SCGClient
 	backend *matcher.Backend
 	gameID  int
-
-	// bulkRated counts the buylist figures dropped as a bulk tier's rate.
-	// It is logged rather than used: the rates are SCG's and can change
-	// under us, and a table gone stale shows up here as a count that falls
-	// off a cliff.
-	bulkRated int
 }
 
 // NewScraper returns a singles scraper for one game, using the given API key.
@@ -68,7 +63,6 @@ func (scg *Starcitygames) reset() {
 	scg.inventory = mtgban.InventoryRecord{}
 	scg.buylist = mtgban.BuylistRecord{}
 	scg.buckets = map[string]struct{}{}
-	scg.bulkRated = 0
 }
 
 func (scg *Starcitygames) printf(format string, a ...any) {
@@ -161,6 +155,7 @@ func (scg *Starcitygames) processProduct(p CatalogProduct) {
 	// one there is nothing yet to stand beside.
 	second := scg.secondStock(p.SKU)
 
+	retailPrices := map[mtgban.Condition]float64{}
 	for _, v := range p.Variants {
 		condition, err := catalogCondition(v.Condition)
 		if err != nil {
@@ -168,9 +163,8 @@ func (scg *Starcitygames) processProduct(p CatalogProduct) {
 			continue
 		}
 
-		// A single catalog download carries both retail and buylist data, so
-		// both records are populated in the same pass.
 		retailPrice, _ := matcher.ParsePrice(v.Price)
+		retailPrices[condition] = retailPrice
 
 		if retailPrice > 0 && v.Qty > 0 {
 			entry := &mtgban.InventoryEntry{
@@ -190,40 +184,52 @@ func (scg *Starcitygames) processProduct(p CatalogProduct) {
 			}
 		}
 
-		buyPrice, priced, bulk := buylistPrice(scg.gameID, p, v.SellListPrice)
-		if bulk {
-			scg.bulkRated++
+	}
+
+	for _, condition := range []mtgban.Condition{mtgban.NM, mtgban.SP, mtgban.HP} {
+		offer, found := scg.offers[p.SKU][condition]
+		if !found {
+			continue
 		}
-		if priced {
-			var priceRatio float64
-			if retailPrice > 0 {
-				priceRatio = buyPrice / retailPrice * 100
-			}
 
-			var blFields map[string]string
-			if condition == mtgban.NM {
-				blFields = customFields
-			}
+		var priceRatio float64
+		if retailPrices[condition] > 0 {
+			priceRatio = offer.BuyPrice / retailPrices[condition] * 100
+		}
 
-			entry := &mtgban.BuylistEntry{
-				Conditions:   condition,
-				BuyPrice:     buyPrice,
-				PriceRatio:   priceRatio,
-				URL:          buyURL,
-				OriginalID:   p.SKU,
-				InstanceID:   v.SKU,
-				CustomFields: blFields,
-			}
-			if err := scg.addBuylistStock(second, cardID, entry); err != nil && !ignore {
+		var blFields map[string]string
+		if condition == mtgban.NM {
+			blFields = customFields
+		}
+
+		entry := &mtgban.BuylistEntry{
+			Conditions:   condition,
+			BuyPrice:     offer.BuyPrice,
+			PriceRatio:   priceRatio,
+			URL:          buyURL,
+			OriginalID:   p.SKU,
+			InstanceID:   offer.SKU,
+			CustomFields: blFields,
+		}
+		err := scg.addBuylistStock(second, cardID, entry)
+		if err != nil && !ignore {
+			scg.printf("%s", err.Error())
+		}
+
+		// SCG grades no MP, so pay HP's price there too.
+		if condition == mtgban.HP {
+			mp := *entry
+			mp.Conditions = mtgban.MP
+			err := scg.addBuylistStock(second, cardID, &mp)
+			if err != nil && !ignore {
 				scg.printf("%s", err.Error())
 			}
 		}
 	}
 }
 
-// loadCatalog streams the single catalog export, which carries both retail
-// (price/qty) and buylist (sell_list_price) data per variant, and fills the
-// inventory and buylist in one pass.
+// loadCatalog streams the catalog export and fills the inventory from it,
+// and the buylist from the offers already read for each product it names.
 func (scg *Starcitygames) loadCatalog(ctx context.Context) error {
 	setIDs, err := scg.client.SetIDs(ctx, scg.gameID)
 	if err != nil {
@@ -256,7 +262,7 @@ func (scg *Starcitygames) loadCatalog(ctx context.Context) error {
 	if ofGame == 0 {
 		return fmt.Errorf("none of %d catalog products maps to %s", count, scg.backend.Game)
 	}
-	scg.printf("Processed %d products total, %d buylist prices were a bulk rate", count, scg.bulkRated)
+	scg.printf("Processed %d products total", count)
 
 	now := time.Now()
 	scg.inventoryDate = now
@@ -266,10 +272,18 @@ func (scg *Starcitygames) loadCatalog(ctx context.Context) error {
 
 // Load fetches everything this scraper offers. See mtgban.Scraper.
 func (scg *Starcitygames) Load(ctx context.Context) error {
-	if err := scg.loadCatalog(ctx); err != nil {
+	var buylistErr error
+	offers, err := scg.client.sellListOffers(ctx, scg.gameID)
+	if err != nil {
+		buylistErr = fmt.Errorf("%w: %w", mtgban.ErrBuylistLoad, err)
+	}
+	scg.offers = offers
+
+	err = scg.loadCatalog(ctx)
+	if err != nil {
 		return fmt.Errorf("catalog load failed: %w", err)
 	}
-	return nil
+	return buylistErr
 }
 
 // secondStock reports whether this sku is the second stock bucket of a

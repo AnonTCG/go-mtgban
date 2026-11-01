@@ -3,13 +3,16 @@ package starcitygames
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/url"
 	"strconv"
 	"strings"
+	"sync"
 	"unicode"
 
 	"github.com/mtgban/go-mtgban/matcher"
+	"github.com/mtgban/go-mtgban/mtgban"
 )
 
 const (
@@ -20,7 +23,206 @@ const (
 	scgSetsSearchKey = "f0b723e5fddfe6edbdad6fecc814511511a62b1722c6c30cff42be5bca4ed834"
 
 	sellYourCardsHost = "https://sellyourcards.starcitygames.com"
+
+	// The buy offers themselves, every grade of every single, from the index
+	// the same storefront searches.
+	scgSellListURL = "https://search.starcitygames.com/indexes/sell_list_products_v2/search"
 )
+
+// scgMinBuyPrice is the least a published offer can be worth: the index
+// carries sub-cent figures that no buylist pays out.
+const scgMinBuyPrice = 0.01
+
+const (
+	// sellListCap is the most hits the index serves one filter, offset
+	// included, so a game is crawled in slices that each fit under it.
+	sellListCap  = 45000
+	sellListPage = 1000
+
+	sellListConcurrency = 4
+)
+
+// sellListFacets are the attributes a game's products are sliced by, the
+// next one only where a slice of the one before still holds sellListCap.
+var sellListFacets = []string{"finish", "rarity"}
+
+// sellListGrades maps the index's grades to ours. SCG grades no MP.
+var sellListGrades = map[string]mtgban.Condition{
+	"NM": mtgban.NM,
+	"PL": mtgban.SP,
+	"HP": mtgban.HP,
+}
+
+type sellListVariant struct {
+	SKU          string  `json:"sku"`
+	Status       string  `json:"status"`
+	VariantValue string  `json:"variant_value"`
+	BuyPrice     float64 `json:"buy_price"`
+}
+
+type sellListResponse struct {
+	Hits []struct {
+		Variants []sellListVariant `json:"variants"`
+	} `json:"hits"`
+	FacetDistribution  map[string]map[string]int `json:"facetDistribution"`
+	EstimatedTotalHits int                       `json:"estimatedTotalHits"`
+}
+
+type sellListSlice struct {
+	filter string
+	count  int
+}
+
+type sellListPageQuery struct {
+	filter string
+	offset int
+}
+
+func (scg *SCGClient) searchSellList(ctx context.Context, body map[string]any) (*sellListResponse, error) {
+	payload, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, scg.sellListURL, strings.NewReader(string(payload)))
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Authorization", "Bearer "+scgSetsSearchKey)
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := scg.client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("sell list search failed: HTTP %d", resp.StatusCode)
+	}
+
+	var out sellListResponse
+	err = json.NewDecoder(resp.Body).Decode(&out)
+	if err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
+
+// sellListSlices splits filter by the facets from depth on until every slice
+// holds fewer than sellListCap products, the only size the index pages fully.
+// The facet counts leave out a product with an empty, null or missing
+// value, so those are a slice of their own.
+func (scg *SCGClient) sellListSlices(ctx context.Context, filter string, depth int) ([]sellListSlice, error) {
+	if depth == len(sellListFacets) {
+		return nil, fmt.Errorf("sell list slice %q still holds %d or more products", filter, sellListCap)
+	}
+	facet := sellListFacets[depth]
+	resp, err := scg.searchSellList(ctx, map[string]any{
+		"q": "", "limit": 0, "filter": filter, "facets": []string{facet},
+	})
+	if err != nil {
+		return nil, err
+	}
+	noValue := fmt.Sprintf("%s AND (%s IS EMPTY OR %s IS NULL OR %s NOT EXISTS)", filter, facet, facet, facet)
+	empty, err := scg.searchSellList(ctx, map[string]any{
+		"q": "", "limit": 0, "filter": noValue,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	counts := map[string]int{}
+	for value, count := range resp.FacetDistribution[facet] {
+		counts[fmt.Sprintf("%s AND %s = %s", filter, facet, value)] = count
+	}
+	if empty.EstimatedTotalHits > 0 {
+		counts[noValue] = empty.EstimatedTotalHits
+	}
+
+	var out []sellListSlice
+	for sub, count := range counts {
+		if count < sellListCap {
+			out = append(out, sellListSlice{sub, count})
+			continue
+		}
+		deeper, err := scg.sellListSlices(ctx, sub, depth+1)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, deeper...)
+	}
+	return out, nil
+}
+
+// sellListOffers returns what SCG pays for each single of a game it is
+// buying, by product sku and grade. The catalog export carries a Played or
+// Heavily Played variant for only some of them; the sell-your-cards index
+// carries every grade, with the status that says whether a price is a bid.
+func (scg *SCGClient) sellListOffers(ctx context.Context, game int) (map[string]map[mtgban.Condition]sellListVariant, error) {
+	filter := fmt.Sprintf("game_id = %d AND product_type_id = 1 AND primary_status IN [buying_at_cost, hotlist]", game)
+	sliced, err := scg.sellListSlices(ctx, filter, 0)
+	if err != nil {
+		return nil, err
+	}
+
+	var pages []sellListPageQuery
+	var want int
+	for _, slice := range sliced {
+		want += slice.count
+		for offset := 0; offset < slice.count; offset += sellListPage {
+			pages = append(pages, sellListPageQuery{slice.filter, offset})
+		}
+	}
+
+	var mu sync.Mutex
+	var errs []error
+	var got int
+	out := map[string]map[mtgban.Condition]sellListVariant{}
+	mtgban.WorkerPool(ctx, sellListConcurrency, pages,
+		func(ctx context.Context, page sellListPageQuery, results chan<- []sellListVariant) error {
+			resp, err := scg.searchSellList(ctx, map[string]any{
+				"q": "", "limit": sellListPage, "offset": page.offset, "filter": page.filter,
+				"attributesToRetrieve": []string{"variants.sku", "variants.status", "variants.variant_value", "variants.buy_price"},
+			})
+			if err != nil {
+				return err
+			}
+			for _, hit := range resp.Hits {
+				results <- hit.Variants
+			}
+			return nil
+		},
+		func(variants []sellListVariant) {
+			got++
+			for _, v := range variants {
+				grade, found := sellListGrades[v.VariantValue]
+				if !found || v.SKU == "" || v.BuyPrice < scgMinBuyPrice {
+					continue
+				}
+				if v.Status != "buying_at_cost" && v.Status != "hotlist" {
+					continue
+				}
+				// A variant sku is its product's with one grade digit after.
+				product := v.SKU[:len(v.SKU)-1]
+				if out[product] == nil {
+					out[product] = map[mtgban.Condition]sellListVariant{}
+				}
+				out[product][grade] = v
+			}
+		},
+		func(format string, a ...any) {
+			mu.Lock()
+			defer mu.Unlock()
+			errs = append(errs, fmt.Errorf(format, a...))
+		},
+	)
+	if len(errs) > 0 {
+		return nil, errs[0]
+	}
+	if got != want {
+		return nil, fmt.Errorf("sell list returned %d of the %d products its facets count", got, want)
+	}
+	return out, nil
+}
 
 // scgLanguageCodes maps the catalog language names to the codes the
 // sell-your-cards bookmark links expect.

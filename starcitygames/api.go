@@ -33,10 +33,11 @@ var scgGames = map[matcher.Game]int{
 type SCGClient struct {
 	client *http.Client
 	apiKey string
-	// The two endpoints a run reads, held rather than referenced so a test
-	// can point the client at a server it controls instead of the live one.
-	catalogURL string
-	setsURL    string
+	// The endpoints a run reads, held rather than referenced so a test can
+	// point the client at a server it controls instead of the live one.
+	catalogURL  string
+	setsURL     string
+	sellListURL string
 }
 
 // NewSCGClient returns a client using the given API key.
@@ -49,6 +50,7 @@ func NewSCGClient(apiKey string) *SCGClient {
 	scg.apiKey = apiKey
 	scg.catalogURL = scgCatalogURL
 	scg.setsURL = scgSetsURL
+	scg.sellListURL = scgSellListURL
 	return &scg
 }
 

@@ -14,41 +14,39 @@ one.
 
 ## The data source
 
-Everything comes from one export: `scgCatalogURL`, SCG's HawkSearch catalog
-download, authenticated with an `x-api-key` header. It streams as one long
-JSON array - retail (`price`, `qty`) and buylist (`sell_list_price`) for
-every variant of every product, across every game, in one response. A single
-`StreamCatalog` pass fills both records.
+Retail and identity come from one export: `scgCatalogURL`, SCG's HawkSearch
+catalog download, authenticated with an `x-api-key` header. It streams as
+one long JSON array of every product across every game, and a single
+`StreamCatalog` pass fills the inventory.
 
-**The export is exhaustive - there is nothing else to find.** Dumped raw and
-diffed against `CatalogProduct`/`CatalogVariant`: 14 top-level keys, 8 per
-variant, nothing else. No artist, no promo-series name, no language beyond
-the one `language` string, no second identifier space. Before writing a rule
-that reads a vendor field, confirm the field is actually there (`python3 -c
-"import json; print(json.load(open('catalog.json'))[0])"` on a fresh pull) -
-several fixes in this history were held up by assuming a field existed, or
-assuming one didn't, without checking.
+**The export is exhaustive for what it covers - there is nothing else in it
+to find.** Dumped raw and diffed against `CatalogProduct`/`CatalogVariant`:
+14 top-level keys, 8 per variant, nothing else. No artist, no promo-series
+name, no language beyond the one `language` string, no second identifier
+space. Before writing a rule that reads a vendor field, confirm the field is
+actually there (`python3 -c "import json;
+print(json.load(open('catalog.json'))[0])"` on a fresh pull) - several fixes
+in this history were held up by assuming a field existed, or assuming one
+didn't, without checking.
 
-A second, older data source is still live in two places:
+The buylist comes from the storefront's own search instead (see Buylist,
+below). Two MeiliSearch indexes at `search.starcitygames.com` share the
+search-only key SCG's sell-your-cards frontend embeds:
 
-- **`sell_list_products_v2`**, a public MeiliSearch index at
-  `search.starcitygames.com`, same instance and same embedded search key as
-  `sets_v2` (which `buylist.go`'s `SetIDs` already queries, for the
-  sell-your-cards bookmark links). It's what `Hit`/`Variant` in `api.go`
-  model - the scraper used to read this index directly, and `catalogHit`
-  still synthesizes a compatible `Hit` from a `CatalogProduct` so
-  `preprocess.go`'s wording path didn't need rewriting. It carries fields
-  the catalog export doesn't: `primary_status` / `bulk_category_name` (see
-  Bulk tiers, below), and a `subtitle` field close to a display name
-  (`"Pleiades, Superstar"` / `"(Maori)"`) that turned out to be the only
-  place SCG writes some distinguishing detail down at all.
-- **`sets_v2`**, queried live by `SetIDs` to build sell-your-cards bookmark
-  links (`SCGBuylistURL`).
+- **`sell_list_products_v2`**, read by `sellListOffers` for every buy
+  price. `Hit`/`Variant` in `api.go` model its products too: `catalogHit`
+  synthesizes a compatible `Hit` from a `CatalogProduct` so `preprocess.go`'s
+  wording path reads one shape. It carries fields the catalog export
+  doesn't - a per-variant `status`, `bulk_category_name`, and a `subtitle`
+  close to a display name (`"Pleiades, Superstar"` / `"(Maori)"`) that is
+  the only place SCG writes some distinguishing detail down at all.
+- **`sets_v2`**, queried by `SetIDs` to build sell-your-cards bookmark links
+  (`SCGBuylistURL`).
 
-Neither index is consulted during normal resolution - only the catalog
-export is. When a fix needs data the catalog doesn't carry, check this index
-before assuming the data doesn't exist anywhere (see Aurora, below, where it
-did - `datastore-gen` grew the field, not this scraper).
+Resolution reads only the catalog export. When a fix needs data the catalog
+doesn't carry, check the index before assuming the data doesn't exist
+anywhere (see Aurora, below, where it did - `datastore-gen` grew the field,
+not this scraper).
 
 ## The core problem
 
@@ -211,47 +209,32 @@ number + foil. The catalog's game name is "Riftbound: League of Legends
 TCG"; `gameFromCatalog` also takes the bare "Riftbound", both by exact
 match.
 
-## Bulk tiers (`bulk.go`)
+## Buylist (`buylist.go`)
 
-A second, orthogonal defect, on the buylist side only: SCG's
-`sell_list_price` is two different things wearing one field. A card SCG
-will buy *individually* gets a real bid. A card it will only take at a
-**flat rate for its whole rarity/finish tier** - the shop won't look at the
-specific printing - gets the tier's number instead: every Magic Rare
-$0.08, every Common $0.008, no matter which Rare or Common it is. That's
-96,975 of 159,874 Magic products, and publishing the flat rate as if it
-were a bid prices the card at whatever the tier pays.
+The catalog export lists a Played or Heavily Played variant for only some
+products, though SCG buys nearly every grade of every single: the index has
+NM, PL and HP on all but a few. So `Load` reads every product of the game
+whose NM is bought (`primary_status` `buying_at_cost` or `hotlist`) from
+`sell_list_products_v2` first, and `processProduct` prices each catalog
+product's grades from it, joined by sku: a variant sku is its product's
+plus one grade digit, `1` NM, `2` PL, `3` HP.
 
-The catalog export has no field for this either. The MeiliSearch index does
-(`primary_status`: `buying_at_cost` vs `buying_in_bulk`), but joining it live
-is a dependency this scraper doesn't take on. Instead, `bulkBuyRates(game,
-rarity, finish)` is a **table of the rates each tier actually quotes**,
-derived once by crawling the index and comparing its `sell_list_price`
-against `primary_status`, and it's small: each tier quotes only a handful of
-distinct numbers.
+- A variant counts only while its own `status` is `buying_at_cost` or
+  `hotlist`. `buying_in_bulk` is a flat rate for a whole rarity/finish tier
+  (every Magic Rare $0.08), not a bid on the card, and `not_buying` and
+  `do_not_show` are no offer at all.
+- `scgMinBuyPrice` drops the sub-cent figures the index also carries.
+- SCG grades no MP, so the HP price is filed at MP as well.
 
-**This table goes stale the moment SCG reprices a tier**, silently - nothing
-in the catalog export flags it. The mitigation is a per-run counter,
-`scg.bulkRated`, logged as `"Processed N products total, M buylist prices
-were a bulk rate"`. Watch for `M` falling off a cliff between runs; that's
-the signal to re-derive.
+The index serves at most 45,000 hits per filter, offset included, so
+`sellListSlices` splits a game by `finish`, then by `rarity` where a slice
+still holds that many, and `sellListOffers` refuses a crawl whose pages
+come back short of what the facets count. A failed crawl fails the buylist
+alone (`mtgban.ErrBuylistLoad`), and the inventory still publishes.
 
-**Re-deriving:** `~/src/claude-scratchpad/ci-sweep/scg-bulk/crawl.py` (one
-per game id: 1 Magic, 2 FaB, 3 Lorcana, 5 Riftbound - Magic alone needs
-per-rarity slicing, the index paginates at 45,000) then `derive.py <dump-
-dir>` scores a mechanically-derived table against the real one. It
-deliberately can't reproduce two rates: Magic's Unstable cards are ordinary
-Rares/Mythics to the catalog and their own $0.001 tier to the buylist (a
-straggler at 0.4% of the combined tier, correctly *not* narrowed away), and
-FaB's cold-foil promos are excluded from the cold-foil tier entirely (a
-tier with zero bulk rows produces no rate for the deriver to see). Read
-`derive.py`'s own docstring before trusting a re-derivation - it explains
-both.
-
-`scgMinBuyPrice` is a $0.01 floor applied *after* the tier check, on
-purpose: most of what a tier quotes is itself under a cent, and letting the
-tier check run first is what keeps the per-run counter meaningful as the
-staleness signal.
+The index also lists singles the catalog export does not carry at all, such
+as many foreign-language printings. With no catalog product to resolve
+them, they are not priced.
 
 ## `AddUnique` - the backstop
 
@@ -281,8 +264,7 @@ collisions, already muted; a handful of genuine catches). See PR #578.
 ## Method - how to find and fix the next one
 
 This is the actual repeatable process, extracted from doing it five times
-(`#572`, `#573`, `#574`, `#578`, `#582` - `#493` was the bulk-tier problem,
-a different method, its own section above):
+(`#572`, `#573`, `#574`, `#578`, `#582`):
 
 1. **Pull a fresh catalog.** `curl -H "x-api-key: $SCG_API_KEY"
    https://api.starcitygames.com/hawksearch/catalog/download/json -o
