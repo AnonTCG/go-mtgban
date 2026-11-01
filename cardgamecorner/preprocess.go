@@ -1127,6 +1127,13 @@ func preprocessBL(b *matcher.Backend, cardName, edition, extra string, number in
 		edition = lutName
 	}
 
+	// Retail settles a numbered DCI Promo by its image; the buylist has
+	// none, and the bare number matches in several sets. Secret Lair Promo
+	// holds the ones that read as another set's copy of the same number.
+	if edition == "DCI Promo" && number > 0 && len(b.MatchInSetNumber(cardName, "SLP", strconv.Itoa(number))) > 0 {
+		edition = "Secret Lair Promo"
+	}
+
 	// The wording the store hangs off the edition still speaks first: it
 	// names the printing where the number is the store's own rather than
 	// the catalog's, and a number saying the same thing costs nothing.

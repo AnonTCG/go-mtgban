@@ -43,21 +43,28 @@ func (f fakeStorefront) RoundTrip(req *http.Request) (*http.Response, error) {
 func TestBuylistNumber(t *testing.T) {
 	b := realDatastore(t)
 
-	const name = "Aang, at the Crossroads // Aang, Destined Savior"
+	const (
+		aang    = "Aang, at the Crossroads // Aang, Destined Savior"
+		edition = "Avatar: The Last Airbender"
+	)
 	tests := []struct {
 		desc    string
+		name    string
+		edition string
 		id      string
 		number  int
 		wantSet string
 		wantNum string
 	}{
-		{"the plain printing", "TLA0203", 203, "TLA", "203"},
-		{"the borderless one beside it", "TLA0304", 304, "TLA", "304"},
-		{"and the third treatment", "TLA0346", 346, "TLA", "346"},
+		{"the plain printing", aang, edition, "TLA0203", 203, "TLA", "203"},
+		{"the borderless one beside it", aang, edition, "TLA0304", 304, "TLA", "304"},
+		{"and the third treatment", aang, edition, "TLA0346", 346, "TLA", "346"},
+		{"a numbered DCI Promo another set also numbers", "Living End", "DCI Promo", "DCI0030", 30, "SLP", "30"},
+		{"and one no Secret Lair Promo holds", "Thing in the Ice / Awoken Horror", "DCI Promo", "DCI0003", 3, "PR23", "3"},
 	}
 	for _, test := range tests {
 		t.Run(test.desc, func(t *testing.T) {
-			card, err := preprocessBL(b, name, "Avatar: The Last Airbender", test.id, test.number)
+			card, err := preprocessBL(b, test.name, test.edition, test.id, test.number)
 			if err != nil {
 				t.Fatal(err)
 			}
