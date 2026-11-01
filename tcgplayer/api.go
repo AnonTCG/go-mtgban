@@ -98,19 +98,6 @@ func isToken(tcgp *tcgplayer.Product) bool {
 	return false
 }
 
-// GetCategoryNames returns the display name and the URL name of a catalog
-// category.
-func GetCategoryNames(ctx context.Context, tcg *tcgplayer.Client, category int) (string, string, error) {
-	check, err := tcg.GetCategoriesDetails(ctx, []int{category})
-	if err != nil {
-		return "", "", err
-	}
-	if len(check) == 0 {
-		return "", "", errors.New("empty categories response")
-	}
-	return check[0].Name, check[0].DisplayName, nil
-}
-
 // EditionMap indexes a category's groups, which is what TCGplayer calls an
 // edition, by their id. A page answering short, or a group repeated in place
 // of another, fails it rather than leaving the products of a missing

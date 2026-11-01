@@ -14,9 +14,9 @@ import (
 	"github.com/mtgban/go-tcgplayer"
 )
 
-// TCGGameIndex is the market-price index counterpart of TCGGame, serving the
-// same single-game categories through the matcher's name + collector number +
-// finish identification.
+// TCGGameIndex is the market-price index counterpart of TCGGame, pricing the
+// same catalog dump's products by product id and resolving them the same
+// way.
 type TCGGameIndex struct {
 	logCallback    mtgban.LogCallbackFunc
 	inventoryDate  time.Time
@@ -25,14 +25,15 @@ type TCGGameIndex struct {
 
 	inventory mtgban.InventoryRecord
 
-	editions map[int]tcgplayer.Group
+	// catalog lists the products priced, and names the category and its
+	// printings.
+	catalog *tcgplayer.CatalogDump
 
 	// printings are the names of the finishes the category sells.
 	printings []string
 
-	category            int
-	categoryName        string
-	categoryDisplayName string
+	category     int
+	categoryName string
 
 	productTypes []string
 
@@ -76,12 +77,7 @@ func NewScraperGameIndex(b *matcher.Backend, publicID, privateID string) (*TCGGa
 	return &tcg, nil
 }
 
-func (tcg *TCGGameIndex) processPage(ctx context.Context, channel chan<- genericChan, page int) error {
-	products, err := tcg.client.ListAllProducts(ctx, tcg.category, tcg.productTypes, false, page)
-	if err != nil {
-		return err
-	}
-
+func (tcg *TCGGameIndex) processPage(ctx context.Context, channel chan<- genericChan, products []tcgplayer.Product) error {
 	productMap := map[int]tcgplayer.Product{}
 	ids := make([]int, len(products))
 	for i, product := range products {
@@ -192,37 +188,25 @@ func (tcg *TCGGameIndex) productEntries(result tcgplayer.ProductPriceSet, produc
 
 // Load fetches everything this scraper offers. See mtgban.Scraper.
 func (tcg *TCGGameIndex) Load(ctx context.Context) error {
-	// Initialize data for debug logs
-	var err error
-	tcg.categoryName, tcg.categoryDisplayName, err = GetCategoryNames(ctx, tcg.client, tcg.category)
+	err := checkCatalog(tcg.catalog, tcg.category)
 	if err != nil {
 		return err
 	}
+	tcg.categoryName = tcg.catalog.Category.Name
 
-	printings, err := tcg.client.ListCategoryPrintings(ctx, tcg.category)
-	if err != nil {
-		return err
-	}
-	for _, printing := range printings {
+	for _, printing := range tcg.catalog.Printings {
 		tcg.printings = append(tcg.printings, printing.Name)
 	}
 
-	editions, err := EditionMap(ctx, tcg.client, tcg.category)
+	products, err := catalogProducts(tcg.catalog, tcg.productTypes)
 	if err != nil {
 		return err
 	}
-	tcg.editions = editions
-	tcg.printf("Found %d editions", len(editions))
+	tcg.printf("Found %d products", len(products))
 
-	totals, err := tcg.client.TotalProducts(ctx, tcg.category, tcg.productTypes)
-	if err != nil {
-		return err
-	}
-	tcg.printf("Found %d products", totals)
-
-	err = loadPages(ctx, tcg.maxConcurrency, totals,
+	err = loadPages(ctx, tcg.maxConcurrency, len(products),
 		func(ctx context.Context, page int, channel chan<- genericChan) error {
-			return tcg.processPage(ctx, channel, page)
+			return tcg.processPage(ctx, channel, catalogPage(products, page))
 		},
 		func(result genericChan) {
 			err := tcg.inventory.Add(result.key, &result.entry)

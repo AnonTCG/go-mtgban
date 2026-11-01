@@ -501,7 +501,9 @@ A game is named in `matcher` first and reaches the scrapers from there:
 For TCGplayer specifically, the per-game scrapers `TCGGame` and `TCGGameIndex`
 are built from the `tcgplayer` package's `tcgGames` map, which associates a
 game with the TCGplayer category serving it. Adding a game there is one table
-entry plus the bantool options and workflows. Magic is deliberately absent from
+entry plus the bantool options and workflows; both scrapers read the products
+they price from the game's catalog dump, which the datastore publish writes
+beside the datastore. Magic is deliberately absent from
 that map: it is identified by SKU and has its own scrapers.
 
 ## Gotchas

@@ -984,8 +984,10 @@ row.
 | `mtgstocks` | Public API, fixed `curl` User-Agent | Unregistered, not run by bantool; MetadataOnly index (average/market interests) |
 
 **The tcgplayer single-game scrapers.** `TCGGame` (retail) and `TCGGameIndex`
-(index pricing) in `tcgplayer/game.go` and `gameindex.go` are built from one
-table:
+(index pricing) in `tcgplayer/game.go` and `gameindex.go` price the
+products the game's catalog dump lists (`TCGPLAYER_CATALOG_PATH`, handed to
+them as `tcgplayer.WithCatalog`), with its skus and printings; only prices
+come from the live API. They are built from one table:
 
 ```go
 var tcgGames = map[matcher.Game]int{

@@ -13,10 +13,11 @@ import (
 	"github.com/mtgban/go-tcgplayer"
 )
 
-// TCGGame is the retail scraper for any single-game TCGplayer category whose
-// cards the matcher identifies by name + collector number + finish (Lorcana,
-// Riftbound, ...); Magic has its own SKU-driven scrapers. tcgGames below maps
-// each game to the category it is served from.
+// TCGGame is the retail scraper for any single-game TCGplayer category
+// (Lorcana, Riftbound, ...): it prices the skus the category's catalog dump
+// lists, each resolved to a card by its product id and finish; Magic has its
+// own SKU-driven scrapers. tcgGames below maps each game to the category it
+// is served from.
 type TCGGame struct {
 	logCallback    mtgban.LogCallbackFunc
 	inventoryDate  time.Time
@@ -25,13 +26,14 @@ type TCGGame struct {
 
 	inventory mtgban.InventoryRecord
 
-	editions map[int]tcgplayer.Group
+	// catalog lists the products priced, and names the category and its
+	// printings.
+	catalog *tcgplayer.CatalogDump
 
 	printings map[int]string
 
-	category            int
-	categoryName        string
-	categoryDisplayName string
+	category     int
+	categoryName string
 
 	productTypes []string
 
@@ -113,12 +115,7 @@ func NewScraperGameSealed(b *matcher.Backend, publicID, privateID string) (*TCGG
 	return tcg, nil
 }
 
-func (tcg *TCGGame) processPage(ctx context.Context, channel chan<- genericChan, page int) error {
-	products, err := tcg.client.ListAllProducts(ctx, tcg.category, tcg.productTypes, true, page)
-	if err != nil {
-		return err
-	}
-
+func (tcg *TCGGame) processPage(ctx context.Context, channel chan<- genericChan, products []tcgplayer.Product) error {
 	productMap, skuMap, skuIDs := tcg.skusToPrice(products)
 
 	for i := 0; i < len(skuIDs); i += tcgplayer.MaxIDsInRequest {
@@ -274,46 +271,32 @@ func (tcg *TCGGame) skuEntries(result tcgplayer.SKUPriceSet, sku tcgplayer.SKU, 
 
 // Load fetches everything this scraper offers. See mtgban.Scraper.
 func (tcg *TCGGame) Load(ctx context.Context) error {
-	// Initialize data for debug logs
-	var err error
-	tcg.categoryName, tcg.categoryDisplayName, err = GetCategoryNames(ctx, tcg.client, tcg.category)
+	err := checkCatalog(tcg.catalog, tcg.category)
 	if err != nil {
 		return err
 	}
+	tcg.categoryName = tcg.catalog.Category.Name
 
-	printings, err := tcg.client.ListCategoryPrintings(ctx, tcg.category)
-	if err != nil {
-		return err
-	}
-	tcg.printf("Found %d printings for category %d", len(printings), tcg.category)
-	for _, printing := range printings {
+	tcg.printf("Found %d printings for category %d", len(tcg.catalog.Printings), tcg.category)
+	for _, printing := range tcg.catalog.Printings {
 		tcg.printf("%d - %s", printing.PrintingID, printing.Name)
 		tcg.printings[printing.PrintingID] = printing.Name
 	}
 
-	editions, err := EditionMap(ctx, tcg.client, tcg.category)
+	products, err := catalogProducts(tcg.catalog, tcg.productTypes)
 	if err != nil {
 		return err
 	}
-	tcg.editions = editions
-	tcg.printf("Found %d editions", len(editions))
-
-	// The totals must count the same product types the pages list, or the
-	// page offsets walk a different result set than the count promised
-	totals, err := tcg.client.TotalProducts(ctx, tcg.category, tcg.productTypes)
-	if err != nil {
-		return err
-	}
-	tcg.printf("Found %d products", totals)
+	tcg.printf("Found %d products", len(products))
 
 	if tcg.sealed {
 		tcg.sealedMap = tcg.backend.BuildSealedProductMap("tcgplayerProductId")
 		tcg.printf("Loaded %d sealed products", len(tcg.sealedMap))
 	}
 
-	err = loadPages(ctx, tcg.maxConcurrency, totals,
+	err = loadPages(ctx, tcg.maxConcurrency, len(products),
 		func(ctx context.Context, page int, channel chan<- genericChan) error {
-			return tcg.processPage(ctx, channel, page)
+			return tcg.processPage(ctx, channel, catalogPage(products, page))
 		},
 		func(result genericChan) {
 			err := tcg.inventory.Add(result.key, &result.entry)

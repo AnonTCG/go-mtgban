@@ -30,19 +30,19 @@ const gameFixture = `{"data": {"game": "gundam",
 // 2026-10-02, but for the last sku of the second: a Japanese copy of its
 // near mint sku, which the catalog does not list.
 var gameProducts = []tcgplayer.Product{
-	{ProductID: 616528, Name: "Gundam", Skus: []tcgplayer.SKU{
+	{ProductID: 616528, Name: "Gundam", ProductType: "Cards", Skus: []tcgplayer.SKU{
 		{SKUID: 8560578, ProductID: 616528, LanguageID: 1, PrintingID: 169, ConditionID: 1},
 		{SKUID: 8560579, ProductID: 616528, LanguageID: 1, PrintingID: 169, ConditionID: 2},
 		{SKUID: 8560580, ProductID: 616528, LanguageID: 1, PrintingID: 169, ConditionID: 3},
 		{SKUID: 8560581, ProductID: 616528, LanguageID: 1, PrintingID: 169, ConditionID: 4},
 		{SKUID: 8560582, ProductID: 616528, LanguageID: 1, PrintingID: 169, ConditionID: 5},
 	}},
-	{ProductID: 616532, Name: "Gundam (MA Form)", Skus: []tcgplayer.SKU{
+	{ProductID: 616532, Name: "Gundam (MA Form)", ProductType: "Cards", Skus: []tcgplayer.SKU{
 		{SKUID: 8560649, ProductID: 616532, LanguageID: 1, PrintingID: 168, ConditionID: 1},
 		{SKUID: 8560650, ProductID: 616532, LanguageID: 1, PrintingID: 168, ConditionID: 2},
 		{SKUID: 1, ProductID: 616532, LanguageID: 7, PrintingID: 168, ConditionID: 1},
 	}},
-	{ProductID: 617436, Name: "Gundam Card Game Edition Beta Box", Skus: []tcgplayer.SKU{
+	{ProductID: 617436, Name: "Gundam Card Game Edition Beta Box", ProductType: "Sealed Products", Skus: []tcgplayer.SKU{
 		{SKUID: 8569425, ProductID: 617436, LanguageID: 1, PrintingID: 168, ConditionID: 6},
 	}},
 }

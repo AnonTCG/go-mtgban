@@ -29,6 +29,7 @@ import (
 	_ "github.com/joho/godotenv/autoload"
 
 	cm "github.com/mtgban/go-cardmarket"
+	tcgapi "github.com/mtgban/go-tcgplayer"
 
 	"github.com/mtgban/go-mtgban/cardgamecorner"
 	"github.com/mtgban/go-mtgban/cardmarket"
@@ -271,6 +272,27 @@ func tcgSYPCatalog() (tcgplayer.SYPCatalog, error) {
 	return tcgplayer.LoadSYPCatalog(reader)
 }
 
+// tcgCatalog reads the catalog dump every game's tcg_index, tcg_market and
+// tcg_sealed but Magic's price: the products they list and their skus.
+func tcgCatalog() (*tcgapi.CatalogDump, error) {
+	path := os.Getenv("TCGPLAYER_CATALOG_PATH")
+	if path == "" {
+		return nil, errors.New("missing TCGPLAYER_CATALOG_PATH env var")
+	}
+	start := time.Now()
+	reader, err := openPath(path, os.Getenv("B2_KEY_ID_DATASTORE"), os.Getenv("B2_APP_KEY_DATASTORE"))
+	if err != nil {
+		return nil, err
+	}
+	defer reader.Close()
+	catalog, err := tcgplayer.LoadCatalog(reader)
+	if err != nil {
+		return nil, err
+	}
+	log.Println("loading catalog took:", time.Since(start))
+	return catalog, nil
+}
+
 // tcgCatalogLinks reads the catalog dump for the products the datastore
 // names no card for (see tcgplayer.LoadCatalogLinks). The links only add
 // prices, so a dump that will not load costs those and nothing else.
@@ -355,14 +377,17 @@ func scraperResources(b *matcher.Backend, key string) ([]mtgban.Option, error) {
 			opts = append(opts, cardgamecorner.WithBridge(bridge))
 		}
 
-	case "tcg_index":
+	case "tcg_index", "tcg_market", "tcg_sealed":
 		if game != matcher.GameMagic {
+			catalog, err := tcgCatalog()
+			if err != nil {
+				return nil, err
+			}
+			opts = append(opts, tcgplayer.WithCatalog(catalog))
 			break
 		}
-		opts = append(opts, tcgplayer.WithCatalogLinks(tcgCatalogLinks(b)))
-
-	case "tcg_market", "tcg_sealed":
-		if game != matcher.GameMagic {
+		if key == "tcg_index" {
+			opts = append(opts, tcgplayer.WithCatalogLinks(tcgCatalogLinks(b)))
 			break
 		}
 		skus, err := tcgSKUs()
