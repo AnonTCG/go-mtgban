@@ -6,7 +6,7 @@ import (
 	"github.com/mtgban/go-mtgban/matcher"
 )
 
-// TestTreatmentDenial pins the three treatments a storefront that stocks them
+// TestTreatmentDenial pins the treatments a storefront that stocks them
 // always names, so silence about one is evidence the listing is not it. Each
 // pair below is the same card sold twice by the same shop: once with the
 // treatment written down and once without, where reading the second listing
@@ -40,6 +40,16 @@ func TestTreatmentDenial(t *testing.T) {
 			desc:    "and the one that names no treatment is the plain printing beside it",
 			in:      matcher.InputCard{Name: "Ad Nauseam", Edition: "Secrets of Strixhaven Mystical Archive", Foil: true},
 			wantSet: "SOA", wantNum: "25", wantNoPromo: "silverscroll",
+		},
+		{
+			desc:    "a Secret Lair foil that does not say Pool Party is not the dazzle foil",
+			in:      matcher.InputCard{Name: "Deadpool, Trading Card", Edition: "Secret Lair Drop Series - Deadpool", Foil: true},
+			wantSet: "SLD", wantNum: "1753★", wantNoPromo: "dazzlefoil",
+		},
+		{
+			desc:    "and the one that does is",
+			in:      matcher.InputCard{Name: "Deadpool, Trading Card", Edition: "Secret Lair Drop", Variation: "Pool Party Foil", Foil: true},
+			wantSet: "SLD", wantNum: "7129", wantPromo: "dazzlefoil",
 		},
 		{
 			desc:    "a foil that names no treatment at all is the untreated printing",

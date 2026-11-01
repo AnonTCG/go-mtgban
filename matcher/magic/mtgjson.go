@@ -261,6 +261,7 @@ const (
 	PromoTypeConcept           = "concept"
 	PromoTypeConfettiFoil      = "confettifoil"
 	PromoTypeCosmicFoil        = "cosmicfoil"
+	PromoTypeDazzleFoil        = "dazzlefoil"
 	PromoTypeDoubleExposure    = "doubleexposure"
 	PromoTypeDoubleRainbow     = "doublerainbow"
 	PromoTypeDracula           = "draculaseries"

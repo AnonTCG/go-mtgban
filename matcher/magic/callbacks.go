@@ -227,6 +227,11 @@ var promoTypeElements = []promoTypeElement{
 		Tags:      []string{"Confetti"},
 	},
 	{
+		// Secret Lair sells its dazzle foils as the Pool Party edition
+		PromoType: PromoTypeDazzleFoil,
+		Tags:      []string{"Dazzle", "Pool Party"},
+	},
+	{
 		PromoType: PromoTypeEmbossed,
 		Tags:      []string{"Ampersand", "Emblem", "Embossed"},
 	},
