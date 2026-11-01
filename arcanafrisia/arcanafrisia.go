@@ -34,7 +34,8 @@ func (af *Arcanafrisia) printf(format string, a ...any) {
 }
 
 // afCondition maps the store's grades onto our own; it grades on
-// Cardmarket's scale, where LP is below GD, so it keeps its own table.
+// Cardmarket's four steps, NM, EX, GD and PL, with PL below GD read as HP,
+// so it keeps its own table.
 func afCondition(s string) (mtgban.Condition, error) {
 	switch s {
 	case "NM":
@@ -43,6 +44,8 @@ func afCondition(s string) (mtgban.Condition, error) {
 		return mtgban.SP, nil
 	case "GD":
 		return mtgban.MP, nil
+	case "PL":
+		return mtgban.HP, nil
 	default:
 		return "", fmt.Errorf("unknown condition %q", s)
 	}
