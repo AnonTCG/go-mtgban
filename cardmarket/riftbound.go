@@ -36,10 +36,11 @@ const riftboundChineseShelf = "PROK"
 
 // riftboundNonEnglish holds the products Cardmarket shelves among the English
 // cards that were printed in another language alone: the Korean Ahri,
-// Nine-Tailed Fox signed showcase, and the Chinese Exclusive Kennen and
+// Nine-Tailed Fox showcases (303a), and the Chinese Exclusive Kennen and
 // Seraphine showcases.
 var riftboundNonEnglish = map[int]bool{
 	907588: true,
+	916878: true,
 	916943: true,
 	917605: true,
 	917606: true,

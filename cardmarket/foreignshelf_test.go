@@ -70,6 +70,7 @@ func TestNonEnglishProduct(t *testing.T) {
 		id     int
 	}{
 		{"Riftbound Korean Ahri", cm.GameRiftbound, 907588},
+		{"Riftbound Korean Ahri V.4", cm.GameRiftbound, 916878},
 		{"Riftbound Chinese Kennen", cm.GameRiftbound, 916943},
 		{"Riftbound Chinese Seraphine", cm.GameRiftbound, 917605},
 		{"Riftbound Chinese signed Seraphine", cm.GameRiftbound, 917606},
