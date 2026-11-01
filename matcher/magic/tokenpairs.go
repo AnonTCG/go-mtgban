@@ -211,12 +211,14 @@ func deriveTokenPairs(sets map[string]*Set, uuids map[string]*matcher.CardObject
 var tcgProductKeys = [...]string{"tcgplayerProductId", "tcgplayerEtchedProductId", "tcgplayerAlternativeFoilProductId"}
 
 // ownTokenProducts returns the distinct product ids tokenProducts names as
-// selling this printing alone: a single-part entry whose part is the
-// printing itself.
-func ownTokenProducts(card *Card) []string {
+// selling this printing alone: an entry whose parts are all faces of the
+// printing itself, as faceOf keys each face by set, number and name. A
+// double-faced token names both of its faces, a single-faced one itself.
+func ownTokenProducts(card *Card, faceOf map[string]string) []string {
+	own := faceOf[card.UUID]
 	var ids []string
 	for _, tp := range card.TokenProducts {
-		if len(tp.TokenParts) != 1 || tp.TokenParts[0].UUID != card.UUID {
+		if len(tp.TokenParts) == 0 || !allFacesOf(tp.TokenParts, faceOf, own) {
 			continue
 		}
 		id := tp.Identifiers["tcgplayerProductId"]
@@ -227,15 +229,36 @@ func ownTokenProducts(card *Card) []string {
 	return ids
 }
 
+// allFacesOf reports whether every part is a face keyed own.
+func allFacesOf(parts []TokenPart, faceOf map[string]string, own string) bool {
+	for _, part := range parts {
+		if faceOf[part.UUID] != own {
+			return false
+		}
+	}
+	return true
+}
+
 // adoptOwnTokenProducts gives a printing with no TCGplayer product the one
 // product tokenProducts says sells it alone, so the id reaches it the way
 // any other product id does. It is adopted only when nothing is in doubt:
 // the printing names exactly one such product, no other printing names
 // that product as its own, and no printing or sealed product carries it
-// under any id.
+// under any id. A multi-face printing counts once, by the face the loader
+// keeps, and a set's tokens are read wherever the loader holds them yet.
 func adoptOwnTokenProducts(sets map[string]*Set) {
 	owned := map[string]bool{}
-	claimants := map[string]int{}
+	// One printing can be held twice yet, in a token set's cards and its
+	// parent's tokens, so claimants are counted by uuid
+	claimants := map[string]map[string]bool{}
+	faceOf := map[string]string{}
+	for code, set := range sets {
+		for _, cards := range [...][]Card{set.Cards, set.Tokens} {
+			for i := range cards {
+				faceOf[cards[i].UUID] = code + "|" + cards[i].Number + "|" + cards[i].Name
+			}
+		}
+	}
 	for _, set := range sets {
 		for _, product := range set.SealedProduct {
 			for _, key := range tcgProductKeys {
@@ -245,36 +268,52 @@ func adoptOwnTokenProducts(sets map[string]*Set) {
 				}
 			}
 		}
-		for i := range set.Cards {
-			card := &set.Cards[i]
-			for _, key := range tcgProductKeys {
-				id := card.Identifiers[key]
-				if id != "" {
-					owned[id] = true
+		for _, cards := range [...][]Card{set.Cards, set.Tokens} {
+			for i := range cards {
+				card := &cards[i]
+				for _, key := range tcgProductKeys {
+					id := card.Identifiers[key]
+					if id != "" {
+						owned[id] = true
+					}
 				}
-			}
-			for _, id := range ownTokenProducts(card) {
-				claimants[id]++
+				if isOtherFace(card) {
+					continue
+				}
+				for _, id := range ownTokenProducts(card, faceOf) {
+					if claimants[id] == nil {
+						claimants[id] = map[string]bool{}
+					}
+					claimants[id][card.UUID] = true
+				}
 			}
 		}
 	}
 
 	for _, set := range sets {
-		for i := range set.Cards {
-			card := &set.Cards[i]
-			if card.Identifiers["tcgplayerProductId"] != "" {
-				continue
+		for _, cards := range [...][]Card{set.Cards, set.Tokens} {
+			for i := range cards {
+				card := &cards[i]
+				if card.Identifiers["tcgplayerProductId"] != "" || isOtherFace(card) {
+					continue
+				}
+				ids := ownTokenProducts(card, faceOf)
+				if len(ids) != 1 || len(claimants[ids[0]]) != 1 || owned[ids[0]] {
+					continue
+				}
+				if card.Identifiers == nil {
+					card.Identifiers = map[string]string{}
+				}
+				card.Identifiers["tcgplayerProductId"] = ids[0]
 			}
-			ids := ownTokenProducts(card)
-			if len(ids) != 1 || claimants[ids[0]] != 1 || owned[ids[0]] {
-				continue
-			}
-			if card.Identifiers == nil {
-				card.Identifiers = map[string]string{}
-			}
-			card.Identifiers["tcgplayerProductId"] = ids[0]
 		}
 	}
+}
+
+// isOtherFace reports a face past the first of a multi-face printing, which
+// the loader drops.
+func isOtherFace(card *Card) bool {
+	return card.Side != "" && card.Side != "a"
 }
 
 // isTokenPairLayout is an allowlist (layout is upstream-extensible).

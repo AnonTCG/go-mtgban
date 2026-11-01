@@ -647,7 +647,7 @@ func TestDeriveTokenPairsCrossSetFallsBackRatherThanDrops(t *testing.T) {
 // printing or sealed product carries it under any id.
 func TestAdoptOwnTokenProducts(t *testing.T) {
 	own := func(uuid string, ids ...string) Card {
-		card := Card{UUID: uuid, Identifiers: map[string]string{}}
+		card := Card{UUID: uuid, Name: uuid, Number: uuid, Identifiers: map[string]string{}}
 		for _, id := range ids {
 			card.TokenProducts = append(card.TokenProducts, TokenProduct{
 				Identifiers: map[string]string{"tcgplayerProductId": id},
@@ -665,6 +665,23 @@ func TestAdoptOwnTokenProducts(t *testing.T) {
 	priced.Identifiers["tcgplayerProductId"] = "70"
 	etched := own("etched")
 	etched.Identifiers["tcgplayerEtchedProductId"] = "8"
+	// A double-faced token's two face records, both naming the product as
+	// their pair
+	dfc := TokenProduct{
+		Identifiers: map[string]string{"tcgplayerProductId": "11"},
+		TokenParts:  []TokenPart{{UUID: "dfc b"}, {UUID: "dfc a"}},
+	}
+	dfcA := Card{UUID: "dfc a", Name: "X // Y", Number: "11", Side: "a", Identifiers: map[string]string{}, TokenProducts: []TokenProduct{dfc}}
+	dfcB := Card{UUID: "dfc b", Name: "X // Y", Number: "11", Side: "b", Identifiers: map[string]string{}, TokenProducts: []TokenProduct{dfc}}
+	// A sheet of two different tokens
+	sheet := TokenProduct{
+		Identifiers: map[string]string{"tcgplayerProductId": "12"},
+		TokenParts:  []TokenPart{{UUID: "sheet x"}, {UUID: "sheet y"}},
+	}
+	sheetX := own("sheet x")
+	sheetX.TokenProducts = []TokenProduct{sheet}
+	sheetY := own("sheet y")
+	sheetY.TokenProducts = []TokenProduct{sheet}
 	foreign := own("foreign")
 	foreign.TokenProducts = []TokenProduct{{
 		Identifiers: map[string]string{"tcgplayerProductId": "9"},
@@ -686,16 +703,25 @@ func TestAdoptOwnTokenProducts(t *testing.T) {
 		own("owned", "8"),
 		own("boxed", "10"),
 		foreign,
+		dfcA,
+		dfcB,
+		sheetX,
+		sheetY,
+	}}, "GAAA": {Code: "GAAA", Tokens: []Card{
+		// A set's tokens before the loader files them with its cards
+		own("kit token", "13"),
 	}}}
 
 	adoptOwnTokenProducts(sets)
 
 	want := map[string]string{
-		"alone":    "1",
-		"repeated": "5",
-		"priced":   "70",
+		"alone":     "1",
+		"repeated":  "5",
+		"priced":    "70",
+		"dfc a":     "11",
+		"kit token": "13",
 	}
-	for _, card := range sets["TAAA"].Cards {
+	for _, card := range append(sets["TAAA"].Cards, sets["GAAA"].Tokens...) {
 		got := card.Identifiers["tcgplayerProductId"]
 		if got != want[card.UUID] {
 			t.Errorf("%s: tcgplayerProductId %q, want %q", card.UUID, got, want[card.UUID])
