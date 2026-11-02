@@ -18,7 +18,7 @@ require (
 
 require (
 	github.com/RomainMichau/cloudscraper_go v0.4.2
-	github.com/montanaflynn/stats v0.13.0
+	github.com/montanaflynn/stats v0.14.0
 	github.com/mroth/weightedrand/v2 v2.1.0
 	github.com/mtgban/go-cardkingdom v0.2.0
 	github.com/mtgban/go-tcgplayer v0.2.0
