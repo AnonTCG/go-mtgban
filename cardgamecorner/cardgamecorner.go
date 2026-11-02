@@ -116,6 +116,11 @@ func (cgc *Cardgamecorner) processEntry(channel chan<- resultChan, cards []listi
 	// A preprocess failure is the shelf's, so it is logged once per edition
 	failedEditions := map[string]bool{}
 
+	match, found := gameMatchers[cgc.backend.Game]
+	if !found {
+		match = matchWording
+	}
+
 	for _, l := range cards {
 		edition, card := l.edition, l.card
 
@@ -153,44 +158,7 @@ func (cgc *Cardgamecorner) processEntry(channel chan<- resultChan, cards []listi
 				continue
 			}
 
-			retry := *theCard
-			cardID, byID := "", false
-			if cgc.backend.Game == matcher.GameOnePiece {
-				cardID, byID = cgc.matchByProductImage(&card, &retry)
-			}
-			if !byID {
-				cardID, err = cgc.backend.Match(theCard)
-			}
-			// What the wording cannot place, the product image can
-			if err != nil && !errors.Is(err, matcher.ErrUnsupported) && cgc.backend.Game == matcher.GamePokemon {
-				id, found := cgc.matchByProductImage(&card, &retry)
-				if found {
-					cardID, err = id, nil
-				}
-			}
-			// The number field is wrong on a few Yu-Gi-Oh listings, while
-			// the SKU still ends in the card's own
-			if errors.Is(err, matcher.ErrCardWrongVariant) && cgc.backend.Game == matcher.GameYuGiOh {
-				id, found := matchBySKUNumber(cgc.backend, &card, i)
-				if found {
-					cardID, err = id, nil
-				}
-			}
-			// The basic lands carry nothing but the store's own version tag,
-			// so retry them with the number their SKU spells, then the one
-			// their image names, and ignore the ones neither places.
-			if err != nil && !errors.Is(err, matcher.ErrUnsupported) && cgc.backend.Game == matcher.GameMagic && magic.IsBasicLand(card.Name) {
-				id, found := matchBasicByImage(cgc.backend, &card, retry)
-				if !found {
-					continue
-				}
-				cardID, err = id, nil
-			} else if err != nil && !errors.Is(err, matcher.ErrUnsupported) && cgc.backend.Game == matcher.GameMagic {
-				id, found := matchByListedNumber(cgc.backend, &card, retry)
-				if found {
-					cardID, err = id, nil
-				}
-			}
+			cardID, err := match(cgc, &card, i, theCard)
 			if errors.Is(err, matcher.ErrUnsupported) {
 				continue
 			} else if err != nil {
