@@ -17,7 +17,7 @@ import (
 )
 
 // The errors Match and its helpers return. A caller can tell an input it
-// could not place from a datastore that was never loaded, and ErrAliasing
+// could not place from a datastore that was never loaded, and an AliasingError
 // carries the candidates it could not choose between.
 var (
 	ErrDatastoreEmpty     = errors.New("datastore is empty")
@@ -35,7 +35,10 @@ var (
 	ErrCardUnnamedFinish = errors.New("unrecognized finish")
 
 	ErrUnsupported = errors.New("unsupported")
-	ErrAliasing    = NewAliasingError()
+
+	// ErrAliasing is what every *AliasingError reports itself as, so
+	// errors.Is tells an aliasing error apart without errors.As.
+	ErrAliasing = errors.New("aliasing detected")
 )
 
 // AliasingError reports that a listing matched several printings and names
@@ -55,6 +58,11 @@ func NewAliasingError(duplicates ...string) *AliasingError {
 
 func (err *AliasingError) Error() string {
 	return err.Message
+}
+
+// Is reports whether target is ErrAliasing.
+func (err *AliasingError) Is(target error) bool {
+	return target == ErrAliasing
 }
 
 // Probe returns the uuids that could not be told apart.

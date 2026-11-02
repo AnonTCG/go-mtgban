@@ -1,6 +1,9 @@
 package matcher
 
-import "testing"
+import (
+	"errors"
+	"testing"
+)
 
 type ExtractTest struct {
 	In  string
@@ -551,8 +554,11 @@ func TestAlias(t *testing.T) {
 		return
 	}
 
-	alias, ok := err.(*AliasingError)
-	if !ok {
+	if !errors.Is(err, ErrAliasing) {
+		t.Errorf("FAIL: %v is not ErrAliasing", err)
+	}
+	var alias *AliasingError
+	if !errors.As(err, &alias) {
 		t.Error("FAIL: the returned error is not AliasingError")
 		t.Errorf("%s", err.Error())
 		return

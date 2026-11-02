@@ -198,7 +198,8 @@ func sealedWords(name string) []string {
 // naming a card is a qualifier and one naming a count is identity.
 //
 // A tie says nothing: two products the storefront's words fit equally are two
-// products it did not choose between, and neither is the answer.
+// products it did not choose between, and neither is the answer. The
+// aliasing error names the first two found.
 func resolveByNamedCard(b *matcher.Backend, listed string) (string, error) {
 	vendor := sealedWords(listed)
 	if len(vendor) == 0 {
@@ -217,7 +218,7 @@ func resolveByNamedCard(b *matcher.Backend, listed string) (string, error) {
 			continue
 		}
 		if found != "" && foundName != co.Name {
-			return "", matcher.ErrAliasing
+			return "", matcher.NewAliasingError(found, uuid)
 		}
 		found, foundName = uuid, co.Name
 	}
