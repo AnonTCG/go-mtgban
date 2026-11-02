@@ -15,6 +15,14 @@ const (
 	StageAnswer
 )
 
+// CandidateSet is one set CandidateSets admitted for an input, with the
+// printings of the input's name filed there. A set holding none of them is
+// still listed, with no Cards.
+type CandidateSet struct {
+	Code  string
+	Cards []Card
+}
+
 // GameRules abstracts the game-specific steps of the Match pipeline so that a
 // datastore loaded for a non-Magic game can supply its own card-identification
 // logic. Magic implements these hooks in the matcher/magic sub-package and
@@ -55,13 +63,13 @@ type GameRules interface {
 	// FilterCards and before language filtering. DefaultRules keeps every
 	// candidate; order is the deterministic order returned by FilterCards.
 	FinalizeCandidates(b *Backend, inCard *InputCard, cards []Card) []Card
-	// FilterCards narrows the candidate cards for the input card. cardSet
-	// holds every set CandidateSets admitted, each with the printings filed
-	// under the input's name there, once per printing. The map iterates in
-	// random order; implementations are responsible for producing
-	// deterministic output ordering when more than one candidate survives,
-	// since the result feeds user-visible aliasing diagnostics.
-	FilterCards(b *Backend, inCard *InputCard, cardSet map[string][]Card) []Card
+	// FilterCards narrows the candidate cards for the input card.
+	// candidates holds every set CandidateSets admitted, sorted by code,
+	// each with the printings filed under the input's name there, once per
+	// printing. The result feeds user-visible aliasing diagnostics, so an
+	// implementation keeps it in an order that does not change between
+	// calls.
+	FilterCards(b *Backend, inCard *InputCard, candidates []CandidateSet) []Card
 	// IsUnsupported reports whether the input names something the game has
 	// no printing for, which Match answers with ErrUnsupported so a caller
 	// skips it in silence. It is asked at every Stage, since each sees

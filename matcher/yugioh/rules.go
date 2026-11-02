@@ -1103,19 +1103,23 @@ func (Rules) PlainNumber(number string) string {
 // and surfaces as an aliasing error rather than a guess. The variant label
 // tiering mirrors One Piece: a described label wins, a demanded-but-unnamed
 // variant (the "a" tail) drops the base art, and a plain input keeps it.
-func (r Rules) FilterCards(b *matcher.Backend, inCard *matcher.InputCard, cardSet map[string][]matcher.Card) []matcher.Card {
+func (r Rules) FilterCards(b *matcher.Backend, inCard *matcher.InputCard, sets []matcher.CandidateSet) []matcher.Card {
 	// A pooled storefront name restricts the candidates to its pair of sets
 	// outright: the edition keeps the name, so nothing upstream can narrow,
 	// and every printing the card ever had would answer instead.
 	if pool, found := normalizedPooledEditions()[matcher.Normalize(inCard.Edition)]; found {
-		pooled := map[string][]matcher.Card{}
+		inPool := map[string]bool{}
 		for _, name := range pool {
 			set, ok := b.NormalizedSets[matcher.Normalize(name)]
 			if !ok {
 				continue
 			}
-			if cards, carried := cardSet[set.Code]; carried {
-				pooled[set.Code] = cards
+			inPool[set.Code] = true
+		}
+		var pooled []matcher.CandidateSet
+		for _, set := range sets {
+			if inPool[set.Code] {
+				pooled = append(pooled, set)
 			}
 		}
 		// Narrow to the pair only where the pair holds the card. A name
@@ -1123,7 +1127,7 @@ func (r Rules) FilterCards(b *matcher.Backend, inCard *matcher.InputCard, cardSe
 		// yet to learn - would otherwise be narrowed to nothing at all, and
 		// answer with no candidates rather than with its real printing.
 		if len(pooled) > 0 {
-			cardSet = pooled
+			sets = pooled
 		}
 	}
 
@@ -1145,8 +1149,8 @@ func (r Rules) FilterCards(b *matcher.Backend, inCard *matcher.InputCard, cardSe
 	var candidates []matcher.Card
 	named := map[string]bool{}
 	var cards []matcher.Card
-	for _, code := range slices.Sorted(maps.Keys(cardSet)) {
-		cards = append(cards, cardSet[code]...)
+	for _, set := range sets {
+		cards = append(cards, set.Cards...)
 	}
 	for _, card := range cards {
 		if number != "" && !numberMatches(number, card.Number) &&

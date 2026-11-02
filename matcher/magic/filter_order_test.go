@@ -7,10 +7,10 @@ import (
 )
 
 // A card printed once per World Championship deck leaves Match several
-// equally correct answers, and it keeps the first. FilterCards gathers
-// those by ranging a map, so without an order imposed at the end the
-// same listing resolves to a different physical card from one call to
-// the next, and every inventory diff churns forever.
+// equally correct answers, and it keeps the first. Unless FilterCards
+// returns them in the same order every time, the same listing resolves to
+// a different physical card from one call to the next, and every
+// inventory diff churns forever.
 func TestFilterCardsOrderIsStable(t *testing.T) {
 	realDatastore(t)
 	if len(testBackend.GetUUIDs()) == 0 {

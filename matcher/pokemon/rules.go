@@ -732,16 +732,16 @@ func (r Rules) setNamedByTail(b *matcher.Backend, edition string) string {
 // FilterCards narrows candidates by edition, collector number and label, in
 // that order. A bare input facing several labels keeps them all and surfaces
 // as an aliasing error rather than a guess.
-func (Rules) FilterCards(b *matcher.Backend, inCard *matcher.InputCard, cardSet map[string][]matcher.Card) []matcher.Card {
+func (Rules) FilterCards(b *matcher.Backend, inCard *matcher.InputCard, sets []matcher.CandidateSet) []matcher.Card {
 	// A wording naming a metal card is answered by the metal printing before
 	// its numbers are read one at a time: "205 151 Metal Card" is Mew ex 205,
 	// and 151 is both the set's name and a Mew ex of its own.
 	if matcher.SlugDescribes(inCard.Variation, "metalcard") {
-		if metal := metalCandidates(b, extractNumbers(inCard.Variation), cardSet); len(metal) > 0 {
+		if metal := metalCandidates(b, extractNumbers(inCard.Variation), sets); len(metal) > 0 {
 			return metal
 		}
 	}
-	candidates := filterCandidates(b, inCard, cardSet)
+	candidates := filterCandidates(b, inCard, sets)
 
 	// A wording naming a stamp or a misprint prices a physical variant the
 	// plain printing is not: "Pokemon Center Stamped", "Professor Program
@@ -921,7 +921,7 @@ func demandsStamp(variation string) bool {
 	return strings.Contains(variation, "stamp") || strings.Contains(variation, "misprint")
 }
 
-func filterCandidates(b *matcher.Backend, inCard *matcher.InputCard, cardSet map[string][]matcher.Card) []matcher.Card {
+func filterCandidates(b *matcher.Backend, inCard *matcher.InputCard, sets []matcher.CandidateSet) []matcher.Card {
 	// A pooled storefront name restricts the candidates to its pair of
 	// sets outright: the edition kept the name, so nothing upstream could
 	// narrow, and falling through past the pool would price a card the
@@ -929,21 +929,21 @@ func filterCandidates(b *matcher.Backend, inCard *matcher.InputCard, cardSet map
 	// listing saying oversized is already held to its oversized printing,
 	// which no pool carries.
 	if pool, found := normalizedPooledEditions()[matcher.Normalize(inCard.Edition)]; found && !inCard.Contains("Oversize") {
-		pooled := map[string][]matcher.Card{}
+		inPool := map[string]bool{}
 		for _, name := range pool {
 			if set, ok := b.NormalizedSets[matcher.Normalize(name)]; ok {
-				if cards, carried := cardSet[set.Code]; carried {
-					pooled[set.Code] = cards
-				}
+				inPool[set.Code] = true
 			}
 		}
-		for code, cards := range cardSet {
-			parent, found := parentOf(b, code)
-			if _, pooledParent := pooled[parent]; found && pooledParent {
-				pooled[code] = cards
+		var pooled []matcher.CandidateSet
+		for _, set := range sets {
+			parent, found := parentOf(b, set.Code)
+			if inPool[set.Code] || (found && inPool[parent] &&
+				slices.ContainsFunc(sets, func(s matcher.CandidateSet) bool { return s.Code == parent })) {
+				pooled = append(pooled, set)
 			}
 		}
-		cardSet = pooled
+		sets = pooled
 	}
 
 	// A storefront can write more than one number into the wording: Cool
@@ -957,7 +957,7 @@ func filterCandidates(b *matcher.Backend, inCard *matcher.InputCard, cardSet map
 	var candidates, promo []matcher.Card
 	for _, number0 := range slices.Backward(numbers) {
 		number = number0
-		candidates = filterByNumber(b, inCard, cardSet, number)
+		candidates = filterByNumber(b, inCard, sets, number)
 		// A lettered number the edition admits no printing of names a
 		// promo printing filed in a set of its own. The storefronts sell
 		// the alternate arts under the set the card was first printed in
@@ -1018,7 +1018,7 @@ func filterCandidates(b *matcher.Backend, inCard *matcher.InputCard, cardSet map
 				continue
 			}
 			number = bare
-			candidates = filterByNumber(b, inCard, cardSet, bare)
+			candidates = filterByNumber(b, inCard, sets, bare)
 			if len(candidates) > 0 {
 				break
 			}
@@ -1028,7 +1028,7 @@ func filterCandidates(b *matcher.Backend, inCard *matcher.InputCard, cardSet map
 	// at all: any number the wording did write overwrites it on the loop's
 	// first turn, kept or not.
 	if len(numbers) == 0 {
-		candidates = filterByNumber(b, inCard, cardSet, "")
+		candidates = filterByNumber(b, inCard, sets, "")
 	}
 	if len(candidates) <= 1 {
 		return candidates
@@ -1230,12 +1230,12 @@ func metalAt(b *matcher.Backend, numbers []string, card *matcher.Card) bool {
 
 // metalCandidates returns the metal printings among the candidates, at one of
 // the numbers when the wording gives any, in set code order.
-func metalCandidates(b *matcher.Backend, numbers []string, cardSet map[string][]matcher.Card) []matcher.Card {
+func metalCandidates(b *matcher.Backend, numbers []string, sets []matcher.CandidateSet) []matcher.Card {
 	var metal []matcher.Card
-	for _, code := range slices.Sorted(maps.Keys(cardSet)) {
-		for i := range cardSet[code] {
-			if metalAt(b, numbers, &cardSet[code][i]) {
-				metal = append(metal, cardSet[code][i])
+	for _, set := range sets {
+		for i := range set.Cards {
+			if metalAt(b, numbers, &set.Cards[i]) {
+				metal = append(metal, set.Cards[i])
 			}
 		}
 	}
@@ -1590,14 +1590,14 @@ func letteredPromo(b *matcher.Backend, inCard *matcher.InputCard, numbers []stri
 // filterByNumber collects the printings of the input's name that the edition
 // admits and that carry the given collector number, one per product. An
 // empty number asks for every printing the edition admits.
-func filterByNumber(b *matcher.Backend, inCard *matcher.InputCard, cardSet map[string][]matcher.Card, number string) []matcher.Card {
+func filterByNumber(b *matcher.Backend, inCard *matcher.InputCard, sets []matcher.CandidateSet, number string) []matcher.Card {
 	var candidates []matcher.Card
 	// The sizes the edition's shelf can lend a listing, read once and only
 	// where a total has to be told from the shelf's.
 	var figures map[string]bool
 	var cards []matcher.Card
-	for _, code := range slices.Sorted(maps.Keys(cardSet)) {
-		cards = append(cards, cardSet[code]...)
+	for _, set := range sets {
+		cards = append(cards, set.Cards...)
 	}
 	for _, card := range cards {
 		if number != "" && !numberMatchesCard(b, number, &card) {
@@ -1605,7 +1605,7 @@ func filterByNumber(b *matcher.Backend, inCard *matcher.InputCard, cardSet map[s
 		}
 		if totalDisagrees(inCard.Variation, printedFace(&card)) {
 			if figures == nil {
-				figures = shelfFigures(b, cardSet)
+				figures = shelfFigures(b, sets)
 			}
 			if !shelfTotal(inCard.Variation, &card, figures) {
 				continue
@@ -2071,12 +2071,13 @@ func shelfTotal(variation string, card *matcher.Card, figures map[string]bool) b
 // the total most of the decks' cards print - which no single year's figures
 // would recognise. A set named as another with a year in front is a year of
 // it, and the run is the only such family the datastore holds.
-func shelfFigures(b *matcher.Backend, cardSet map[string][]matcher.Card) map[string]bool {
+func shelfFigures(b *matcher.Backend, sets []matcher.CandidateSet) map[string]bool {
 	out := map[string]bool{}
 	totals := map[string]int{}
 	products := map[string]bool{}
 	shelf := map[string]bool{}
-	for code := range cardSet {
+	for _, admitted := range sets {
+		code := admitted.Code
 		set := b.Sets[code]
 		if set == nil {
 			continue
@@ -2084,7 +2085,7 @@ func shelfFigures(b *matcher.Backend, cardSet map[string][]matcher.Card) map[str
 		// A subset is admitted beside its parent, but a shelf's figures
 		// are its parent's own
 		parent, found := parentOf(b, code)
-		if _, admitted := cardSet[parent]; found && admitted {
+		if found && slices.ContainsFunc(sets, func(s matcher.CandidateSet) bool { return s.Code == parent }) {
 			continue
 		}
 		shelf[code] = true

@@ -567,17 +567,23 @@ func (b *Backend) Match(inCard *InputCard) (cardID string, err error) {
 	// Every printing filed under the name in a set the game admits, once
 	// whatever finishes it is sold in. The index is keyed by Normalize, so
 	// printings spelled apart by case or punctuation stay reachable.
-	cardSet := map[string][]Card{}
-	for _, code := range rules.CandidateSets(b, inCard, printings) {
-		cardSet[code] = nil
+	codes := rules.CandidateSets(b, inCard, printings)
+	candidates := make([]CandidateSet, len(codes))
+	for i, code := range codes {
+		candidates[i].Code = code
 	}
+	slices.SortFunc(candidates, func(x, y CandidateSet) int { return strings.Compare(x.Code, y.Code) })
+	candidates = slices.CompactFunc(candidates, func(x, y CandidateSet) bool { return x.Code == y.Code })
 	seen := map[string]bool{}
 	for _, uuid := range b.Hashes[Normalize(inCard.Name)] {
 		co, found := b.UUIDs[uuid]
 		if !found || co.Sealed {
 			continue
 		}
-		if _, admitted := cardSet[co.SetCode]; !admitted {
+		i, admitted := slices.BinarySearchFunc(candidates, co.SetCode, func(set CandidateSet, code string) int {
+			return strings.Compare(set.Code, code)
+		})
+		if !admitted {
 			continue
 		}
 		key := PrintingKey(co.Card)
@@ -585,12 +591,12 @@ func (b *Backend) Match(inCard *InputCard) (cardID string, err error) {
 			continue
 		}
 		seen[key] = true
-		cardSet[co.SetCode] = append(cardSet[co.SetCode], co.Card)
+		candidates[i].Cards = append(candidates[i].Cards, co.Card)
 	}
 
 	b.Log("Found these possible matches")
-	for _, dupCards := range cardSet {
-		for _, card := range dupCards {
+	for _, set := range candidates {
+		for _, card := range set.Cards {
 			b.Logf("%s %s %s", card.SetCode, card.Name, card.Number)
 		}
 	}
@@ -600,7 +606,7 @@ func (b *Backend) Match(inCard *InputCard) (cardID string, err error) {
 	// blindly (Lorcana enforces the collector number here; a lone candidate
 	// taken as is could be a wrong-numbered card).
 	b.Log("Now filtering...")
-	outCards := rules.FilterCards(b, inCard, cardSet)
+	outCards := rules.FilterCards(b, inCard, candidates)
 
 	b.Log("Post filtering status...")
 	for _, card := range outCards {

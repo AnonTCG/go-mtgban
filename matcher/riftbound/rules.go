@@ -1,7 +1,6 @@
 package riftbound
 
 import (
-	"maps"
 	"slices"
 	"strconv"
 	"strings"
@@ -501,11 +500,11 @@ func (Rules) PlainNumber(number string) string {
 }
 
 // FilterCards narrows candidates by edition, collector number, and finish,
-// mirroring the Lorcana rules: cardSet carries the sets matching the input
+// mirroring the Lorcana rules: sets holds those matching the input
 // edition when one was supplied and resolves (falling back to every printing
 // otherwise), and the number comparison is case-insensitive because real
 // numbers carry letter affixes ("66a", "T5", "SP3").
-func (Rules) FilterCards(b *matcher.Backend, inCard *matcher.InputCard, cardSet map[string][]matcher.Card) []matcher.Card {
+func (Rules) FilterCards(b *matcher.Backend, inCard *matcher.InputCard, sets []matcher.CandidateSet) []matcher.Card {
 	number := extractNumber(inCard.Variation)
 
 	// Promotional printings reuse the main sets' collector numbers, so they
@@ -513,7 +512,7 @@ func (Rules) FilterCards(b *matcher.Backend, inCard *matcher.InputCard, cardSet 
 	// reaches them, and everything else keeps matching the main printings.
 	allowPromo := editionIsPromo(b, inCard.Edition)
 
-	out := collectPrintings(b, inCard, cardSet, allowPromo, number)
+	out := collectPrintings(b, inCard, sets, allowPromo, number)
 
 	// A storefront may letter a number the gallery does not: CardTrader files
 	// the champion-stamped Lillia as 058c where the gallery keeps 58 and says
@@ -524,7 +523,7 @@ func (Rules) FilterCards(b *matcher.Backend, inCard *matcher.InputCard, cardSet 
 	// than land on the plain 178.
 	if len(out) == 0 {
 		if stripped := stripNumberLetter(number); stripped != "" {
-			for _, card := range collectPrintings(b, inCard, cardSet, allowPromo, stripped) {
+			for _, card := range collectPrintings(b, inCard, sets, allowPromo, stripped) {
 				if len(card.PromoTypes) > 0 && wordsDescribe(inCard.Variation, card.PromoTypes) {
 					out = append(out, card)
 				}
@@ -545,7 +544,7 @@ func (Rules) FilterCards(b *matcher.Backend, inCard *matcher.InputCard, cardSet 
 	// it says. A wording that was only a number still misses, since a bare
 	// number describes no promo types.
 	if len(out) == 0 {
-		for _, card := range collectPrintings(b, inCard, cardSet, allowPromo, "") {
+		for _, card := range collectPrintings(b, inCard, sets, allowPromo, "") {
 			if len(card.PromoTypes) > 0 && wordsDescribe(inCard.Variation, card.PromoTypes) {
 				out = append(out, card)
 			}
@@ -780,13 +779,13 @@ func isLetter(c byte) bool {
 	return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z')
 }
 
-// collectPrintings gathers the printings in cardSet that the promo gate and
+// collectPrintings gathers the printings in sets that the promo gate and
 // the given collector number admit.
-func collectPrintings(b *matcher.Backend, inCard *matcher.InputCard, cardSet map[string][]matcher.Card, allowPromo bool, number string) []matcher.Card {
+func collectPrintings(b *matcher.Backend, inCard *matcher.InputCard, sets []matcher.CandidateSet, allowPromo bool, number string) []matcher.Card {
 	var out []matcher.Card
 	var cards []matcher.Card
-	for _, code := range slices.Sorted(maps.Keys(cardSet)) {
-		cards = append(cards, cardSet[code]...)
+	for _, set := range sets {
+		cards = append(cards, set.Cards...)
 	}
 	for _, card := range cards {
 		set, known := b.Sets[card.SetCode]

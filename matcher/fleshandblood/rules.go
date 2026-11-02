@@ -745,14 +745,14 @@ func (Rules) PlainNumber(number string) string {
 // win; a bare input keeps the base printing when one exists; the letter
 // tail cardtrader appends to a marvel's number demands some variant without
 // saying which.
-func (Rules) FilterCards(b *matcher.Backend, inCard *matcher.InputCard, cardSet map[string][]matcher.Card) []matcher.Card {
+func (Rules) FilterCards(b *matcher.Backend, inCard *matcher.InputCard, sets []matcher.CandidateSet) []matcher.Card {
 	number := extractNumber(inCard.Variation)
 
 	var candidates, exact, unsold []matcher.Card
 	named := map[string]bool{}
 	var cards []matcher.Card
-	for _, code := range slices.Sorted(maps.Keys(cardSet)) {
-		cards = append(cards, cardSet[code]...)
+	for _, set := range sets {
+		cards = append(cards, set.Cards...)
 	}
 	for _, card := range cards {
 		// A printing the catalog left unnumbered cannot disagree with a

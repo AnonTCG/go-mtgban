@@ -1,7 +1,6 @@
 package palworld
 
 import (
-	"maps"
 	"regexp"
 	"slices"
 	"strings"
@@ -178,12 +177,12 @@ const palworldPrototypeSet = "PW-PC"
 // tail chooses: written onto the number ("ETD01-001TSR"), written beside it
 // ("ETD01-001 TSR"), or spelled out as the rarity ("Trial Deck Super Rare").
 // A wording naming no tail means the plain card.
-func (Rules) FilterCards(b *matcher.Backend, inCard *matcher.InputCard, cardSet map[string][]matcher.Card) []matcher.Card {
+func (Rules) FilterCards(b *matcher.Backend, inCard *matcher.InputCard, sets []matcher.CandidateSet) []matcher.Card {
 	number := extractNumber(inCard.Variation)
 
 	var candidates []matcher.Card
-	for _, code := range slices.Sorted(maps.Keys(cardSet)) {
-		candidates = append(candidates, cardSet[code]...)
+	for _, set := range sets {
+		candidates = append(candidates, set.Cards...)
 	}
 
 	if number == "" {

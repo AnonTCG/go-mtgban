@@ -1,7 +1,6 @@
 package gundam
 
 import (
-	"maps"
 	"regexp"
 	"slices"
 	"sort"
@@ -436,13 +435,13 @@ func (Rules) PlainNumber(number string) string {
 // rarity, which is what tells this game's parallel runs apart. The variant
 // label carries the event printings and the alternate forms, and is tiered
 // first where the storefront's wording describes one.
-func (Rules) FilterCards(b *matcher.Backend, inCard *matcher.InputCard, cardSet map[string][]matcher.Card) []matcher.Card {
+func (Rules) FilterCards(b *matcher.Backend, inCard *matcher.InputCard, sets []matcher.CandidateSet) []matcher.Card {
 	number := extractNumber(inCard.Variation)
 
 	var candidates []matcher.Card
 	var cards []matcher.Card
-	for _, code := range slices.Sorted(maps.Keys(cardSet)) {
-		cards = append(cards, cardSet[code]...)
+	for _, set := range sets {
+		cards = append(cards, set.Cards...)
 	}
 	for _, card := range cards {
 		if number != "" && !strings.EqualFold(number, card.Number) {

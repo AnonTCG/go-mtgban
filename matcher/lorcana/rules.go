@@ -383,11 +383,11 @@ func (Rules) PlainNumber(number string) string {
 }
 
 // FilterCards narrows candidates by edition, collector number, and finish.
-// cardSet holds the sets matching the input edition when one was supplied
+// sets holds those matching the input edition when one was supplied
 // and resolves, and every printing otherwise, so it disambiguates a
 // name+number shared across sets ("Let It Go" #163) while a missing or
 // unrecognized edition changes nothing.
-func (r Rules) FilterCards(b *matcher.Backend, inCard *matcher.InputCard, cardSet map[string][]matcher.Card) []matcher.Card {
+func (r Rules) FilterCards(b *matcher.Backend, inCard *matcher.InputCard, sets []matcher.CandidateSet) []matcher.Card {
 	number := extractNumber(inCard.Variation)
 	// A letter hung off the end of the number may be the storefront's own
 	// promo-series marker - Strikezone numbers its promos "010B", "003C" -
@@ -403,8 +403,8 @@ func (r Rules) FilterCards(b *matcher.Backend, inCard *matcher.InputCard, cardSe
 	var out, wrongFinish, bareOut, bareWrongFinish, chaseOut, chaseWrongFinish []matcher.Card
 	chased := false
 	var cards []matcher.Card
-	for _, code := range slices.Sorted(maps.Keys(cardSet)) {
-		cards = append(cards, cardSet[code]...)
+	for _, set := range sets {
+		cards = append(cards, set.Cards...)
 	}
 	for _, card := range cards {
 		exact := number == "" || number == card.Number || number == card.PlainNumber
@@ -659,7 +659,7 @@ func promoOrdinalTiebreak(b *matcher.Backend, inCard *matcher.InputCard, cards [
 
 // setReleaseDate is the zero time for a code the datastore does not carry,
 // which sorts first rather than panicking - a candidate FilterCards already
-// pulled from cardSet is never actually missing.
+// pulled from its sets is never actually missing.
 func setReleaseDate(b *matcher.Backend, code string) time.Time {
 	set := b.Sets[code]
 	if set == nil {

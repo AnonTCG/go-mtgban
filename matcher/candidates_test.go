@@ -24,10 +24,10 @@ func (r candidateTestRules) CandidateSets(b *Backend, in *InputCard, editions []
 	}
 	return r.DefaultRules.CandidateSets(b, in, editions)
 }
-func (candidateTestRules) FilterCards(_ *Backend, _ *InputCard, sets map[string][]Card) []Card {
+func (candidateTestRules) FilterCards(_ *Backend, _ *InputCard, sets []CandidateSet) []Card {
 	var cards []Card
 	for _, set := range sets {
-		cards = append(cards, set...)
+		cards = append(cards, set.Cards...)
 	}
 	sort.Slice(cards, func(i, j int) bool { return cards[i].UUID < cards[j].UUID })
 	return cards

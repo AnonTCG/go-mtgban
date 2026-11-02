@@ -1838,23 +1838,19 @@ func namesFlavor(inCard *matcher.InputCard, card matcher.Card) bool {
 
 // FilterCards narrows the printings within those sets to the one the input
 // describes. See matcher.GameRules.
-func (Rules) FilterCards(b *matcher.Backend, inCard *matcher.InputCard, cardSet map[string][]matcher.Card) (outCards []matcher.Card) {
+func (Rules) FilterCards(b *matcher.Backend, inCard *matcher.InputCard, candidates []matcher.CandidateSet) (outCards []matcher.Card) {
 	// Use the result as-is if it comes from a single card in a single set,
 	// as the Magic replay corpus expects: a lone candidate matches even
 	// when the variation carries junk the filters below would reject.
 	// Other games (Lorcana) validate strictly.
-	if len(cardSet) == 1 {
-		for _, inCards := range cardSet {
-			if len(inCards) == 1 {
-				return inCards
-			}
-		}
+	if len(candidates) == 1 && len(candidates[0].Cards) == 1 {
+		return candidates[0].Cards
 	}
 
-	for setCode, inCards := range cardSet {
-		set := b.Sets[setCode]
+	for _, candidate := range candidates {
+		set := b.Sets[candidate.Code]
 
-		for _, card := range inCards {
+		for _, card := range candidate.Cards {
 			// Super lucky case, we were expecting the card
 			num, found := VariantsTable[set.Name][card.Name][strings.ToLower(inCard.Variation)]
 			if found {
@@ -2287,12 +2283,9 @@ func (Rules) FilterCards(b *matcher.Backend, inCard *matcher.InputCard, cardSet 
 		}
 	}
 
-	// The candidates were gathered by ranging a map, so the order they
-	// come out in changes from one call to the next. Callers that keep
-	// the first of several - Match does for gold-bordered sets, where
-	// every printing is an equally good answer - would otherwise name a
-	// different physical card each time they are asked about the same
-	// listing. Settle on one.
+	// Callers that keep the first of several - Match does for
+	// gold-bordered sets, where every printing is an equally good answer -
+	// name whichever card sorts first, so settle on set code and number.
 	slices.SortStableFunc(outCards, func(a, b matcher.Card) int {
 		if a.SetCode != b.SetCode {
 			return cmp.Compare(a.SetCode, b.SetCode)
