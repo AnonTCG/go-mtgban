@@ -168,7 +168,10 @@ func (cs *Cardsphere) Load(ctx context.Context) error {
 			if err != nil {
 				return fmt.Errorf("offset %d: %s", offset, err.Error())
 			}
-			time.Sleep(3 * time.Second)
+			select {
+			case <-ctx.Done():
+			case <-time.After(3 * time.Second):
+			}
 			return nil
 		},
 		func(result responseChan) {
