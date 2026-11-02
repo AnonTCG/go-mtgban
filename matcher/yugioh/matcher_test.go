@@ -1,27 +1,15 @@
 package yugioh
 
 import (
-	"encoding/json"
 	"flag"
-	"os"
-	"sort"
-	"strings"
 	"testing"
 
 	"github.com/mtgban/go-mtgban/internal/gametest"
 	"github.com/mtgban/go-mtgban/matcher"
 )
 
-var updateYugioh = flag.Bool("update-yugioh", false, "regenerate the Yu-Gi-Oh golden test data")
-
-const yugiohTestData = "testdata/yugioh_test_data.json"
-
-type matchTest struct {
-	Desc string            `json:"description"`
-	In   matcher.InputCard `json:"input"`
-	ID   string            `json:"uuid"`
-	Err  string            `json:"error,omitempty"`
-}
+var updateYugioh = flag.Bool("update-yugioh", false,
+	"rewrite testdata/yugioh_test_data.json from what Match returns")
 
 // The seeds cover the storefront shapes the scrapers feed: cardtrader's
 // clean name beside a bare collector number with its lowercase rarity tail
@@ -29,7 +17,7 @@ type matchTest struct {
 // artwork parentheticals, the print-run wording that routes to its run's
 // entry without ever gating, the identifier index the TCGplayer feed
 // resolves through, and the run named beside that id.
-var yugiohSeeds = []matchTest{
+var yugiohSeeds = []gametest.Case{
 	{
 		Desc: "clean name with the full collector number",
 		In:   matcher.InputCard{Name: "Blue-Eyes White Dragon", Variation: "LOB-001"},
@@ -348,97 +336,7 @@ var yugiohSeeds = []matchTest{
 
 func TestYugiohMatch(t *testing.T) {
 	b := gametest.Backend(t, matcher.GameYuGiOh)
-
-	data, err := os.ReadFile(yugiohTestData)
-	if err != nil {
-		if *updateYugioh && os.IsNotExist(err) {
-			data = []byte("[]")
-		} else {
-			t.Fatal(err)
-		}
-	}
-	var tests []matchTest
-	if err := json.Unmarshal(data, &tests); err != nil {
-		t.Fatal(err)
-	}
-
-	if *updateYugioh {
-		regenerateYugiohTestData(t, b, tests)
-		return
-	}
-
-	if len(tests) == 0 {
-		t.Fatal("no Yu-Gi-Oh test cases")
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.Desc, func(t *testing.T) {
-			t.Parallel()
-			in := tt.In
-			id, err := b.Match(&in)
-			gotErr := ""
-			if err != nil {
-				gotErr = err.Error()
-			}
-			if id != tt.ID || gotErr != tt.Err {
-				t.Errorf("Match(%q num=%q) = (%q, %q), want (%q, %q)",
-					tt.In.Name, tt.In.Variation, id, gotErr, tt.ID, tt.Err)
-			}
-		})
-	}
-}
-
-// regenerateYugiohTestData re-runs Match over every committed input plus
-// the hand-authored seeds, bakes the resulting uuid/error, and rewrites the
-// golden file sorted by description. Flipping a case between success and
-// error aborts the rewrite unless its description owns the error with a
-// "negative:" prefix: acknowledging a change of that magnitude requires
-// editing the entry by hand.
-func regenerateYugiohTestData(t *testing.T, b *matcher.Backend, tests []matchTest) {
-	isSeed := map[string]bool{}
-	for _, seed := range yugiohSeeds {
-		isSeed[seed.Desc] = true
-	}
-	kept := tests[:0]
-	for _, tt := range tests {
-		if !isSeed[tt.Desc] {
-			kept = append(kept, tt)
-		}
-	}
-	tests = append(kept, yugiohSeeds...)
-
-	for i := range tests {
-		in := tests[i].In
-		id, err := b.Match(&in)
-		gotErr := ""
-		if err != nil {
-			gotErr = err.Error()
-		}
-		wasError := tests[i].Err != ""
-		isError := gotErr != ""
-		if (tests[i].ID != "" || tests[i].Err != "") && wasError != isError &&
-			!strings.HasPrefix(tests[i].Desc, "negative:") {
-			t.Fatalf("%s: flipped between success and error (%q/%q -> %q/%q); edit the entry by hand",
-				tests[i].Desc, tests[i].ID, tests[i].Err, id, gotErr)
-		}
-		if tests[i].ID != id || tests[i].Err != gotErr {
-			t.Logf("%s: (%q, %q) -> (%q, %q)", tests[i].Desc, tests[i].ID, tests[i].Err, id, gotErr)
-		}
-		tests[i].ID = id
-		tests[i].Err = gotErr
-	}
-
-	sort.Slice(tests, func(i, j int) bool {
-		return tests[i].Desc < tests[j].Desc
-	})
-	data, err := json.MarshalIndent(tests, "", "    ")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(yugiohTestData, append(data, '\n'), 0644); err != nil {
-		t.Fatal(err)
-	}
-	t.Logf("rewrote %s with %d cases", yugiohTestData, len(tests))
+	gametest.Replay(t, b, yugiohSeeds, *updateYugioh)
 }
 
 // TestYugiohSealed pins the sealed namespace: products load, resolve by

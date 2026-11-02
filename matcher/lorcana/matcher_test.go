@@ -1,10 +1,7 @@
 package lorcana
 
 import (
-	"encoding/json"
 	"flag"
-	"os"
-	"sort"
 	"strings"
 	"testing"
 
@@ -12,35 +9,14 @@ import (
 	"github.com/mtgban/go-mtgban/matcher"
 )
 
-// matchTest mirrors the Magic matcher harness: an input card and the expected
-// Match() verdict (uuid or error string). Positive cases were baked from
-// Match's verdicts over a sampled Lorcana corpus, so the suite guards that
-// Match keeps resolving those cards the same way across changes. The
-// hand-authored seeds below pin the contract edges the
-// sampled corpus cannot reach: error paths, case-variant spellings,
-// parenthetical suffixes, prefix names, and zero-numbered cards. Run with
-// -update-lorcana to re-bake expected verdicts after a deliberate change;
-// the regeneration refuses to flip a case between success and error, so a
-// regression cannot be blessed silently.
-type matchTest struct {
-	Desc string            `json:"description"`
-	In   matcher.InputCard `json:"input"`
-	ID   string            `json:"uuid,omitempty"`
-	Err  string            `json:"error,omitempty"`
-}
-
-const lorcanaTestData = "testdata/lorcana_test_data.json"
-
 var updateLorcana = flag.Bool("update-lorcana", false,
-	"re-run Match over every test input and rewrite "+lorcanaTestData)
+	"rewrite testdata/lorcana_test_data.json from what Match returns")
 
-// lorcanaSeeds are hand-authored cases ensured present by -update-lorcana.
-// Expected verdicts are baked by the regeneration rather than hard-coded, so
-// they always reflect what Match actually returns; a "negative:" description
-// prefix declares the author's intent and the regeneration fails loudly if
-// the outcome class does not match it. Concrete cards referenced here exist
-// in the real datastore (checked against LorcanaJSON at authoring time).
-var lorcanaSeeds = []matchTest{
+// lorcanaSeeds pin the contract edges the sampled corpus cannot reach: error
+// paths, case-variant spellings, parenthetical suffixes, prefix names, and
+// zero-numbered cards. Concrete cards referenced here exist in the real
+// datastore (checked against LorcanaJSON at authoring time).
+var lorcanaSeeds = []gametest.Case{
 	{
 		// TCGplayer prices this printing as three skus; the id names the
 		// printing and the finish beside it names which sku.
@@ -315,113 +291,7 @@ var lorcanaSeeds = []matchTest{
 
 func TestLorcanaMatch(t *testing.T) {
 	b := gametest.Backend(t, matcher.GameLorcana)
-
-	data, err := os.ReadFile(lorcanaTestData)
-	if err != nil {
-		t.Fatal(err)
-	}
-	var tests []matchTest
-	if err := json.Unmarshal(data, &tests); err != nil {
-		t.Fatal(err)
-	}
-
-	if *updateLorcana {
-		regenerateLorcanaTestData(t, b, tests)
-		return
-	}
-
-	if len(tests) == 0 {
-		t.Fatal("no Lorcana test cases")
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.Desc, func(t *testing.T) {
-			t.Parallel()
-			in := tt.In
-			id, err := b.Match(&in)
-			gotErr := ""
-			if err != nil {
-				gotErr = err.Error()
-			}
-			if id != tt.ID || gotErr != tt.Err {
-				t.Errorf("Match(%q num=%q foil=%v) = (%q, %q), want (%q, %q)",
-					tt.In.Name, tt.In.Variation, tt.In.Foil, id, gotErr, tt.ID, tt.Err)
-			}
-		})
-	}
-}
-
-// regenerateLorcanaTestData re-runs Match over every committed input plus the
-// hand-authored seeds, bakes the resulting uuid/error, and rewrites the golden
-// file sorted by description for a stable diff. The input set is curated (it
-// is not derived from Match), so this only refreshes expectations after a
-// deliberate logic change. A committed case may change verdict detail (a
-// different uuid or message) - each such change is logged - but flipping
-// between success and error aborts the rewrite: acknowledging a behavior
-// change of that magnitude requires editing the entry or seed by hand.
-func regenerateLorcanaTestData(t *testing.T, b *matcher.Backend, tests []matchTest) {
-	// Seeds are authoritative for their inputs: drop any committed entry
-	// sharing a seed description, then re-add the seeds, so editing a seed
-	// takes effect instead of being masked by a stale committed entry.
-	isSeed := map[string]bool{}
-	for _, seed := range lorcanaSeeds {
-		isSeed[seed.Desc] = true
-	}
-	kept := tests[:0]
-	for _, tt := range tests {
-		if !isSeed[tt.Desc] {
-			kept = append(kept, tt)
-		}
-	}
-	tests = append(kept, lorcanaSeeds...)
-
-	for i := range tests {
-		in := tests[i].In
-		id, err := b.Match(&in)
-		gotErr := ""
-		if err != nil {
-			gotErr = err.Error()
-		}
-
-		wantNegative := tests[i].Err != ""
-		if isSeed[tests[i].Desc] {
-			wantNegative = strings.HasPrefix(tests[i].Desc, "negative:")
-		}
-		if wantNegative != (gotErr != "") {
-			t.Errorf("refusing to flip %q: (%q, %q) -> (%q, %q); edit the entry or seed by hand",
-				tests[i].Desc, tests[i].ID, tests[i].Err, id, gotErr)
-			continue
-		}
-
-		if tests[i].ID != id || tests[i].Err != gotErr {
-			t.Logf("updating %q: (%q, %q) -> (%q, %q)",
-				tests[i].Desc, tests[i].ID, tests[i].Err, id, gotErr)
-		}
-		tests[i].ID = id
-		tests[i].Err = gotErr
-	}
-	if t.Failed() {
-		t.Fatal("verdict-class flips detected; golden file left untouched")
-	}
-
-	sort.Slice(tests, func(i, j int) bool {
-		return tests[i].Desc < tests[j].Desc
-	})
-
-	out, err := os.Create(lorcanaTestData)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer out.Close()
-	enc := json.NewEncoder(out)
-	// The committed file spells "&" as itself, so the ampersand in two
-	// card names does not churn into an escape on every regeneration.
-	enc.SetEscapeHTML(false)
-	enc.SetIndent("", "    ")
-	if err := enc.Encode(tests); err != nil {
-		t.Fatal(err)
-	}
-	t.Logf("wrote %d Lorcana test cases to %s", len(tests), lorcanaTestData)
+	gametest.Replay(t, b, lorcanaSeeds, *updateLorcana)
 }
 
 // TestLorcanaFinishNames checks the invariants of the per-uuid Finish field:

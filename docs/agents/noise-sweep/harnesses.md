@@ -223,9 +223,10 @@ Include the negative case: the listing that must still refuse.
 `matcher/<game>/testdata/<game>_test_data.json` holds baked
 `{description, input, uuid, error}` cases; regenerate with
 `go test ./matcher/<game>/ -update-<game>`. It refuses to
-flip a case between success and error unless the description carries a
-`negative:` prefix - when a flip is genuinely intended, edit that entry by hand
-first, and diff the regenerated file case-by-case before committing:
+flip a committed case between success and error, and a seed case whose
+error-or-success disagrees with its `negative:` prefix - when a flip is
+genuinely intended, edit that entry or seed by hand first, and diff the
+regenerated file case-by-case before committing:
 
 ```python
 old = {x["description"]: x for x in json.load(open("HEAD-copy.json"))}

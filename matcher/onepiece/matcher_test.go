@@ -1,10 +1,7 @@
 package onepiece
 
 import (
-	"encoding/json"
 	"flag"
-	"os"
-	"sort"
 	"strings"
 	"testing"
 
@@ -12,23 +9,15 @@ import (
 	"github.com/mtgban/go-mtgban/matcher"
 )
 
-var updateOnepiece = flag.Bool("update-onepiece", false, "regenerate the One Piece golden test data")
-
-const onepieceTestData = "testdata/onepiece_test_data.json"
-
-type matchTest struct {
-	Desc string            `json:"description"`
-	In   matcher.InputCard `json:"input"`
-	ID   string            `json:"uuid"`
-	Err  string            `json:"error,omitempty"`
-}
+var updateOnepiece = flag.Bool("update-onepiece", false,
+	"rewrite testdata/onepiece_test_data.json from what Match returns")
 
 // The seeds cover the storefront shapes the scrapers feed: cardtrader's
 // clean name beside a full collector number (with the letter tail its
 // alternate arts carry), cardmarket's "(V.n)" positional wording,
 // coolstuffinc's bare-tail numbers with qualifier parentheticals, and the
 // identifier index the TCGplayer feed resolves through.
-var onepieceSeeds = []matchTest{
+var onepieceSeeds = []gametest.Case{
 	{
 		Desc: "clean name with the full collector number",
 		In:   matcher.InputCard{Name: "Roronoa Zoro", Variation: "OP01-025"},
@@ -399,97 +388,7 @@ var onepieceSeeds = []matchTest{
 
 func TestOnepieceMatch(t *testing.T) {
 	b := gametest.Backend(t, matcher.GameOnePiece)
-
-	data, err := os.ReadFile(onepieceTestData)
-	if err != nil {
-		if *updateOnepiece && os.IsNotExist(err) {
-			data = []byte("[]")
-		} else {
-			t.Fatal(err)
-		}
-	}
-	var tests []matchTest
-	if err := json.Unmarshal(data, &tests); err != nil {
-		t.Fatal(err)
-	}
-
-	if *updateOnepiece {
-		regenerateOnepieceTestData(t, b, tests)
-		return
-	}
-
-	if len(tests) == 0 {
-		t.Fatal("no One Piece test cases")
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.Desc, func(t *testing.T) {
-			t.Parallel()
-			in := tt.In
-			id, err := b.Match(&in)
-			gotErr := ""
-			if err != nil {
-				gotErr = err.Error()
-			}
-			if id != tt.ID || gotErr != tt.Err {
-				t.Errorf("Match(%q num=%q) = (%q, %q), want (%q, %q)",
-					tt.In.Name, tt.In.Variation, id, gotErr, tt.ID, tt.Err)
-			}
-		})
-	}
-}
-
-// regenerateOnepieceTestData re-runs Match over every committed input plus
-// the hand-authored seeds, bakes the resulting uuid/error, and rewrites the
-// golden file sorted by description. Flipping a case between success and
-// error aborts the rewrite unless its description owns the error with a
-// "negative:" prefix: acknowledging a change of that magnitude requires
-// editing the entry by hand.
-func regenerateOnepieceTestData(t *testing.T, b *matcher.Backend, tests []matchTest) {
-	isSeed := map[string]bool{}
-	for _, seed := range onepieceSeeds {
-		isSeed[seed.Desc] = true
-	}
-	kept := tests[:0]
-	for _, tt := range tests {
-		if !isSeed[tt.Desc] {
-			kept = append(kept, tt)
-		}
-	}
-	tests = append(kept, onepieceSeeds...)
-
-	for i := range tests {
-		in := tests[i].In
-		id, err := b.Match(&in)
-		gotErr := ""
-		if err != nil {
-			gotErr = err.Error()
-		}
-		wasError := tests[i].Err != ""
-		isError := gotErr != ""
-		if (tests[i].ID != "" || tests[i].Err != "") && wasError != isError &&
-			!strings.HasPrefix(tests[i].Desc, "negative:") {
-			t.Fatalf("%s: flipped between success and error (%q/%q -> %q/%q); edit the entry by hand",
-				tests[i].Desc, tests[i].ID, tests[i].Err, id, gotErr)
-		}
-		if tests[i].ID != id || tests[i].Err != gotErr {
-			t.Logf("%s: (%q, %q) -> (%q, %q)", tests[i].Desc, tests[i].ID, tests[i].Err, id, gotErr)
-		}
-		tests[i].ID = id
-		tests[i].Err = gotErr
-	}
-
-	sort.Slice(tests, func(i, j int) bool {
-		return tests[i].Desc < tests[j].Desc
-	})
-	data, err := json.MarshalIndent(tests, "", "    ")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(onepieceTestData, append(data, '\n'), 0644); err != nil {
-		t.Fatal(err)
-	}
-	t.Logf("rewrote %s with %d cases", onepieceTestData, len(tests))
+	gametest.Replay(t, b, onepieceSeeds, *updateOnepiece)
 }
 
 // TestOnepieceDashTailNames pins the datastore invariant the bare-tail

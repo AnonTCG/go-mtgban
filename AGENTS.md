@@ -232,10 +232,13 @@ always been, rather than `-update-magic`. Every other game follows
 Regenerate only after an *intentional* matching change, and read the
 resulting diff line by line. Every regenerator refuses to flip a case
 between success and error: a verdict-class flip fails the test and leaves
-the golden file untouched. The seven non-Magic ones also re-insert their own
-hand-authored seed cases (each package has its own `<game>Seeds`, e.g.
-`lorcanaSeeds`, `riftboundSeeds`), which pin the contract edges the sampled
-corpus cannot reach; Magic's corpus is curated by hand and has none. The
+the golden file untouched. The seven non-Magic games share one runner,
+`gametest.Replay`; each package registers its own flag and hands over its
+own hand-authored seed cases (`<game>Seeds`, e.g. `lorcanaSeeds`,
+`riftboundSeeds`), which the regeneration re-inserts and which pin the
+contract edges the sampled corpus cannot reach. A seed's description
+opening with `negative:` declares it expects an error. Magic's corpus is
+curated by hand and has none. The
 Magic regenerator still rewrites the expected uuid of any case that now
 resolves to a different card, and trusts you to read that diff.
 

@@ -869,14 +869,15 @@ none yet:
 
 These are the regression harness for the heuristic tables. Run the relevant
 regeneration after a *deliberate* matching change and **review the diff** -
-never blindly accept it. All seven non-Magic suites additionally carry
-hand-authored seed cases whose expected verdicts are baked by the regeneration
-rather than hard-coded, with a `"negative:"` description prefix declaring the
-author's intent so the regeneration fails loudly when the outcome class
-changes.
+never blindly accept it. All seven non-Magic suites run through one shared
+runner, `internal/gametest.Replay`, and additionally carry hand-authored seed
+cases whose expected verdicts are baked by the regeneration rather than
+hard-coded, with a `"negative:"` description prefix declaring the author's
+intent so the regeneration fails loudly when the outcome class changes.
 
 Every suite behaves alike when its datastore is missing, Magic included:
-each loads its backend lazily behind a `sync.Once`-guarded helper and calls
+each loads its backend lazily, once per test binary (the eight non-Magic
+games through `internal/gametest.Backend`), and calls
 `t.Skip("Need <VAR> set to run this test")` on the tests that need it.
 Magic's `TestMain` calls `log.Fatalln` only if its own golden
 `testdata/magic_test_data.json` fails to open or parse, a repo integrity
