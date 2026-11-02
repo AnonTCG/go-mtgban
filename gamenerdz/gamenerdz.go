@@ -96,6 +96,15 @@ var gnGames = map[matcher.Game]string{
 	matcher.GameOnePiece: GameOnePiece,
 }
 
+// gameResolvers names the printing a product of each game is, given the mode
+// it was read in and the TCGplayer id resolveProduct found for it.
+var gameResolvers = map[matcher.Game]func(gn *Gamenerdz, mode string, product GNProduct, tcgID int64) (string, error){
+	matcher.GameMagic:    resolveMagic,
+	matcher.GameLorcana:  resolveLorcana,
+	matcher.GamePokemon:  resolvePokemon,
+	matcher.GameOnePiece: resolveOnePiece,
+}
+
 // buylistQuantity is how many copies of a card Game Nerdz buys at most; the
 // feed states no limit of its own.
 const buylistQuantity = 8
@@ -272,24 +281,15 @@ var storefrontTCGIDs = map[string]int64{
 	"wIm3oGGMHt": 591659,
 }
 
-// resolveProduct names the printing a product is. The retail feed carries
-// the catalog's own TCGplayer id for nearly every Magic product, and it
-// answers first: the display name is the storefront's own wording, and where
-// the two disagree the id is right - a name copied from another card, a
-// promo pack printing named as the plain one. The buylist feed carries no
-// id, but its product shares the storefront's id with the retail product of
-// the same card, so it answers with the id that product carried, where that
-// id names the card the display does. Anything the id does not place is read
-// by its wording, and the retail ids are what that reading is measured
-// against. A retail id that names another card than the display does is
-// dropped when the number in the product's own sku is not that card's: the
-// storefront linked the product to another card's record, price included.
-// An empty id under a nil error is a product the catalog does not carry.
+// resolveProduct names the printing a product is, by the way its game reads
+// one. The buylist feed carries no TCGplayer id, but its product shares the
+// storefront's id with the retail product of the same card, so it is handed
+// the id that product carried. An empty id under a nil error is a product
+// the catalog does not carry.
 func (gn *Gamenerdz) resolveProduct(mode string, product GNProduct) (string, error) {
 	if unmadeProducts[product.ID] {
 		return "", nil
 	}
-	etched := gn.backend.Game == matcher.GameMagic && saysEtched(product)
 	tcgID := product.ProductData.TCGProductID
 	if mode == modeRetail {
 		gn.retailIDs[product.ID] = tcgID
@@ -304,7 +304,65 @@ func (gn *Gamenerdz) resolveProduct(mode string, product GNProduct) (string, err
 	if found {
 		tcgID = live
 	}
-	if gn.backend.Game == matcher.GameMagic && tcgID != 0 {
+	resolve, found := gameResolvers[gn.backend.Game]
+	if !found {
+		return "", fmt.Errorf("unsupported game %q", gn.backend.Game)
+	}
+	return resolve(gn, mode, product, tcgID)
+}
+
+// unread is what a product whose wording cannot be read answers: nothing
+// where it is unsupported, else the error naming it. A reason alone says a
+// listing was dropped without saying which, and a bucket nobody can read is
+// a bucket nobody empties.
+func unread(product GNProduct, err error) error {
+	if errors.Is(err, matcher.ErrUnsupported) {
+		return nil
+	}
+	return fmt.Errorf("%s %q: %w", product.ID, product.DisplayName, err)
+}
+
+// refuse reports a product its wording places nowhere, unless it is
+// unsupported.
+func (gn *Gamenerdz) refuse(product GNProduct, err error) {
+	if errors.Is(err, matcher.ErrUnsupported) {
+		return
+	}
+	gn.printf("%v", err)
+	gn.printf("%s: %q", product.ID, product.DisplayName)
+}
+
+// rescue places a product the wording turned down in a game read by its
+// wording first. The id places it as long as it names the same card and does
+// not contradict the number the wording wrote, and the listing's finish
+// settles an aliasing refusal it alone tells apart.
+func (gn *Gamenerdz) rescue(product GNProduct, theCard *matcher.InputCard, tcgID int64, err error) (string, error) {
+	if !errors.Is(err, matcher.ErrUnsupported) && tcgID != 0 {
+		idCard, idErr := gn.backend.MatchIDFinish(strconv.FormatInt(tcgID, 10), product.SelectedFinish)
+		if idErr == nil && gn.namesCard(idCard, product.DisplayName, theCard.Name) && !gn.numberConflicts(idCard, theCard.Variation) {
+			return idCard, nil
+		}
+	}
+	tied := finishTiebreak(gn.backend, product, err)
+	if tied != "" {
+		return tied, nil
+	}
+	return "", err
+}
+
+// resolveMagic answers by the TCGplayer id first. The retail feed carries
+// the catalog's own id for nearly every Magic product: the display name is
+// the storefront's own wording, and where the two disagree the id is right -
+// a name copied from another card, a promo pack printing named as the plain
+// one. A buylist product answers with its retail twin's id where that id
+// names the card the display does. Anything the id does not place is read by
+// its wording, and the retail ids are what that reading is measured against.
+// A retail id that names another card than the display does is dropped when
+// the number in the product's own sku is not that card's: the storefront
+// linked the product to another card's record, price included.
+func resolveMagic(gn *Gamenerdz, mode string, product GNProduct, tcgID int64) (string, error) {
+	etched := saysEtched(product)
+	if tcgID != 0 {
 		foil := strings.EqualFold(product.SelectedFinish, "foil") || nameSaysFoil(product.DisplayName)
 		cardID, err := gn.backend.MatchID(strconv.FormatInt(tcgID, 10), foil, etched)
 		named := err == nil && gn.namesCard(cardID, product.DisplayName, magicName(gn.backend, product.DisplayName))
@@ -320,69 +378,22 @@ func (gn *Gamenerdz) resolveProduct(mode string, product GNProduct) (string, err
 		}
 	}
 
-	theCard, err := preprocess(gn.backend, product, gn.backend.Game)
-	if errors.Is(err, matcher.ErrUnsupported) {
-		return "", nil
-	}
+	theCard, err := preprocessMagic(gn.backend, product)
 	if err != nil {
-		// Name the product, the way the failure below already does. A
-		// reason alone says a listing was dropped without saying which,
-		// and a bucket nobody can read is a bucket nobody empties
-		return "", fmt.Errorf("%s %q: %w", product.ID, product.DisplayName, err)
+		return "", unread(product, err)
 	}
-
 	foil := theCard.Foil
-
 	cardID, err := gn.backend.Match(theCard)
-	if err != nil && gn.backend.Game == matcher.GamePokemon && !errors.Is(err, matcher.ErrUnsupported) {
-		retried, found := retryPokemon(gn.backend, product, theCard)
-		if found {
-			cardID, err = retried, nil
-		}
-	}
-	// The other games answer by wording, and where it turns a product down
-	// the id may still place it, as long as it names the same card and does
-	// not contradict the number the wording wrote.
-	if err != nil && gn.backend.Game != matcher.GameMagic && !errors.Is(err, matcher.ErrUnsupported) && tcgID != 0 {
-		idCard, idErr := gn.backend.MatchIDFinish(strconv.FormatInt(tcgID, 10), product.SelectedFinish)
-		if idErr == nil && gn.namesCard(idCard, product.DisplayName, theCard.Name) && !gn.numberConflicts(idCard, theCard.Variation) {
-			cardID, err = idCard, nil
-		}
-	}
-	if err != nil && gn.backend.Game != matcher.GameMagic {
-		tied := finishTiebreak(gn.backend, product, err)
-		if tied != "" {
-			cardID, err = tied, nil
-		}
-	}
-	if err == nil && gn.backend.Game == matcher.GameOnePiece && onePieceCodeless(product.DisplayName) && !landedOnLeader(gn.backend, cardID) {
-		err = errors.New("no card code in display name, and no promo leader answers it")
-	}
 	if errors.Is(err, matcher.ErrUnsupported) {
 		return "", nil
 	} else if err != nil {
 		// A body naming another set than the display's known one carries the
-		// price of another product, so there is nothing here to report.
-		if gn.backend.Game == matcher.GameMagic && foreignBody(gn.backend, product) {
-			return "", nil
+		// price of another product, and a letterless product beside its
+		// lettered ones names no printing: neither is worth reporting.
+		if !foreignBody(gn.backend, product) && !letteredOnly(gn.backend, theCard) {
+			gn.refuse(product, err)
 		}
-		// A letterless product beside its lettered ones names no printing.
-		if gn.backend.Game == matcher.GameMagic && letteredOnly(gn.backend, theCard) {
-			return "", nil
-		}
-		gn.printf("%v", err)
-		gn.printf("%s: %q", product.ID, product.DisplayName)
 		return "", nil
-	}
-
-	if gn.backend.Game == matcher.GamePokemon && gn.leftShelf(cardID, product) {
-		return "", nil
-	}
-	if gn.backend.Game == matcher.GamePokemon {
-		cardID = pokemonStatedPrinting(gn.backend, cardID, product)
-		if cardID == "" {
-			return "", nil
-		}
 	}
 
 	// The finish a listing names has to be one the printing was sold in.
@@ -391,15 +402,82 @@ func (gn *Gamenerdz) resolveProduct(mode string, product GNProduct) (string, err
 	// with the single printing there is - the minted one carrying a price of
 	// its own, which the buylist keeps whenever it is the higher of the two.
 	// Nothing else was printed to move it to, so let it go.
-	if gn.backend.Game == matcher.GameMagic && !finishPrinted(gn.backend, cardID, foil, etched) {
+	if !finishPrinted(gn.backend, cardID, foil, etched) {
 		return "", nil
 	}
-	if gn.backend.Game == matcher.GameMagic && foil && mintedRipple(gn.backend, cardID, product.DisplayName) {
+	if foil && mintedRipple(gn.backend, cardID, product.DisplayName) {
+		return "", nil
+	}
+	return cardID, nil
+}
+
+// resolveLorcana reads a product by its wording.
+func resolveLorcana(gn *Gamenerdz, _ string, product GNProduct, tcgID int64) (string, error) {
+	theCard, err := preprocessLorcana(product)
+	if err != nil {
+		return "", unread(product, err)
+	}
+	foil := theCard.Foil
+	cardID, err := gn.backend.Match(theCard)
+	if err != nil {
+		cardID, err = gn.rescue(product, theCard, tcgID, err)
+	}
+	if err != nil {
+		gn.refuse(product, err)
 		return "", nil
 	}
 	// A "(N)" promo number names its printing without saying its finish, so
 	// a plain listing can land on a printing that was only ever made foil.
-	if gn.backend.Game == matcher.GameLorcana && !foil && !finishPrinted(gn.backend, cardID, false, false) {
+	if !foil && !finishPrinted(gn.backend, cardID, false, false) {
+		return "", nil
+	}
+	return cardID, nil
+}
+
+// resolvePokemon reads a product by its wording, respelled where the
+// storefront's own fails, and keeps it only on the shelf and the printing it
+// states.
+func resolvePokemon(gn *Gamenerdz, _ string, product GNProduct, tcgID int64) (string, error) {
+	theCard, err := preprocessPokemon(gn.backend, product)
+	if err != nil {
+		return "", unread(product, err)
+	}
+	cardID, err := gn.backend.Match(theCard)
+	if err != nil && !errors.Is(err, matcher.ErrUnsupported) {
+		retried, found := retryPokemon(gn.backend, product, theCard)
+		if found {
+			cardID, err = retried, nil
+		}
+	}
+	if err != nil {
+		cardID, err = gn.rescue(product, theCard, tcgID, err)
+	}
+	if err != nil {
+		gn.refuse(product, err)
+		return "", nil
+	}
+	if gn.leftShelf(cardID, product) {
+		return "", nil
+	}
+	return pokemonStatedPrinting(gn.backend, cardID, product), nil
+}
+
+// resolveOnePiece reads a product by its wording. One without a card code
+// is kept only where it lands on a promo leader.
+func resolveOnePiece(gn *Gamenerdz, _ string, product GNProduct, tcgID int64) (string, error) {
+	theCard, err := preprocessOnePiece(product)
+	if err != nil {
+		return "", unread(product, err)
+	}
+	cardID, err := gn.backend.Match(theCard)
+	if err != nil {
+		cardID, err = gn.rescue(product, theCard, tcgID, err)
+	}
+	if err == nil && onePieceCodeless(product.DisplayName) && !landedOnLeader(gn.backend, cardID) {
+		err = errors.New("no card code in display name, and no promo leader answers it")
+	}
+	if err != nil {
+		gn.refuse(product, err)
 		return "", nil
 	}
 	return cardID, nil

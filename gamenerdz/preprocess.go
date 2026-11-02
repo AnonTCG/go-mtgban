@@ -13,7 +13,8 @@ import (
 // grammar its game's display names follow. The finish comes from the
 // selectedFinish field, which names the printing in each game's own words;
 // the display name restates it as a tail on the set, and for Pokemon
-// pokemonStatedPrinting reads that tail where the field disagrees.
+// pokemonStatedPrinting reads that tail where the field disagrees. Each
+// game's resolver calls its own; this is the one entry the tests share.
 func preprocess(b *matcher.Backend, product GNProduct, game matcher.Game) (*matcher.InputCard, error) {
 	switch game {
 	case matcher.GameLorcana:
@@ -1230,7 +1231,7 @@ func landedOnLeader(b *matcher.Backend, id string) bool {
 // "Monkey.D.Luffy (Sealed Battle 2024 Vol. 2)". The catalog numbers these
 // "LEADER" and tells them apart by their label alone, so the head up to its
 // last bracket stays whole as the name, the way a DON!! listing's does.
-// resolveProduct keeps the answer only where it lands on such a leader.
+// resolveOnePiece keeps the answer only where it lands on such a leader.
 func preprocessOnePieceLeader(product GNProduct) (*matcher.InputCard, error) {
 	end := strings.LastIndex(product.DisplayName, ")")
 	if end < 0 {

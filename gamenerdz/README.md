@@ -3,7 +3,7 @@
 The storefront publishes two feeds per game. Retail carries the catalog's
 TCGplayer id for nearly every product; the buylist carries none, but a product
 shares the storefront's id with its retail record, and the crawl keeps that
-record's TCGplayer id. `resolveProduct` reads Magic by id first - retail by its
+record's TCGplayer id. `resolveMagic` reads Magic by id first - retail by its
 own, the buylist by its retail record's, kept only where the printing it names
 is the card the display writes. Every other row is read by wording, and the id
 places it only where the wording is refused and the id names the same card.
