@@ -4,6 +4,7 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/mtgban/go-mtgban/internal/gametest"
 	"github.com/mtgban/go-mtgban/matcher"
 )
 
@@ -13,7 +14,7 @@ import (
 // every printing the card ever had would answer. The two decks share no card,
 // so narrowing to the pair is all the name needs to pick one.
 func TestPooledEdition(t *testing.T) {
-	b := loadBackend(t)
+	b := gametest.Backend(t, matcher.GameYuGiOh)
 
 	for _, tt := range []struct {
 		desc    string
@@ -63,7 +64,7 @@ func TestPooledEdition(t *testing.T) {
 // unrelated decks also prints it, at that deck's own number and
 // rarity. See unsupportedEditions.
 func TestPooledEditionYuyaDeclan(t *testing.T) {
-	b := loadBackend(t)
+	b := gametest.Backend(t, matcher.GameYuGiOh)
 	for _, name := range []string{
 		"Fabled Ashenveil",       // Declan's deck (Dark Legion) prints this
 		"The Calculator",         // Yuya's deck (Saber Force) prints this
@@ -82,7 +83,7 @@ func TestPooledEditionYuyaDeclan(t *testing.T) {
 // is refused rather than landed on Battle Pack 2: War of the Giants Round 2
 // at the same number, and that Round 2's own listing still matches.
 func TestWGRTUnsupported(t *testing.T) {
-	b := loadBackend(t)
+	b := gametest.Backend(t, matcher.GameYuGiOh)
 
 	wgrt := matcher.InputCard{Name: "Mystic Box", Edition: "War of the Giants Reinforcements", Variation: "073 Super Rare"}
 	id, err := b.Match(&wgrt)
@@ -110,7 +111,7 @@ func TestWGRTUnsupported(t *testing.T) {
 // ("Gladiator Beast Darius" 031 is Premium Gold's PTDN-EN031), and that a
 // listing inside the run still matches.
 func TestOTSPastRun(t *testing.T) {
-	b := loadBackend(t)
+	b := gametest.Backend(t, matcher.GameYuGiOh)
 
 	past := matcher.InputCard{Name: "Gladiator Beast Darius", Edition: "OTS Tournament Pack 12", Variation: "031 Common"}
 	if id, err := b.Match(&past); err != matcher.ErrUnsupported {
@@ -135,7 +136,7 @@ func TestOTSPastRun(t *testing.T) {
 // moves a Legacy of Darkness listing onto the North American LOD-060 unless
 // its number names the Worldwide English LOD-EN060, the card as written.
 func TestRespellWorldwideNumber(t *testing.T) {
-	b := loadBackend(t)
+	b := gametest.Backend(t, matcher.GameYuGiOh)
 
 	for _, tt := range []struct {
 		variation string

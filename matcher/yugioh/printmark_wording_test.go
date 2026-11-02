@@ -4,6 +4,7 @@ import (
 	"slices"
 	"testing"
 
+	"github.com/mtgban/go-mtgban/internal/gametest"
 	"github.com/mtgban/go-mtgban/matcher"
 )
 
@@ -14,7 +15,7 @@ import (
 // scraper turns that line into the wording below; this is what the wording
 // has to reach once it gets here.
 func TestOriginalArtworkWording(t *testing.T) {
-	b := loadBackend(t)
+	b := gametest.Backend(t, matcher.GameYuGiOh)
 
 	in := matcher.InputCard{Name: "Harpie Lady", Edition: "Metal Raiders", Variation: "008 Original Artwork"}
 	id, err := b.Match(&in)

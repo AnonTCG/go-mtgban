@@ -3,6 +3,7 @@ package pokemon
 import (
 	"testing"
 
+	"github.com/mtgban/go-mtgban/internal/gametest"
 	"github.com/mtgban/go-mtgban/matcher"
 )
 
@@ -11,7 +12,7 @@ import (
 // rather than in front of it, one heads a set by the print run, and one names
 // a base set that is not the one whose name it ends with.
 func TestEraHeadingAliases(t *testing.T) {
-	b := loadBackend(t)
+	b := gametest.Backend(t, matcher.GamePokemon)
 
 	for _, tt := range []struct {
 		desc, name, edition, number, wantSet, wantNumber string

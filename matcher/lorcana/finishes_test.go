@@ -2,50 +2,11 @@ package lorcana
 
 import (
 	"errors"
-	"os"
-	"sync"
 	"testing"
 
-	"github.com/mtgban/go-mtgban/internal/datastore"
+	"github.com/mtgban/go-mtgban/internal/gametest"
 	"github.com/mtgban/go-mtgban/matcher"
 )
-
-// testBackend is the datastore loadDatastore read, for the tests to match
-// against directly.
-var testBackend *matcher.Backend
-
-// loadDatastore hands a test the datastore it read, or skips it where
-// the run carries none: each suite runs under the job holding its own
-// game's file, and not the others'.
-var (
-	datastoreOnce sync.Once
-	datastoreErr  error
-)
-
-// loadDatastore installs the datastore the first time a test asks for it, and
-// skips where the run carries none.
-func loadDatastore(t *testing.T) *matcher.Backend {
-	t.Helper()
-	datastoreOnce.Do(func() {
-		path := os.Getenv("LORCANA_PATH")
-		if path == "" {
-			return
-		}
-		b, err := datastore.Read("lorcana", path)
-		if err != nil {
-			datastoreErr = err
-			return
-		}
-		testBackend = b
-	})
-	if datastoreErr != nil {
-		t.Fatal(datastoreErr)
-	}
-	if testBackend == nil {
-		t.Skip("Need LORCANA_PATH set to run this test")
-	}
-	return testBackend
-}
 
 // TestFinishPromotion walks every printing in the datastore and asks every
 // one of its uuids for every finish it is sold in: plain to holofoil,
@@ -53,7 +14,7 @@ func loadDatastore(t *testing.T) *matcher.Backend {
 // carrying that finish, which is also the check that no two finishes of a
 // printing answer with one uuid.
 func TestFinishPromotion(t *testing.T) {
-	b := loadDatastore(t)
+	b := gametest.Backend(t, matcher.GameLorcana)
 
 	var entries, promotions int
 	for uuid, co := range b.UUIDs {
@@ -94,7 +55,7 @@ func TestFinishPromotion(t *testing.T) {
 // Answering Holofoil with the standard foil on the 2,715 cards sold in no
 // Holofoil would name a finish the card is not sold in.
 func TestVendorFinishNames(t *testing.T) {
-	b := loadDatastore(t)
+	b := gametest.Backend(t, matcher.GameLorcana)
 
 	var holofoil, noHolofoil int
 	counted := map[string]bool{}

@@ -4,6 +4,9 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+
+	"github.com/mtgban/go-mtgban/internal/gametest"
+	"github.com/mtgban/go-mtgban/matcher"
 )
 
 // TestPlainNumberIsPlain pins the contract every game keeps: Number is the
@@ -14,7 +17,7 @@ import (
 // PlainNumber leaves the ordinary number search matching nothing while
 // the strict one works, which is the wrong way round.
 func TestPlainNumberIsPlain(t *testing.T) {
-	b := loadBackend(t)
+	b := gametest.Backend(t, matcher.GamePokemon)
 
 	for uuid, co := range b.UUIDs {
 		if co.Number == "" {
@@ -69,7 +72,7 @@ func TestPlainNumberDropsThePadding(t *testing.T) {
 // printing the datastore holds, the unit test above covering only the
 // shapes it names.
 func TestPaddingIsGoneFromTheDatastore(t *testing.T) {
-	b := loadBackend(t)
+	b := gametest.Backend(t, matcher.GamePokemon)
 
 	for uuid, co := range b.UUIDs {
 		if co.Sealed || co.PlainNumber == "" {
@@ -87,7 +90,7 @@ func TestPaddingIsGoneFromTheDatastore(t *testing.T) {
 // let a bare-numbered promo win over its totalled reprint, so filling it in
 // from the set's own size would collapse the two.
 func TestPrintedFace(t *testing.T) {
-	b := loadBackend(t)
+	b := gametest.Backend(t, matcher.GamePokemon)
 
 	for _, tt := range []struct {
 		desc     string
@@ -147,7 +150,7 @@ func TestPrintedFace(t *testing.T) {
 // Decks holds cards printed 74/109 beside cards printed 87/101, so there is
 // no one size to report and reporting the commonest would be a guess.
 func TestBaseSetSize(t *testing.T) {
-	b := loadBackend(t)
+	b := gametest.Backend(t, matcher.GamePokemon)
 
 	for _, tt := range []struct {
 		code string

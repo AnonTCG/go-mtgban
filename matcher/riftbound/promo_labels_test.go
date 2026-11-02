@@ -1,6 +1,11 @@
 package riftbound
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/mtgban/go-mtgban/internal/gametest"
+	"github.com/mtgban/go-mtgban/matcher"
+)
 
 // TestPromoTypeLabels pins that a token can be read back as the words it was
 // made from. The token is what a search query carries; the label is what a
@@ -13,7 +18,7 @@ import "testing"
 // red for having nothing to do with us. The fallback spells the token plainly
 // until the entry is written.
 func TestPromoTypeLabels(t *testing.T) {
-	b := loadBackend(t)
+	b := gametest.Backend(t, matcher.GameRiftbound)
 
 	var unlabelled []string
 	for _, tag := range b.AllPromoTypes {

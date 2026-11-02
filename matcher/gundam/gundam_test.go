@@ -2,52 +2,13 @@ package gundam
 
 import (
 	"cmp"
-	"os"
 	"slices"
 	"strings"
-	"sync"
 	"testing"
 
-	"github.com/mtgban/go-mtgban/internal/datastore"
+	"github.com/mtgban/go-mtgban/internal/gametest"
 	"github.com/mtgban/go-mtgban/matcher"
 )
-
-// testBackend is the datastore TestMain read, for the tests to match
-// against directly.
-var testBackend *matcher.Backend
-
-// loadBackend hands a test the datastore TestMain read, or skips it where
-// the run carries none: each suite runs under the job holding its own
-// game's file, and not the others'.
-var (
-	datastoreOnce sync.Once
-	datastoreErr  error
-)
-
-// loadBackend installs the datastore the first time a test asks for it, and
-// skips where the run carries none.
-func loadBackend(t *testing.T) *matcher.Backend {
-	t.Helper()
-	datastoreOnce.Do(func() {
-		path := os.Getenv("GUNDAM_PATH")
-		if path == "" {
-			return
-		}
-		b, err := datastore.Read("gundam", path)
-		if err != nil {
-			datastoreErr = err
-			return
-		}
-		testBackend = b
-	})
-	if datastoreErr != nil {
-		t.Fatal(datastoreErr)
-	}
-	if testBackend == nil {
-		t.Skip("Need GUNDAM_PATH set to run this test")
-	}
-	return testBackend
-}
 
 // TestFinishIdentity pins the invariant the per-printing entries exist for:
 // one uuid per finish, and no uuid answering for two. A product sold both
@@ -55,7 +16,7 @@ func loadBackend(t *testing.T) *matcher.Backend {
 // file one price under the other's uuid. The flag defaults are not finishes:
 // the bare foil flag reaching the holofoil is what they are for.
 func TestFinishIdentity(t *testing.T) {
-	b := loadBackend(t)
+	b := gametest.Backend(t, matcher.GameGundam)
 
 	for uuid, co := range b.UUIDs {
 		if co.Sealed {
@@ -83,7 +44,7 @@ func TestFinishIdentity(t *testing.T) {
 // is Number with the game's decorations stripped, never anything wider. The
 // website's "cn:" search filters on it and "cns:" on Number.
 func TestPlainNumberIsPlain(t *testing.T) {
-	b := loadBackend(t)
+	b := gametest.Backend(t, matcher.GameGundam)
 
 	for uuid, co := range b.UUIDs {
 		if co.Sealed || co.Number == "" {
@@ -98,7 +59,7 @@ func TestPlainNumberIsPlain(t *testing.T) {
 // TestAFinishThisGameDoesNotSellIsStillRefused is the other half: opening
 // the vocabulary moved the refusal, it did not remove it.
 func TestAFinishThisGameDoesNotSellIsStillRefused(t *testing.T) {
-	b := loadBackend(t)
+	b := gametest.Backend(t, matcher.GameGundam)
 	var checked int
 	for uuid, co := range b.UUIDs {
 		if co.Sealed {
@@ -127,7 +88,7 @@ func TestAFinishThisGameDoesNotSellIsStillRefused(t *testing.T) {
 // A wording that names neither has to reach the plain run, since that is
 // what a listing without a qualifier means.
 func TestRarityTellsParallelsApart(t *testing.T) {
-	b := loadBackend(t)
+	b := gametest.Backend(t, matcher.GameGundam)
 
 	for _, tt := range []struct {
 		desc       string
@@ -205,7 +166,7 @@ func doubleListed(b *matcher.Backend) map[string]bool {
 // that fails to come back is a printing no storefront writing the catalog's
 // own words could reach.
 func TestNumberReachesItsPrinting(t *testing.T) {
-	b := loadBackend(t)
+	b := gametest.Backend(t, matcher.GameGundam)
 
 	var probes, hits int
 	misses := map[string]int{}
@@ -272,7 +233,7 @@ func TestNumberReachesItsPrinting(t *testing.T) {
 // namespace: they share the name buckets, and a sealed product answering a
 // card query would price a box as a single.
 func TestSealedIsNotACard(t *testing.T) {
-	b := loadBackend(t)
+	b := gametest.Backend(t, matcher.GameGundam)
 
 	var sealed int
 	for _, co := range b.UUIDs {

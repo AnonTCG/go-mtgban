@@ -1,6 +1,11 @@
 package fleshandblood
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/mtgban/go-mtgban/internal/gametest"
+	"github.com/mtgban/go-mtgban/matcher"
+)
 
 // TestPromoTypeLabels pins that a token can be read back as the words it was
 // made from. The token is what a search query carries; the label is what a
@@ -9,7 +14,7 @@ import "testing"
 // Riftbound, whose tokens run their words together and are written
 // down one by one.
 func TestPromoTypeLabels(t *testing.T) {
-	b := loadBackend(t)
+	b := gametest.Backend(t, matcher.GameFleshAndBlood)
 
 	if len(b.PromoTypeLabels) != len(b.AllPromoTypes) {
 		t.Errorf("%d tags declared but %d labelled", len(b.AllPromoTypes), len(b.PromoTypeLabels))

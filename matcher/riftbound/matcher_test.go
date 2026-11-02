@@ -6,10 +6,9 @@ import (
 	"os"
 	"sort"
 	"strings"
-	"sync"
 	"testing"
 
-	"github.com/mtgban/go-mtgban/internal/datastore"
+	"github.com/mtgban/go-mtgban/internal/gametest"
 	"github.com/mtgban/go-mtgban/matcher"
 )
 
@@ -359,45 +358,8 @@ var riftboundSeeds = []matchTest{
 	},
 }
 
-// testBackend is the datastore loadBackend read, for the tests to match
-// against directly.
-var testBackend *matcher.Backend
-
-// loadBackend hands a test the datastore it read, or skips it where
-// the run carries none: each suite runs under the job holding its own
-// game's file, and not the others'.
-var (
-	datastoreOnce sync.Once
-	datastoreErr  error
-)
-
-// loadBackend installs the datastore the first time a test asks for it, and
-// skips where the run carries none.
-func loadBackend(t *testing.T) *matcher.Backend {
-	t.Helper()
-	datastoreOnce.Do(func() {
-		path := os.Getenv("RIFTBOUND_PATH")
-		if path == "" {
-			return
-		}
-		b, err := datastore.Read("riftbound", path)
-		if err != nil {
-			datastoreErr = err
-			return
-		}
-		testBackend = b
-	})
-	if datastoreErr != nil {
-		t.Fatal(datastoreErr)
-	}
-	if testBackend == nil {
-		t.Skip("Need RIFTBOUND_PATH set to run this test")
-	}
-	return testBackend
-}
-
 func TestRiftboundMatch(t *testing.T) {
-	b := loadBackend(t)
+	b := gametest.Backend(t, matcher.GameRiftbound)
 
 	data, err := os.ReadFile(riftboundTestData)
 	if err != nil {
@@ -511,7 +473,7 @@ func regenerateRiftboundTestData(t *testing.T, b *matcher.Backend, tests []match
 // per-card identifier round-trip to each other, and the id lookup path
 // resolves finishes.
 func TestRiftboundIdentifiers(t *testing.T) {
-	b := loadBackend(t)
+	b := gametest.Backend(t, matcher.GameRiftbound)
 
 	// Walk the identifiers rather than the cards: the uuid a product id
 	// points at is the plain printing where one is sold and the foil
@@ -551,7 +513,7 @@ func TestRiftboundIdentifiers(t *testing.T) {
 // both carry the right Finish and Foil markers, and the FoilUUIDs map
 // round-trips to them.
 func TestRiftboundFinishUUIDs(t *testing.T) {
-	b := loadBackend(t)
+	b := gametest.Backend(t, matcher.GameRiftbound)
 
 	var bases int
 	for uuid, co := range b.UUIDs {

@@ -3,6 +3,7 @@ package lorcana
 import (
 	"testing"
 
+	"github.com/mtgban/go-mtgban/internal/gametest"
 	"github.com/mtgban/go-mtgban/matcher"
 )
 
@@ -13,7 +14,7 @@ import (
 // cannot both be true. Every case below is a listing a live feed publishes,
 // or the same listing with the wording taken away.
 func TestChaseRarity(t *testing.T) {
-	b := loadDatastore(t)
+	b := gametest.Backend(t, matcher.GameLorcana)
 
 	for _, tt := range []struct {
 		desc    string

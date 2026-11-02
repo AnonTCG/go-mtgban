@@ -5,6 +5,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/mtgban/go-mtgban/internal/gametest"
 	"github.com/mtgban/go-mtgban/matcher"
 )
 
@@ -12,7 +13,7 @@ import (
 // most: every One Piece card is named after a character, so the qualifier is
 // the only thing that says which printing, and there are 464 of them.
 func TestPromoTagsAreSlugs(t *testing.T) {
-	b := loadBackend(t)
+	b := gametest.Backend(t, matcher.GameOnePiece)
 
 	for _, tag := range b.AllPromoTypes {
 		if slug := matcher.PromoTypeSlug(tag); slug != tag {

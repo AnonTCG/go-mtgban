@@ -4,6 +4,7 @@ import (
 	"slices"
 	"testing"
 
+	"github.com/mtgban/go-mtgban/internal/gametest"
 	"github.com/mtgban/go-mtgban/matcher"
 )
 
@@ -13,7 +14,7 @@ import (
 // separates them; the site prints a qualifier only when the backend
 // declares it, so both halves have to hold.
 func TestPromoTagsAndQualifiedNames(t *testing.T) {
-	b := loadBackend(t)
+	b := gametest.Backend(t, matcher.GameYuGiOh)
 
 	for _, tag := range []string{"alternateart", "duelterminal", "otsstamp"} {
 		if !slices.Contains(b.AllPromoTypes, tag) {

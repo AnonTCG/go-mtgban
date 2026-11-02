@@ -1,13 +1,18 @@
 package fleshandblood
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/mtgban/go-mtgban/internal/gametest"
+	"github.com/mtgban/go-mtgban/matcher"
+)
 
 // TestPromoFlag pins what "is:promo" answers with. Two things say a set is
 // promotional and they cover different ground: TCGplayer names one group
 // outright, and the welcome deck hands its cards out without saying so,
 // which the products' own rarity records.
 func TestPromoFlag(t *testing.T) {
-	b := loadBackend(t)
+	b := gametest.Backend(t, matcher.GameFleshAndBlood)
 
 	byName := map[string]bool{}
 	for _, co := range b.UUIDs {

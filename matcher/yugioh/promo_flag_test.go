@@ -1,6 +1,11 @@
 package yugioh
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/mtgban/go-mtgban/internal/gametest"
+	"github.com/mtgban/go-mtgban/matcher"
+)
 
 // TestPromoFlag pins what "is:promo" answers with. Yu-Gi-Oh rarities name
 // the foil treatment ("Secret Rare", "Starfoil Rare") and never the
@@ -9,7 +14,7 @@ import "testing"
 // the trap in the other direction, reprinting at retail rather than handing
 // out.
 func TestPromoFlag(t *testing.T) {
-	b := loadBackend(t)
+	b := gametest.Backend(t, matcher.GameYuGiOh)
 
 	byName := map[string]bool{}
 	for _, co := range b.UUIDs {

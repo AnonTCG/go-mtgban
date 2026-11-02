@@ -3,6 +3,7 @@ package pokemon
 import (
 	"testing"
 
+	"github.com/mtgban/go-mtgban/internal/gametest"
 	"github.com/mtgban/go-mtgban/matcher"
 )
 
@@ -11,7 +12,7 @@ import (
 // names shares a tail with its set's, so without the table the edition
 // narrows nothing and every printing of the name stands.
 func TestPromoPseudoExpansionAlias(t *testing.T) {
-	b := loadBackend(t)
+	b := gametest.Backend(t, matcher.GamePokemon)
 
 	for _, tt := range []struct {
 		desc string
@@ -70,7 +71,7 @@ func TestPromoPseudoExpansionAlias(t *testing.T) {
 // carry refuses rather than falling through to a same-numbered printing in
 // some other set.
 func TestPooledBlisterDeckHeading(t *testing.T) {
-	b := loadBackend(t)
+	b := gametest.Backend(t, matcher.GamePokemon)
 
 	for _, tt := range []struct {
 		desc string
@@ -115,7 +116,7 @@ func TestPooledBlisterDeckHeading(t *testing.T) {
 // treatments stays ambiguous, and the stamp, sequin and cosmos wordings
 // never land on a plain printing.
 func TestVersionWording(t *testing.T) {
-	b := loadBackend(t)
+	b := gametest.Backend(t, matcher.GamePokemon)
 
 	for _, tt := range []struct {
 		desc string
@@ -198,7 +199,7 @@ func TestTotalDisagrees(t *testing.T) {
 // name itself coming off - and the real catalog names wearing the same
 // shapes staying whole.
 func TestStorefrontNameTails(t *testing.T) {
-	b := loadBackend(t)
+	b := gametest.Backend(t, matcher.GamePokemon)
 
 	for _, tt := range []struct {
 		desc string
@@ -250,7 +251,7 @@ func TestStorefrontNameTails(t *testing.T) {
 // the qualified-name widening must not walk the listing onto an English
 // printing that happens to carry the number.
 func TestUnresolvedEditionDoesNotWiden(t *testing.T) {
-	b := loadBackend(t)
+	b := gametest.Backend(t, matcher.GamePokemon)
 
 	in := matcher.InputCard{
 		Name: "Moltres ex", Edition: "Plasma Storm Promos", Variation: "014/135 Holo Promo | 14/135"}

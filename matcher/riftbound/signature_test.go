@@ -3,6 +3,9 @@ package riftbound
 import (
 	"slices"
 	"testing"
+
+	"github.com/mtgban/go-mtgban/internal/gametest"
+	"github.com/mtgban/go-mtgban/matcher"
 )
 
 // TestSignedPromoTypes pins the qualifier a starred collector number stands
@@ -38,7 +41,7 @@ func TestSignedPromoTypes(t *testing.T) {
 // gallery stars carries the tag, and the printing it shares a number with
 // does not.
 func TestSignedPrintingsAreTagged(t *testing.T) {
-	b := loadBackend(t)
+	b := gametest.Backend(t, matcher.GameRiftbound)
 
 	var starred, tagged int
 	for uuid, co := range b.UUIDs {

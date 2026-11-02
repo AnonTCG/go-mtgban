@@ -3,6 +3,7 @@ package pokemon
 import (
 	"testing"
 
+	"github.com/mtgban/go-mtgban/internal/gametest"
 	"github.com/mtgban/go-mtgban/matcher"
 )
 
@@ -11,7 +12,7 @@ import (
 // under. A total the shelf could not have produced still names another
 // set's printing and still vetoes.
 func TestShelfTotalDoesNotVeto(t *testing.T) {
-	b := loadBackend(t)
+	b := gametest.Backend(t, matcher.GamePokemon)
 
 	for _, tt := range []struct {
 		desc string

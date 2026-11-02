@@ -3,6 +3,7 @@ package lorcana
 import (
 	"testing"
 
+	"github.com/mtgban/go-mtgban/internal/gametest"
 	"github.com/mtgban/go-mtgban/matcher"
 )
 
@@ -11,7 +12,7 @@ import (
 // name, so the errata printing was unreachable even spelled out exactly and
 // answered with the original standing at the same number.
 func TestQualifiedNameStaysWhole(t *testing.T) {
-	b := loadDatastore(t)
+	b := gametest.Backend(t, matcher.GameLorcana)
 
 	for _, tt := range []struct{ desc, name, number, want string }{
 		{"the errata printing answers to its own name",

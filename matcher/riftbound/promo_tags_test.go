@@ -4,6 +4,7 @@ import (
 	"slices"
 	"testing"
 
+	"github.com/mtgban/go-mtgban/internal/gametest"
 	"github.com/mtgban/go-mtgban/matcher"
 )
 
@@ -11,7 +12,7 @@ import (
 // is split on whitespace before any filter sees it, so a tag is only askable
 // as one word - the same shape Magic's own promo types have always had.
 func TestPromoTagsAreSlugs(t *testing.T) {
-	b := loadBackend(t)
+	b := gametest.Backend(t, matcher.GameRiftbound)
 
 	for _, tag := range b.AllPromoTypes {
 		if slug := matcher.PromoTypeSlug(tag); slug != tag {
@@ -51,7 +52,7 @@ func TestPromoTagsAreSlugs(t *testing.T) {
 // the card. The builder splits that spelling into a name and its qualifiers,
 // so the rebuilt one has to answer to what the storefront actually writes.
 func TestProductNameReachesOnePrinting(t *testing.T) {
-	b := loadBackend(t)
+	b := gametest.Backend(t, matcher.GameRiftbound)
 
 	bare, err := b.SearchEquals("Teemo, Swift Scout")
 	if err != nil {

@@ -3,6 +3,9 @@ package lorcana
 import (
 	"slices"
 	"testing"
+
+	"github.com/mtgban/go-mtgban/internal/gametest"
+	"github.com/mtgban/go-mtgban/matcher"
 )
 
 // TestPromoTypeLabels pins that a token can be read back as the words it was
@@ -10,7 +13,7 @@ import (
 // reader is shown, and title-casing the token cannot put back the spaces it
 // dropped.
 func TestPromoTypeLabels(t *testing.T) {
-	b := loadDatastore(t)
+	b := gametest.Backend(t, matcher.GameLorcana)
 
 	if len(b.PromoTypeLabels) != len(b.AllPromoTypes) {
 		t.Errorf("%d tags declared but %d labelled", len(b.AllPromoTypes), len(b.PromoTypeLabels))

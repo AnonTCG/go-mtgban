@@ -3,6 +3,7 @@ package pokemon
 import (
 	"testing"
 
+	"github.com/mtgban/go-mtgban/internal/gametest"
 	"github.com/mtgban/go-mtgban/matcher"
 )
 
@@ -12,7 +13,7 @@ import (
 // copyright year, and the catalog filed both under "SM - Team Up" and
 // "SWSH01" instead.
 func TestAdjustEnergyYearRedirect(t *testing.T) {
-	b := loadBackend(t)
+	b := gametest.Backend(t, matcher.GamePokemon)
 
 	tests := []struct {
 		desc                     string
@@ -68,7 +69,7 @@ func TestAdjustEnergyYearRedirect(t *testing.T) {
 // and dashedCodeRe has to keep extractNumbers from reading its first group
 // as one.
 func TestTierByYear(t *testing.T) {
-	b := loadBackend(t)
+	b := gametest.Backend(t, matcher.GamePokemon)
 
 	tests := []struct {
 		desc                     string
@@ -119,7 +120,7 @@ func TestTierByYear(t *testing.T) {
 // leaves the ambiguity TestLetteredPromoAmbiguous pins standing for a
 // lettered number.
 func TestExcludeJumbo(t *testing.T) {
-	b := loadBackend(t)
+	b := gametest.Backend(t, matcher.GamePokemon)
 
 	in := &matcher.InputCard{
 		Name:      "Lucario ex",
@@ -149,7 +150,7 @@ func TestExcludeJumbo(t *testing.T) {
 // with: SM01's unnumbered "Psychic Energy (2017)" against the holo secret
 // rare Psychic Energy 162.
 func TestTierByQualifier(t *testing.T) {
-	b := loadBackend(t)
+	b := gametest.Backend(t, matcher.GamePokemon)
 
 	in := &matcher.InputCard{Name: "Psychic Energy", Edition: "SM Base Set", Variation: "2017"}
 	id, err := b.Match(in)

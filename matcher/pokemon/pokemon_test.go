@@ -1,58 +1,19 @@
 package pokemon
 
 import (
-	"os"
 	"slices"
-	"sync"
 	"testing"
 
-	"github.com/mtgban/go-mtgban/internal/datastore"
+	"github.com/mtgban/go-mtgban/internal/gametest"
 	"github.com/mtgban/go-mtgban/matcher"
 )
-
-// testBackend is the datastore loadBackend read, for the tests to match
-// against directly.
-var testBackend *matcher.Backend
-
-// loadBackend hands a test the datastore it read, or skips it where
-// the run carries none: each suite runs under the job holding its own
-// game's file, and not the others'.
-var (
-	datastoreOnce sync.Once
-	datastoreErr  error
-)
-
-// loadBackend installs the datastore the first time a test asks for it, and
-// skips where the run carries none.
-func loadBackend(t *testing.T) *matcher.Backend {
-	t.Helper()
-	datastoreOnce.Do(func() {
-		path := os.Getenv("POKEMON_PATH")
-		if path == "" {
-			return
-		}
-		b, err := datastore.Read("pokemon", path)
-		if err != nil {
-			datastoreErr = err
-			return
-		}
-		testBackend = b
-	})
-	if datastoreErr != nil {
-		t.Fatal(datastoreErr)
-	}
-	if testBackend == nil {
-		t.Skip("Need POKEMON_PATH set to run this test")
-	}
-	return testBackend
-}
 
 // TestFinishIdentity pins the invariant the per-printing entries exist for:
 // one uuid per finish, and no uuid answering for two. Pokemon crosses two
 // axes, so a product can carry six entries, and folding any of them together
 // would file two sku prices under one uuid.
 func TestFinishIdentity(t *testing.T) {
-	b := loadBackend(t)
+	b := gametest.Backend(t, matcher.GamePokemon)
 
 	for uuid, co := range b.UUIDs {
 		if co.Sealed {
@@ -91,7 +52,7 @@ func TestFinishIdentity(t *testing.T) {
 // and the league, championship and blister groups hand their cards out
 // without saying so in the name, which the products' own rarity records.
 func TestPromoFlag(t *testing.T) {
-	b := loadBackend(t)
+	b := gametest.Backend(t, matcher.GamePokemon)
 
 	byName := map[string]bool{}
 	for _, co := range b.UUIDs {
@@ -133,7 +94,7 @@ func TestPromoFlag(t *testing.T) {
 // is real, and that the finish names the catalog also writes as qualifiers
 // stay out of the declaration.
 func TestPromoTags(t *testing.T) {
-	b := loadBackend(t)
+	b := gametest.Backend(t, matcher.GamePokemon)
 
 	for _, tag := range []string{"fullart", "staff", "prerelease"} {
 		if !slices.Contains(b.AllPromoTypes, tag) {
@@ -157,7 +118,7 @@ func TestPromoTags(t *testing.T) {
 // catalog files the run: one product sold as both 1st Edition Holofoil and
 // Unlimited Holofoil.
 func TestFinishSelection(t *testing.T) {
-	b := loadBackend(t)
+	b := gametest.Backend(t, matcher.GamePokemon)
 
 	for _, tt := range []struct {
 		desc string
@@ -206,7 +167,7 @@ func TestPromoTypeLabelSpellings(t *testing.T) {
 // reader is shown, and title-casing the token cannot put back the spaces it
 // dropped.
 func TestPromoTypeLabels(t *testing.T) {
-	b := loadBackend(t)
+	b := gametest.Backend(t, matcher.GamePokemon)
 
 	if len(b.PromoTypeLabels) != len(b.AllPromoTypes) {
 		t.Errorf("%d tags declared but %d labelled", len(b.AllPromoTypes), len(b.PromoTypeLabels))
@@ -253,7 +214,7 @@ func TestPromoTypeLabels(t *testing.T) {
 // rather than assumed, so this holds either way round and the two halves can
 // land in any order.
 func TestMarkedPrintingsSayItOnce(t *testing.T) {
-	b := loadBackend(t)
+	b := gametest.Backend(t, matcher.GamePokemon)
 
 	var marked int
 	for _, co := range b.UUIDs {
@@ -281,7 +242,7 @@ func TestMarkedPrintingsSayItOnce(t *testing.T) {
 // World Championship reprints are named for the number they reprint, so the
 // same shape is a real name there and taking it apart would lose the card.
 func TestNameCarriesNumber(t *testing.T) {
-	b := loadBackend(t)
+	b := gametest.Backend(t, matcher.GamePokemon)
 
 	for _, tt := range []struct {
 		desc string
@@ -317,7 +278,7 @@ func TestNameCarriesNumber(t *testing.T) {
 // spellings agree only after the prefix; without this a listing's edition
 // narrows nothing and the card aliases across every set sharing its number.
 func TestEraPrefixedEdition(t *testing.T) {
-	b := loadBackend(t)
+	b := gametest.Backend(t, matcher.GamePokemon)
 
 	for _, tt := range []struct{ edition, want string }{
 		{"SWSH Darkness Ablaze", "SWSH03: Darkness Ablaze"},
@@ -351,7 +312,7 @@ func TestEraPrefixedEdition(t *testing.T) {
 // guard is the last case: a bare name the set already answers for at that
 // number is never widened onto its qualified sibling.
 func TestQualifiedNameWidening(t *testing.T) {
-	b := loadBackend(t)
+	b := gametest.Backend(t, matcher.GamePokemon)
 
 	for _, tt := range []struct {
 		desc string
@@ -385,7 +346,7 @@ func TestQualifiedNameWidening(t *testing.T) {
 // cards "001".."282", so without this every "SVP016" listing compares a
 // number the catalog never writes and the whole edition goes unmatched.
 func TestSetCodePrefixedNumber(t *testing.T) {
-	b := loadBackend(t)
+	b := gametest.Backend(t, matcher.GamePokemon)
 
 	for _, tt := range []struct {
 		desc string
@@ -428,7 +389,7 @@ func TestSetCodePrefixedNumber(t *testing.T) {
 // of them on 1999's set of that literal name, which prices a Platinum card
 // as a Base Set one.
 func TestBaseSetEdition(t *testing.T) {
-	b := loadBackend(t)
+	b := gametest.Backend(t, matcher.GamePokemon)
 
 	for _, tt := range []struct{ edition, want string }{
 		{"Diamond and Pearl Base Set", "Diamond and Pearl"},
@@ -462,7 +423,7 @@ func TestBaseSetEdition(t *testing.T) {
 // Reading only the first token is what put every Dark Explorers and Ancient
 // Origins row out of reach.
 func TestSecondNumberInWording(t *testing.T) {
-	b := loadBackend(t)
+	b := gametest.Backend(t, matcher.GamePokemon)
 
 	for _, tt := range []struct {
 		desc string
@@ -508,7 +469,7 @@ func TestSecondNumberInWording(t *testing.T) {
 // thing telling the printing apart; and the dashed segments are read from
 // the right, so a number with wording behind it is still found.
 func TestDecoratedNameSplit(t *testing.T) {
-	b := loadBackend(t)
+	b := gametest.Backend(t, matcher.GamePokemon)
 
 	for _, tt := range []struct {
 		desc string
@@ -547,7 +508,7 @@ func TestDecoratedNameSplit(t *testing.T) {
 // which throws away the one part that tells "1/149" from "1/106"; without
 // the total these rows can only alias.
 func TestSetTotalBreaksTheTie(t *testing.T) {
-	b := loadBackend(t)
+	b := gametest.Backend(t, matcher.GamePokemon)
 
 	for _, tt := range []struct {
 		desc string
@@ -577,7 +538,7 @@ func TestSetTotalBreaksTheTie(t *testing.T) {
 // Promos", which agree on nothing after the era, so the row narrows to no
 // set and aliases against the Jumbo reprint carrying the same number.
 func TestPromoEraEdition(t *testing.T) {
-	b := loadBackend(t)
+	b := gametest.Backend(t, matcher.GamePokemon)
 
 	for _, tt := range []struct{ edition, want string }{
 		{"SV Promos", "SV: Scarlet & Violet Promo Cards"},
@@ -616,7 +577,7 @@ func TestPromoEraEdition(t *testing.T) {
 // files them under. The negative is the point of the name test: a set code
 // spelled like a subset's is not one.
 func TestSubsetOfEdition(t *testing.T) {
-	b := loadBackend(t)
+	b := gametest.Backend(t, matcher.GamePokemon)
 
 	for _, tt := range []struct {
 		desc string
@@ -651,7 +612,7 @@ func TestSubsetOfEdition(t *testing.T) {
 // name and tie with the spelling the storefront meant, which the ambiguity
 // guard reads as "the listing does not say".
 func TestYearReprintDoesNotTie(t *testing.T) {
-	b := loadBackend(t)
+	b := gametest.Backend(t, matcher.GamePokemon)
 
 	for _, tt := range []struct {
 		desc string

@@ -3,6 +3,9 @@ package fleshandblood
 import (
 	"slices"
 	"testing"
+
+	"github.com/mtgban/go-mtgban/internal/gametest"
+	"github.com/mtgban/go-mtgban/matcher"
 )
 
 // TestPromoTagsAndQualifiedNames pins what tells sibling printings apart.
@@ -10,7 +13,7 @@ import (
 // MST238, and only the label separates them; the site prints a qualifier
 // only when the backend declares it, so both halves have to hold.
 func TestPromoTagsAndQualifiedNames(t *testing.T) {
-	b := loadBackend(t)
+	b := gametest.Backend(t, matcher.GameFleshAndBlood)
 
 	for _, tag := range []string{"marvel", "extendedart", "golden", "treasure"} {
 		if !slices.Contains(b.AllPromoTypes, tag) {

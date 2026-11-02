@@ -3,6 +3,7 @@ package yugioh
 import (
 	"testing"
 
+	"github.com/mtgban/go-mtgban/internal/gametest"
 	"github.com/mtgban/go-mtgban/matcher"
 )
 
@@ -14,7 +15,7 @@ import (
 // the base edition's Ultra, so the $2.50 Gold and the $1.50 Secret were both
 // sold at the $1.25 Ultra's price.
 func TestSiblingRarity(t *testing.T) {
-	b := loadBackend(t)
+	b := gametest.Backend(t, matcher.GameYuGiOh)
 
 	const family = "The Dark Side of Dimensions Movie Pack"
 	for _, tt := range []struct {

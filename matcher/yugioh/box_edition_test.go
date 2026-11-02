@@ -3,6 +3,7 @@ package yugioh
 import (
 	"testing"
 
+	"github.com/mtgban/go-mtgban/internal/gametest"
 	"github.com/mtgban/go-mtgban/matcher"
 )
 
@@ -12,7 +13,7 @@ import (
 // card ever had answers: each listing below would be dropped as aliased
 // rather than mispriced.
 func TestBoxEdition(t *testing.T) {
-	b := loadBackend(t)
+	b := gametest.Backend(t, matcher.GameYuGiOh)
 
 	for _, tt := range []struct {
 		desc    string

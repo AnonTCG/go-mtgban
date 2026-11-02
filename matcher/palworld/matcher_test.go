@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/mtgban/go-mtgban/internal/gametest"
 	"github.com/mtgban/go-mtgban/matcher"
 )
 
@@ -115,7 +116,7 @@ var palworldSeeds = []matchTest{
 }
 
 func TestPalworldMatch(t *testing.T) {
-	b := loadBackend(t)
+	b := gametest.Backend(t, matcher.GamePalworld)
 
 	data, err := os.ReadFile(palworldTestData)
 	if err != nil {

@@ -4,6 +4,7 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/mtgban/go-mtgban/internal/gametest"
 	"github.com/mtgban/go-mtgban/matcher"
 )
 
@@ -13,7 +14,7 @@ import (
 // the catalog has no jumbo at that number, none wearing the placement the
 // listing names, or the listing carries no number.
 func TestOversizedListingHeldToTheJumbo(t *testing.T) {
-	b := loadBackend(t)
+	b := gametest.Backend(t, matcher.GamePokemon)
 
 	for _, tt := range []struct {
 		desc string

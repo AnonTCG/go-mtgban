@@ -3,6 +3,7 @@ package pokemon
 import (
 	"testing"
 
+	"github.com/mtgban/go-mtgban/internal/gametest"
 	"github.com/mtgban/go-mtgban/matcher"
 )
 
@@ -74,7 +75,7 @@ func TestEditionAliasesAreDistinct(t *testing.T) {
 // value has to be a set carried under exactly that name, and every key must
 // not be, or the alias would shadow a real set's own printings.
 func TestEditionAliasesNameRealSets(t *testing.T) {
-	b := loadBackend(t)
+	b := gametest.Backend(t, matcher.GamePokemon)
 
 	for name, set := range editionAliases {
 		if _, found := b.NormalizedSets[matcher.Normalize(set)]; !found {

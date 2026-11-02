@@ -4,6 +4,7 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/mtgban/go-mtgban/internal/gametest"
 	"github.com/mtgban/go-mtgban/matcher"
 )
 
@@ -14,7 +15,7 @@ import (
 // a number behind a dash with no space after it. The datastore names none of
 // them into the card.
 func TestNameTailsTheCatalogWrites(t *testing.T) {
-	b := loadBackend(t)
+	b := gametest.Backend(t, matcher.GamePokemon)
 
 	for _, tt := range []struct {
 		desc string
@@ -59,7 +60,7 @@ func TestNameTailsTheCatalogWrites(t *testing.T) {
 // alone. A listing saying oversized reaches the jumbo past the edition, and
 // one that does not is refused.
 func TestLegendPairNeverAnswersAHalf(t *testing.T) {
-	b := loadBackend(t)
+	b := gametest.Backend(t, matcher.GamePokemon)
 
 	in := matcher.InputCard{
 		Name: "Darkrai & Cresselia Legend - 99/102 & 100/102", Variation: "Single Oversized Promo", Edition: "Triumphant"}

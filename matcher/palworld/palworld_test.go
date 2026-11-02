@@ -2,56 +2,17 @@ package palworld
 
 import (
 	"cmp"
-	"os"
 	"strings"
-	"sync"
 	"testing"
 
-	"github.com/mtgban/go-mtgban/internal/datastore"
+	"github.com/mtgban/go-mtgban/internal/gametest"
 	"github.com/mtgban/go-mtgban/matcher"
 )
-
-// testBackend is the datastore loadBackend read, for the tests to match
-// against directly.
-var testBackend *matcher.Backend
-
-// loadBackend hands a test the datastore it read, or skips it where
-// the run carries none: each suite runs under the job holding its own
-// game's file, and not the others'.
-var (
-	datastoreOnce sync.Once
-	datastoreErr  error
-)
-
-// loadBackend installs the datastore the first time a test asks for it, and
-// skips where the run carries none.
-func loadBackend(t *testing.T) *matcher.Backend {
-	t.Helper()
-	datastoreOnce.Do(func() {
-		path := os.Getenv("PALWORLD_PATH")
-		if path == "" {
-			return
-		}
-		b, err := datastore.Read("palworld", path)
-		if err != nil {
-			datastoreErr = err
-			return
-		}
-		testBackend = b
-	})
-	if datastoreErr != nil {
-		t.Fatal(datastoreErr)
-	}
-	if testBackend == nil {
-		t.Skip("Need PALWORLD_PATH set to run this test")
-	}
-	return testBackend
-}
 
 // TestFinishIdentity pins the invariant the per-printing entries exist for:
 // one uuid per finish, and no uuid answering for two.
 func TestFinishIdentity(t *testing.T) {
-	b := loadBackend(t)
+	b := gametest.Backend(t, matcher.GamePalworld)
 
 	for uuid, co := range b.UUIDs {
 		if co.Sealed {
@@ -73,7 +34,7 @@ func TestFinishIdentity(t *testing.T) {
 // is the Jormuntide Ignis that EBP01-001 is - so the plain number is the
 // run's number, the code off, and the number itself where it wears none.
 func TestPlainNumberIsPlain(t *testing.T) {
-	b := loadBackend(t)
+	b := gametest.Backend(t, matcher.GamePalworld)
 
 	for uuid, co := range b.UUIDs {
 		if co.Sealed || co.Number == "" {
@@ -95,7 +56,7 @@ func TestPlainNumberIsPlain(t *testing.T) {
 // a number names one product but for a reprint run, which its promo type
 // tells apart, and the rules never have to tier.
 func TestNumbersAreUnique(t *testing.T) {
-	b := loadBackend(t)
+	b := gametest.Backend(t, matcher.GamePalworld)
 
 	seen := map[string]string{}
 	named := map[string]string{}
@@ -147,7 +108,7 @@ func TestRarityTailSplit(t *testing.T) {
 // TCGplayer names its own products this way - "Grizzbolt - Rumbling Tank
 // (TSR)" is ETD01-001TSR - so the code is what usually arrives.
 func TestTailReachesItsParallel(t *testing.T) {
-	b := loadBackend(t)
+	b := gametest.Backend(t, matcher.GamePalworld)
 
 	for _, tt := range []struct {
 		desc       string
@@ -223,7 +184,7 @@ func doubleListed(b *matcher.Backend) map[string]bool {
 // edition and collector number. Anything that fails to come back is a
 // printing no storefront writing the catalog's own words could reach.
 func TestNumberReachesItsPrinting(t *testing.T) {
-	b := loadBackend(t)
+	b := gametest.Backend(t, matcher.GamePalworld)
 
 	var probes, hits int
 	misses := map[string]int{}
@@ -277,7 +238,7 @@ func TestNumberReachesItsPrinting(t *testing.T) {
 // prefix here. The one agreement is a set TCGplayer itself codes with the E
 // (ESS01, the Sleeve and Card Set).
 func TestSetCodeIsNotTheNumberPrefix(t *testing.T) {
-	b := loadBackend(t)
+	b := gametest.Backend(t, matcher.GamePalworld)
 
 	var agree, disagree int
 	for _, co := range b.UUIDs {

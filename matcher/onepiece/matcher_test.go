@@ -6,10 +6,9 @@ import (
 	"os"
 	"sort"
 	"strings"
-	"sync"
 	"testing"
 
-	"github.com/mtgban/go-mtgban/internal/datastore"
+	"github.com/mtgban/go-mtgban/internal/gametest"
 	"github.com/mtgban/go-mtgban/matcher"
 )
 
@@ -398,45 +397,8 @@ var onepieceSeeds = []matchTest{
 	},
 }
 
-// testBackend is the datastore TestMain read, for the tests to match
-// against directly.
-var testBackend *matcher.Backend
-
-// loadBackend hands a test the datastore TestMain read, or skips it where
-// the run carries none: each suite runs under the job holding its own
-// game's file, and not the others'.
-var (
-	datastoreOnce sync.Once
-	datastoreErr  error
-)
-
-// loadBackend installs the datastore the first time a test asks for it, and
-// skips where the run carries none.
-func loadBackend(t *testing.T) *matcher.Backend {
-	t.Helper()
-	datastoreOnce.Do(func() {
-		path := os.Getenv("ONEPIECE_PATH")
-		if path == "" {
-			return
-		}
-		b, err := datastore.Read("onepiece", path)
-		if err != nil {
-			datastoreErr = err
-			return
-		}
-		testBackend = b
-	})
-	if datastoreErr != nil {
-		t.Fatal(datastoreErr)
-	}
-	if testBackend == nil {
-		t.Skip("Need ONEPIECE_PATH set to run this test")
-	}
-	return testBackend
-}
-
 func TestOnepieceMatch(t *testing.T) {
-	b := loadBackend(t)
+	b := gametest.Backend(t, matcher.GameOnePiece)
 
 	data, err := os.ReadFile(onepieceTestData)
 	if err != nil {
@@ -537,7 +499,7 @@ func regenerateOnepieceTestData(t *testing.T, b *matcher.Backend, tests []matchT
 // - OP14-34"), which is why Prefilter leaves a name that is canonical as
 // it stands alone, both before the parentheticals are split off and after.
 func TestOnepieceDashTailNames(t *testing.T) {
-	b := loadBackend(t)
+	b := gametest.Backend(t, matcher.GameOnePiece)
 
 	for _, name := range b.AllCanonicalNames {
 		if dashTailRe.MatchString(name) {
@@ -549,7 +511,7 @@ func TestOnepieceDashTailNames(t *testing.T) {
 // TestOnepieceSealed pins the sealed namespace: products load, resolve by
 // name, and never shadow the card index.
 func TestOnepieceSealed(t *testing.T) {
-	b := loadBackend(t)
+	b := gametest.Backend(t, matcher.GameOnePiece)
 
 	if len(b.AllSealedUUIDs) == 0 {
 		t.Fatal("no sealed products loaded")
@@ -611,7 +573,7 @@ func filedWithNoNumber(b *matcher.Backend, name string) bool {
 // is right to ignore a storefront's number for it too. A new name filed
 // under a code of its own still trips this, because its number is not empty.
 func TestOnepieceNumbered(t *testing.T) {
-	b := loadBackend(t)
+	b := gametest.Backend(t, matcher.GameOnePiece)
 
 	// CanonicalNames holds the card names alone; the qualified spellings
 	// naming one printing apiece are searchable but never canonical, and a

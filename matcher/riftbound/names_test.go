@@ -1,12 +1,17 @@
 package riftbound
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/mtgban/go-mtgban/internal/gametest"
+	"github.com/mtgban/go-mtgban/matcher"
+)
 
 // The three name lists feed searchFunc, which adds a matching entry's whole
 // hash bucket: a repeated entry returns every printing of that name once per
 // repeat. Each list holds distinct values of its own kind.
 func TestNameListsAreDistinct(t *testing.T) {
-	b := loadBackend(t)
+	b := gametest.Backend(t, matcher.GameRiftbound)
 	for _, tt := range []struct {
 		name string
 		list []string

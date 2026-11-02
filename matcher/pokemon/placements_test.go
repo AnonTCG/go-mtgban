@@ -4,6 +4,7 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/mtgban/go-mtgban/internal/gametest"
 	"github.com/mtgban/go-mtgban/matcher"
 )
 
@@ -12,7 +13,7 @@ import (
 // the catalog sells under its own TCGplayer id, and the id is what the
 // answer is graded by.
 func TestLabelsBeforeMarks(t *testing.T) {
-	b := loadBackend(t)
+	b := gametest.Backend(t, matcher.GamePokemon)
 
 	for _, tt := range []struct {
 		desc string
@@ -68,7 +69,7 @@ func TestLabelsBeforeMarks(t *testing.T) {
 // the number reaches wear none of it the plain one must not answer. The
 // main set sells this card only plain.
 func TestPlacementNoSurvivorWears(t *testing.T) {
-	b := loadBackend(t)
+	b := gametest.Backend(t, matcher.GamePokemon)
 
 	in := matcher.InputCard{
 		Name: "Professor Turo's Scenario - 171/182", Edition: "SV04: Paradox Rift", Variation: "171/182 Staff"}

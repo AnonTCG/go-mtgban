@@ -3,6 +3,7 @@ package lorcana
 import (
 	"testing"
 
+	"github.com/mtgban/go-mtgban/internal/gametest"
 	"github.com/mtgban/go-mtgban/matcher"
 )
 
@@ -12,7 +13,7 @@ import (
 // naming the errata reaches the errata and a note silent about it keeps the
 // original standing at the same number.
 func TestAdoptQualifiedName(t *testing.T) {
-	backend := loadDatastore(t)
+	backend := gametest.Backend(t, matcher.GameLorcana)
 
 	for _, tt := range []struct{ desc, name, variation, want string }{
 		{"a note naming the errata reaches the errata",

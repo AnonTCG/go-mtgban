@@ -2,13 +2,16 @@ package pokemon
 
 import (
 	"testing"
+
+	"github.com/mtgban/go-mtgban/internal/gametest"
+	"github.com/mtgban/go-mtgban/matcher"
 )
 
 // TestSetNamedByTail pins the era-prefixed spellings resolving, and pins the
 // rules answering the same whether Load precomputed their index or not: the
 // index is a shortcut, never the reason an answer exists.
 func TestSetNamedByTail(t *testing.T) {
-	b := loadBackend(t)
+	b := gametest.Backend(t, matcher.GamePokemon)
 	loaded, ok := NewRules(b), Rules{}
 
 	for _, tt := range []struct {

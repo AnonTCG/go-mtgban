@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/mtgban/go-mtgban/internal/gametest"
 	"github.com/mtgban/go-mtgban/matcher"
 )
 
@@ -313,7 +314,7 @@ var lorcanaSeeds = []matchTest{
 }
 
 func TestLorcanaMatch(t *testing.T) {
-	b := loadDatastore(t)
+	b := gametest.Backend(t, matcher.GameLorcana)
 
 	data, err := os.ReadFile(lorcanaTestData)
 	if err != nil {
@@ -428,7 +429,7 @@ func regenerateLorcanaTestData(t *testing.T, b *matcher.Backend, tests []matchTe
 // "nonfoil", and a sub-type suffixed uuid agrees with the name that derived
 // it.
 func TestLorcanaFinishNames(t *testing.T) {
-	b := loadDatastore(t)
+	b := gametest.Backend(t, matcher.GameLorcana)
 
 	subTypes := map[string]int{}
 	for uuid, co := range b.UUIDs {

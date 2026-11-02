@@ -3,6 +3,7 @@ package pokemon
 import (
 	"testing"
 
+	"github.com/mtgban/go-mtgban/internal/gametest"
 	"github.com/mtgban/go-mtgban/matcher"
 )
 
@@ -38,7 +39,7 @@ func TestWithoutNegatedStamp(t *testing.T) {
 // case is a listing exactly as pokemonListing hands it to Match, gathered
 // from a replay of today's Cool Stuff Inc capture.
 func TestNonStampedListings(t *testing.T) {
-	b := loadBackend(t)
+	b := gametest.Backend(t, matcher.GamePokemon)
 
 	tests := []struct {
 		desc                     string

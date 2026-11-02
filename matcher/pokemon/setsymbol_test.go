@@ -1,6 +1,11 @@
 package pokemon
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/mtgban/go-mtgban/internal/gametest"
+	"github.com/mtgban/go-mtgban/matcher"
+)
 
 // TestSetSymbol pins representative marks a set's cards print. The builder
 // carries these from whatever upstream source currently has them. Not every
@@ -10,7 +15,7 @@ import "testing"
 // The URL is opaque to this package. The source and URL shape belong to the
 // datastore builder, and may change without changing the loader contract.
 func TestSetSymbol(t *testing.T) {
-	b := loadBackend(t)
+	b := gametest.Backend(t, matcher.GamePokemon)
 
 	for _, tt := range []struct {
 		code string

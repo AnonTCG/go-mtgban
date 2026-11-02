@@ -3,6 +3,7 @@ package fleshandblood
 import (
 	"testing"
 
+	"github.com/mtgban/go-mtgban/internal/gametest"
 	"github.com/mtgban/go-mtgban/matcher"
 )
 
@@ -14,7 +15,7 @@ import (
 // uuid nothing can reach. The flag slots carry a printing the product is
 // really sold in.
 func TestPrintingUUIDs(t *testing.T) {
-	b := loadBackend(t)
+	b := gametest.Backend(t, matcher.GameFleshAndBlood)
 
 	owner := map[string]string{}
 	var products, printings int

@@ -3,6 +3,7 @@ package onepiece
 import (
 	"testing"
 
+	"github.com/mtgban/go-mtgban/internal/gametest"
 	"github.com/mtgban/go-mtgban/matcher"
 )
 
@@ -13,7 +14,7 @@ import (
 // storefront wording covers both, so the wording that names the label
 // outright and the wording that leaves the word over must answer alike.
 func TestPackPair(t *testing.T) {
-	b := loadBackend(t)
+	b := gametest.Backend(t, matcher.GameOnePiece)
 
 	for _, tt := range []struct {
 		desc    string

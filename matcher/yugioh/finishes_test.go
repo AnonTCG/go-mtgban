@@ -3,6 +3,7 @@ package yugioh
 import (
 	"testing"
 
+	"github.com/mtgban/go-mtgban/internal/gametest"
 	"github.com/mtgban/go-mtgban/matcher"
 )
 
@@ -15,7 +16,7 @@ import (
 // at the default run, and answering one with a run would hand a bare foil
 // flag a printing nobody asked for.
 func TestPrintRunUUIDs(t *testing.T) {
-	b := loadBackend(t)
+	b := gametest.Backend(t, matcher.GameYuGiOh)
 
 	owner := map[string]string{}
 	var printings, runs int

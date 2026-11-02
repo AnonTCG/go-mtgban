@@ -4,6 +4,7 @@ import (
 	"slices"
 	"testing"
 
+	"github.com/mtgban/go-mtgban/internal/gametest"
 	"github.com/mtgban/go-mtgban/matcher"
 )
 
@@ -13,7 +14,7 @@ import (
 // fields; the handful it does write in a parenthesis - "(Errata Version)",
 // "(Puzzle Promo)" - the builder reads out of the name for us.
 func TestPromoTagsAreSlugs(t *testing.T) {
-	b := loadDatastore(t)
+	b := gametest.Backend(t, matcher.GameLorcana)
 
 	for _, tag := range b.AllPromoTypes {
 		if slug := matcher.PromoTypeSlug(tag); slug != tag {

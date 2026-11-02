@@ -2,6 +2,9 @@ package lorcana
 
 import (
 	"testing"
+
+	"github.com/mtgban/go-mtgban/internal/gametest"
+	"github.com/mtgban/go-mtgban/matcher"
 )
 
 // TestIsPromoIsSet pins that the game names its promotional printings at all.
@@ -9,7 +12,7 @@ import (
 // every card in the game - and a promo filter that matches nothing looks
 // exactly like a game with no promos in it.
 func TestIsPromoIsSet(t *testing.T) {
-	b := loadDatastore(t)
+	b := gametest.Backend(t, matcher.GameLorcana)
 
 	var promos, total, inPromoSet, promoSetFlagged int
 	for _, uuid := range b.GetUUIDs() {

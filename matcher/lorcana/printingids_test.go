@@ -63,7 +63,7 @@ func TestPublishedPrintingIDsWin(t *testing.T) {
 // readDatastore hands a test the datastore's own bytes, from wherever
 // LORCANA_PATH points - a file, a URL, or the bucket the production
 // datastores are published to. These tests stamp the document and read it
-// back, so they need the file loadDatastore would have decoded rather than
+// back, so they need the file gametest.Backend would have decoded rather than
 // the backend it answers with.
 func readDatastore(t *testing.T) []byte {
 	t.Helper()

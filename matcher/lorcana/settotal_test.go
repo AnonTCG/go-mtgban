@@ -1,6 +1,11 @@
 package lorcana
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/mtgban/go-mtgban/internal/gametest"
+	"github.com/mtgban/go-mtgban/matcher"
+)
 
 // TestSetTotal pins the denominator the face prints, which for Lorcana is
 // not always a size: a set numbers its promos from 1 alongside its own
@@ -8,7 +13,7 @@ import "testing"
 // "1/204" and the number alone names both. 155 of the game's (set, number)
 // pairs named two cards for exactly that reason.
 func TestSetTotal(t *testing.T) {
-	b := loadDatastore(t)
+	b := gametest.Backend(t, matcher.GameLorcana)
 
 	// Set 1 number 1 is five cards, and the total is the whole of what
 	// tells them apart - two of them share a name as well as a number.

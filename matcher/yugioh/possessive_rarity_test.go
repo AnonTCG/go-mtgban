@@ -3,6 +3,7 @@ package yugioh
 import (
 	"testing"
 
+	"github.com/mtgban/go-mtgban/internal/gametest"
 	"github.com/mtgban/go-mtgban/matcher"
 )
 
@@ -13,7 +14,7 @@ import (
 // Court sells both at one number - the listing that says "Collector Rare"
 // was being handed the printing worth a fortieth of it.
 func TestPossessiveRarity(t *testing.T) {
-	b := loadBackend(t)
+	b := gametest.Backend(t, matcher.GameYuGiOh)
 
 	for _, tt := range []struct {
 		desc       string

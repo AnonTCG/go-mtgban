@@ -3,6 +3,7 @@ package onepiece
 import (
 	"testing"
 
+	"github.com/mtgban/go-mtgban/internal/gametest"
 	"github.com/mtgban/go-mtgban/matcher"
 )
 
@@ -37,7 +38,7 @@ func TestNamedFinish(t *testing.T) {
 // value on every listing, and a wording that says nothing must leave the tie
 // where it was rather than hand it to the plain printing.
 func TestFinishNamedTiebreak(t *testing.T) {
-	b := loadBackend(t)
+	b := gametest.Backend(t, matcher.GameOnePiece)
 
 	for _, tt := range []struct {
 		desc, name, variation, edition string

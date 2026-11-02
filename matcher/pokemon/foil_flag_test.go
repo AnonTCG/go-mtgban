@@ -3,6 +3,7 @@ package pokemon
 import (
 	"testing"
 
+	"github.com/mtgban/go-mtgban/internal/gametest"
 	"github.com/mtgban/go-mtgban/matcher"
 )
 
@@ -12,7 +13,7 @@ import (
 // set the finish without ever setting the flag, so every holo printing in the
 // game was filed as a plain one.
 func TestFoilFlagAgreesWithFinish(t *testing.T) {
-	b := loadBackend(t)
+	b := gametest.Backend(t, matcher.GamePokemon)
 
 	var foil, total, disagree int
 	for _, uuid := range b.GetUUIDs() {

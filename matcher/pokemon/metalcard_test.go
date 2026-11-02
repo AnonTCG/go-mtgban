@@ -4,6 +4,7 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/mtgban/go-mtgban/internal/gametest"
 	"github.com/mtgban/go-mtgban/matcher"
 )
 
@@ -13,7 +14,7 @@ import (
 // number, and nothing at all when the catalog sells no metal printing of the
 // card.
 func TestMetalCardListingHeldToTheMetalPrinting(t *testing.T) {
-	b := loadBackend(t)
+	b := gametest.Backend(t, matcher.GamePokemon)
 
 	for _, tt := range []struct {
 		desc string

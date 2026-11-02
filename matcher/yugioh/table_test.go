@@ -3,6 +3,7 @@ package yugioh
 import (
 	"testing"
 
+	"github.com/mtgban/go-mtgban/internal/gametest"
 	"github.com/mtgban/go-mtgban/matcher"
 )
 
@@ -80,7 +81,7 @@ func TestAdjustEditionAliases(t *testing.T) {
 // image - a key naming a set of its own is never reached, since
 // AdjustEdition asks the backend before the table.
 func TestEditionAliasesNameRealSets(t *testing.T) {
-	b := loadBackend(t)
+	b := gametest.Backend(t, matcher.GameYuGiOh)
 
 	for name, set := range editionAliases {
 		if _, found := b.NormalizedSets[matcher.Normalize(set)]; !found {

@@ -3,6 +3,7 @@ package pokemon
 import (
 	"testing"
 
+	"github.com/mtgban/go-mtgban/internal/gametest"
 	"github.com/mtgban/go-mtgban/matcher"
 )
 
@@ -14,7 +15,7 @@ import (
 // the storefront publishes, beside the same card numbered as the catalog
 // writes it.
 func TestNumberMarker(t *testing.T) {
-	b := loadBackend(t)
+	b := gametest.Backend(t, matcher.GamePokemon)
 
 	for _, tt := range []struct {
 		desc    string
@@ -121,7 +122,7 @@ func TestNumberMarker(t *testing.T) {
 // answer: dropping the letter would reach the plain card the promo reprints,
 // which is a third card again.
 func TestLetteredPromoAmbiguous(t *testing.T) {
-	b := loadBackend(t)
+	b := gametest.Backend(t, matcher.GamePokemon)
 
 	t.Run("the wording names the set and picks it", func(t *testing.T) {
 		in := matcher.InputCard{Name: "Darkrai-GX", Edition: "SM Burning Shadows", Variation: "88a/147 Alt Art"}

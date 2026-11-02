@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/mtgban/go-mtgban/internal/gametest"
 	"github.com/mtgban/go-mtgban/matcher"
 )
 
@@ -169,7 +170,7 @@ var gundamSeeds = []matchTest{
 }
 
 func TestGundamMatch(t *testing.T) {
-	b := loadBackend(t)
+	b := gametest.Backend(t, matcher.GameGundam)
 
 	data, err := os.ReadFile(gundamTestData)
 	if err != nil {

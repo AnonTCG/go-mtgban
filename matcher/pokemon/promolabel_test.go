@@ -3,6 +3,7 @@ package pokemon
 import (
 	"testing"
 
+	"github.com/mtgban/go-mtgban/internal/gametest"
 	"github.com/mtgban/go-mtgban/matcher"
 )
 
@@ -11,7 +12,7 @@ import (
 // printings of one number differ only in the retailer that stamped them, so
 // the wording naming a retailer has to outrank the wording naming none.
 func TestPromoLabelDepth(t *testing.T) {
-	b := loadBackend(t)
+	b := gametest.Backend(t, matcher.GamePokemon)
 
 	for _, tt := range []struct{ desc, name, edition, variation, want string }{
 		{"the retailer is what tells the stampings apart", "Hop's Snorlax", "", "117 GameStop Cosmos Holo", "117-159_626640_holofoil"},

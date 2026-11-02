@@ -153,16 +153,19 @@ environment variables:
   and so on).
 
 Every suite, Magic and core `matcher` included, loads its datastore
-lazily behind a `sync.Once`-guarded `realDatastore(t)` helper and calls
+lazily, once per test binary, and calls
 `t.Skip("Need <VAR> set to run this test")` on the tests that need it, so a
 contributor missing every one of the nine datastores still gets a green, if
-much thinner, `go test ./...` run. `matcher/magic`'s `TestMain` calls
+much thinner, `go test ./...` run. Magic and core keep a `sync.Once`-guarded
+`realDatastore(t)` helper; the eight other games all call
+`gametest.Backend(t, game)` from `internal/gametest`. `matcher/magic`'s `TestMain` calls
 `log.Fatalln` only if its own golden `testdata/magic_test_data.json` fails
 to open or parse - a repo integrity fault, not a missing-env-var one.
 
 Reuse a datastore a suite already loads rather than adding another loader.
 Each helper costs a parse of about ten seconds and three gigabytes per test
-binary, and a test file cannot import another package's helper, so tests
+binary, and a test file cannot import another package's helper (which is
+why `internal/gametest` is an ordinary package), so tests
 for a new package that only needs the Magic datastore belong in a suite that
 already loads it: `matcher/sealed`'s datastore-backed tests live in
 `matcher`'s external test package, on its `testBackend`, and only the ones

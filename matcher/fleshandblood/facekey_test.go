@@ -4,6 +4,9 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/mtgban/go-mtgban/internal/gametest"
+	"github.com/mtgban/go-mtgban/matcher"
 )
 
 // TestFaceKey pins the fold that makes two spellings of one pairing answer
@@ -36,7 +39,7 @@ func TestFaceKey(t *testing.T) {
 // minute inside Prefilter, which a vendor can aim at any run at will.
 // Comparing the faces as a set costs one pass whatever the count.
 func TestFusedNamedByManyFaces(t *testing.T) {
-	b := loadBackend(t)
+	b := gametest.Backend(t, matcher.GameFleshAndBlood)
 
 	faces := make([]string, 11)
 	for i := range faces {

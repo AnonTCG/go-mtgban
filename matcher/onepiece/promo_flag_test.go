@@ -3,6 +3,7 @@ package onepiece
 import (
 	"testing"
 
+	"github.com/mtgban/go-mtgban/internal/gametest"
 	"github.com/mtgban/go-mtgban/matcher"
 )
 
@@ -11,7 +12,7 @@ import (
 // nothing, so both paths are pinned here; the Premium Booster sets are the
 // trap, their codes beginning "PRB" while they are an ordinary product.
 func TestPromoFlag(t *testing.T) {
-	b := loadBackend(t)
+	b := gametest.Backend(t, matcher.GameOnePiece)
 
 	for _, tt := range []struct {
 		name string

@@ -3,6 +3,9 @@ package lorcana
 import (
 	"strings"
 	"testing"
+
+	"github.com/mtgban/go-mtgban/internal/gametest"
+	"github.com/mtgban/go-mtgban/matcher"
 )
 
 // TestNumberlessCards pins that a card the datastore files with no number
@@ -12,7 +15,7 @@ import (
 // puzzle inserts, lore cards and oversized components would land on it,
 // one crowd per set.
 func TestNumberlessCards(t *testing.T) {
-	b := loadDatastore(t)
+	b := gametest.Backend(t, matcher.GameLorcana)
 
 	var numberless, zero int
 	var zeroNames []string

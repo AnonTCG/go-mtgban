@@ -1,13 +1,18 @@
 package onepiece
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/mtgban/go-mtgban/internal/gametest"
+	"github.com/mtgban/go-mtgban/matcher"
+)
 
 // TestQualifiedNameSearch pins the discovery contract the catalog's
 // parentheticals buy: the character name reaches every printing of that
 // character, the qualified spelling reaches only the printing it names, and
 // a name that owns its parenthetical is untouched by either.
 func TestQualifiedNameSearch(t *testing.T) {
-	b := loadBackend(t)
+	b := gametest.Backend(t, matcher.GameOnePiece)
 
 	bare, err := b.SearchEquals("Nami")
 	if err != nil {
