@@ -432,7 +432,7 @@ func skipSet(set *Set) bool {
 	return false
 }
 
-func generateUUIDsMap(sets map[string]*Set) (map[string]*matcher.CardObject, []string, []string, map[string][]string, map[string][]string) {
+func generateUUIDsMap(sets map[string]*Set) (map[string]*matcher.CardObject, []string, []string, map[string][]string) {
 	uuids := map[string]*matcher.CardObject{}
 	for _, set := range sets {
 		for _, card := range set.Cards {
@@ -459,20 +459,13 @@ func generateUUIDsMap(sets map[string]*Set) (map[string]*matcher.CardObject, []s
 	sort.Strings(allUUIDs)
 	sort.Strings(allSealedUUIDs)
 
-	// Bucket every uuid by its set, mirroring the singles/sealed split.
-	// Built from the sorted slices so each bucket stays sorted too.
-	setUUIDs := map[string][]string{}
-	for _, uuid := range allUUIDs {
-		code := uuids[uuid].SetCode
-		setUUIDs[code] = append(setUUIDs[code], uuid)
-	}
 	setSealedUUIDs := map[string][]string{}
 	for _, uuid := range allSealedUUIDs {
 		code := uuids[uuid].SetCode
 		setSealedUUIDs[code] = append(setSealedUUIDs[code], uuid)
 	}
 
-	return uuids, allUUIDs, allSealedUUIDs, setUUIDs, setSealedUUIDs
+	return uuids, allUUIDs, allSealedUUIDs, setSealedUUIDs
 }
 
 // Append "_f" and "_e" to uuids, unless etched is the only printing.
@@ -1300,7 +1293,7 @@ func (ap *AllPrintings) newBackend() *matcher.Backend {
 	}
 
 	// Generate the unique identifiers for singles and products
-	uuids, allUUIDs, allSealedUUIDs, setUUIDs, setSealedUUIDs := generateUUIDsMap(ap.Data)
+	uuids, allUUIDs, allSealedUUIDs, setSealedUUIDs := generateUUIDsMap(ap.Data)
 
 	// Remove promo tags that apply to a single finish only
 	filterInvalidPromoTypes(ap.Data, uuids)
@@ -1426,16 +1419,6 @@ func (ap *AllPrintings) newBackend() *matcher.Backend {
 		canonicalNames[norm] = card.Name
 	}
 
-	sort.Strings(promoTypes)
-	sort.Strings(allSets)
-
-	sort.Strings(names)
-	sort.Strings(fullNames)
-	sort.Strings(lowerNames)
-	sort.Strings(sealed)
-	sort.Strings(fullSealed)
-	sort.Strings(lowerSealed)
-
 	// Convert local sets to matcher sets
 	mSets := make(map[string]*matcher.Set, len(ap.Data))
 	for k, v := range ap.Data {
@@ -1468,7 +1451,6 @@ func (ap *AllPrintings) newBackend() *matcher.Backend {
 	b.AllSets = allSets
 	b.AllUUIDs = allUUIDs
 	b.AllSealedUUIDs = allSealedUUIDs
-	b.SetUUIDs = setUUIDs
 	b.SetSealedUUIDs = setSealedUUIDs
 
 	b.AllNames = names
@@ -1480,7 +1462,6 @@ func (ap *AllPrintings) newBackend() *matcher.Backend {
 	b.AllLowerSealed = lowerSealed
 
 	b.Sets = mSets
-	b.IndexSets()
 	b.Rarities = mtgRarities
 	b.Colors = mtgColors
 	b.CanonicalNames = canonicalNames
@@ -1506,9 +1487,7 @@ func (ap *AllPrintings) newBackend() *matcher.Backend {
 	b.TokenPairIDByUUIDs = tokenPairs.byUUIDPair
 	b.TokenPairIDByBothNames = tokenPairs.byBothNames
 
-	b.IndexRarities()
-	b.SetRules(Rules{})
-	b.SortSealed()
+	b.Complete(Rules{})
 
 	return &b
 }
