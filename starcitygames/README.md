@@ -95,7 +95,8 @@ resolution, regardless of game or path taken:
    printing) also caught three unrelated, real, differently-broken products
    that should have been *fixed*, not silenced - see Method, below.
 
-`resolveProductID` then branches by game. In every branch, **sku-driven
+`resolveProductID` then hands the product to its game's resolver
+(`catalogResolvers`). In every game, **sku-driven
 steers run before the identifiers get a say** wherever the identifier is
 known to name the wrong thing outright (Portal's `b`-suffixed second
 printing, a lettered Magic prerelease, `promoShelfPrintings`) - for those,

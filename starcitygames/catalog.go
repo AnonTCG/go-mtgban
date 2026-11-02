@@ -847,6 +847,15 @@ func prereleaseMissing(b *matcher.Backend, cardName, number string) bool {
 	return true
 }
 
+// catalogResolvers names the printing a catalog product of each game is,
+// once resolveProductID has read what every game shares.
+var catalogResolvers = map[int]func(b *matcher.Backend, p CatalogProduct, foil bool) (string, error){
+	GameMagic:         resolveMagic,
+	GameFleshAndBlood: resolveFleshAndBlood,
+	GameLorcana:       resolveLorcana,
+	GameRiftbound:     resolveRiftbound,
+}
+
 func resolveProductID(b *matcher.Backend, game int, p CatalogProduct) (string, error) {
 	// Duel Masters crossover promos are catalogued under Magic but aren't Magic
 	// cards, so there's nothing to match; discard them.
@@ -858,21 +867,48 @@ func resolveProductID(b *matcher.Backend, game int, p CatalogProduct) (string, e
 		p.Name = spelled
 	}
 
-	// Star City Games lists prerelease skus for cards that were never given
-	// a prerelease printing, and there is nothing for those to price.
-	if game == GameMagic && prereleaseMissing(b, p.Name, skuNumber(p.SKU)) {
+	resolve, found := catalogResolvers[game]
+	if !found {
 		return "", matcher.ErrUnsupported
 	}
+	return resolve(b, p, catalogFoil(p))
+}
 
-	foil := catalogFoil(p)
+// vendorPrinting resolves the first of the product's vendor ids that names a
+// printing, Scryfall first, in the finish the product names (matchVendorID).
+// What the printing has to carry besides is the game's to check.
+func vendorPrinting(b *matcher.Backend, game int, p CatalogProduct, foil, etched bool) (string, bool) {
+	for _, id := range []string{p.ScryfallID, p.TCGPlayerID} {
+		if id == "" {
+			continue
+		}
+		out, err := matchVendorID(b, game, id, p, foil, etched)
+		if err == nil {
+			return out, true
+		}
+	}
+	return "", false
+}
+
+// resolveMagic steers by the sku the shelves whose identifiers name another
+// printing, then resolves the vendor ids, and reads the wording where neither
+// places the product. An id the product's own record contradicts goes to the
+// wording.
+func resolveMagic(b *matcher.Backend, p CatalogProduct, foil bool) (string, error) {
 	etched := strings.Contains(strings.ToLower(p.Finish), "etched")
+
+	// Star City Games lists prerelease skus for cards that were never given
+	// a prerelease printing, and there is nothing for those to price.
+	if prereleaseMissing(b, p.Name, skuNumber(p.SKU)) {
+		return "", matcher.ErrUnsupported
+	}
 
 	// Portal printed two versions of six cards. SCG marks them a and b in
 	// the sku while mtgjson numbers the second with a d suffix, and sends
 	// the same collector number and the same scryfall id for both - an id
 	// that names the first version - so the b product has to be steered by
 	// its number before the identifiers get a say.
-	if game == GameMagic && p.Set == "Portal" && strings.HasSuffix(skuNumber(p.SKU), "b") {
+	if p.Set == "Portal" && strings.HasSuffix(skuNumber(p.SKU), "b") {
 		number := strings.TrimSuffix(skuNumber(p.SKU), "b") + "d"
 		if out := b.MatchWithNumber(p.Name, "POR", number); len(out) == 1 {
 			return b.MatchID(out[0].UUID, foil, etched)
@@ -885,7 +921,7 @@ func resolveProductID(b *matcher.Backend, game int, p CatalogProduct) (string, e
 	// be steered by its sku before the identifiers get a say - the letter is
 	// the whole of what separates them. The set code rides in the sku's own
 	// number segment, the product's set saying only "Promo".
-	if game == GameMagic && strings.HasPrefix(skuNumber(p.SKU), "PRE_") && strings.HasSuffix(skuNumber(p.SKU), "b") {
+	if strings.HasPrefix(skuNumber(p.SKU), "PRE_") && strings.HasSuffix(skuNumber(p.SKU), "b") {
 		fields := strings.Split(strings.TrimSuffix(skuNumber(p.SKU), "b"), "_")
 		if len(fields) == 3 {
 			out := b.MatchWithNumber(p.Name, fields[1], strings.TrimLeft(fields[2], "0"))
@@ -898,7 +934,7 @@ func resolveProductID(b *matcher.Backend, game int, p CatalogProduct) (string, e
 	// Duel Decks: Anthology reprints four earlier duel decks, and mtgjson
 	// keeps them under their original codes. The product's set name says
 	// only "Anthology", so the deck it belongs to is read from the sku.
-	if game == GameMagic && p.Set == "Duel Decks: Anthology" {
+	if p.Set == "Duel Decks: Anthology" {
 		number := strings.TrimLeft(p.CollectorNumber, "0")
 		if out := b.MatchWithNumber(p.Name, skuSetCode(p.SKU), number); len(out) == 1 {
 			return b.MatchID(out[0].UUID, foil, etched)
@@ -924,7 +960,7 @@ func resolveProductID(b *matcher.Backend, game int, p CatalogProduct) (string, e
 	// its own type name (AFR's "{Dungeon of the Mad Mage Dungeon} //
 	// {Lost Mine of the Phandelver Dungeon}"), and neither face of a
 	// dungeon // dungeon pairing ever contains the literal word "Token".
-	if game == GameMagic && strings.Contains(p.Name, " // ") &&
+	if strings.Contains(p.Name, " // ") &&
 		(strings.Contains(p.Name, "Token") || strings.Contains(p.Name, "Dungeon")) {
 		if tcgID := magic.MatchTokenPairing(b, p.ScryfallID, p.Name, foil); tcgID != "" {
 			if id, err := b.MatchID(tcgID, foil, etched); err == nil {
@@ -986,100 +1022,83 @@ func resolveProductID(b *matcher.Backend, game int, p CatalogProduct) (string, e
 
 	// A promo-shelf printing is steered by its sku for the same reason the
 	// Portal pair is: the identifiers name another printing entirely.
-	if game == GameMagic {
-		if printing, found := promoShelfPrintings[skuNumber(p.SKU)]; found {
-			out := b.MatchWithNumber("", printing.set, printing.number)
-			if len(out) == 1 {
-				return b.MatchID(out[0].UUID, foil, etched)
+	if printing, found := promoShelfPrintings[skuNumber(p.SKU)]; found {
+		out := b.MatchWithNumber("", printing.set, printing.number)
+		if len(out) == 1 {
+			return b.MatchID(out[0].UUID, foil, etched)
+		}
+	}
+
+	out, found := vendorPrinting(b, GameMagic, p, foil, etched)
+	if found && !idContradictsProduct(b, p, out) {
+		return resalePrinting(b, out, p, foil, etched), nil
+	}
+
+	// SCG's "-WAR2-" is the War of the Spark Japanese planeswalker
+	// (jpwalker), whose Japanese-language Scryfall id isn't in the index and
+	// which preprocess rejects as non-english. It maps to WAR #NNN★.
+	if strings.Contains(p.SKU, "-WAR2-") {
+		num := strings.TrimLeft(p.CollectorNumber, "0") + "★"
+		if out := b.MatchWithNumber(p.Name, "WAR", num); len(out) == 1 {
+			if id, err := b.MatchID(out[0].UUID, foil, false); err == nil {
+				return id, nil
 			}
 		}
 	}
 
-	// The closed Flesh and Blood refusals hold whatever ids the product sends
-	if game == GameFleshAndBlood && (fabInserts[p.Name] || fabDuplicateStock[p.SKU] || fabUnmade[p.SKU]) {
-		return "", matcher.ErrUnsupported
-	}
-
-	// The vendor ids resolve directly, Scryfall first, in the product's finish
-	// (matchVendorID); outside Magic the printing must carry the sku's number.
-	// An id the product's own wording contradicts goes to the wording path.
-	for _, id := range []string{p.ScryfallID, p.TCGPlayerID} {
-		if id == "" {
-			continue
-		}
-		out, err := matchVendorID(b, game, id, p, foil, etched)
-		if err != nil {
-			continue
-		}
-		if game != GameMagic && !carriesSkuNumber(b, game, p, out) {
-			break
-		}
-		if game == GameFleshAndBlood && fabUnmarkedTreatment(b, p, out) {
-			break
-		}
-		if idContradictsProduct(b, p, out) {
-			break
-		}
-		if game == GameFleshAndBlood {
-			out = fabSkuPrinting(b, out, p)
-		}
-		return resalePrinting(b, out, p, foil, etched), nil
-	}
-
-	// Magic needs catalog-specific fixups before the generic matcher.
-	if game == GameMagic {
-		// SCG's "-WAR2-" is the War of the Spark Japanese planeswalker
-		// (jpwalker), whose Japanese-language Scryfall id isn't in the index and
-		// which preprocess rejects as non-english. It maps to WAR #NNN★.
-		if strings.Contains(p.SKU, "-WAR2-") {
-			num := strings.TrimLeft(p.CollectorNumber, "0") + "★"
-			if out := b.MatchWithNumber(p.Name, "WAR", num); len(out) == 1 {
+	// A "PP_<CODE>_<NUM>" sku names the promo-pack printing of set
+	// P<CODE>, which the datastore numbers <NUM>p. The name is passed as
+	// a free self-check: the printing the grammar names carries the
+	// product's own name in every case the catalog holds.
+	if rest, found := strings.CutPrefix(skuNumber(p.SKU), "PP_"); found {
+		code, number, split := strings.Cut(rest, "_")
+		if split {
+			number = strings.TrimLeft(number, "0")
+			out := b.MatchWithNumber(p.Name, "P"+code, number+"p")
+			if len(out) == 1 {
 				if id, err := b.MatchID(out[0].UUID, foil, false); err == nil {
 					return id, nil
 				}
 			}
 		}
+	}
 
-		// A "PP_<CODE>_<NUM>" sku names the promo-pack printing of set
-		// P<CODE>, which the datastore numbers <NUM>p. The name is passed as
-		// a free self-check: the printing the grammar names carries the
-		// product's own name in every case the catalog holds.
-		if rest, found := strings.CutPrefix(skuNumber(p.SKU), "PP_"); found {
-			code, number, split := strings.Cut(rest, "_")
-			if split {
-				number = strings.TrimLeft(number, "0")
-				out := b.MatchWithNumber(p.Name, "P"+code, number+"p")
-				if len(out) == 1 {
-					if id, err := b.MatchID(out[0].UUID, foil, false); err == nil {
-						return id, nil
-					}
-				}
-			}
+	card, err := preprocess(b, catalogHit(p, foil))
+	if err != nil {
+		return "", err
+	}
+	// Inherently foreign sets (Foreign Black Border, Rinascimento, ...)
+	// store the foreign printing as their canonical card, so a resolved id
+	// whose primary language isn't English is the right match. Match's
+	// English-only language validation would reject it, so use it directly.
+	// English-primary cards fall through so a foreign single isn't wrongly
+	// collapsed onto the English printing.
+	if card.ID != "" {
+		if co, e := b.GetUUID(card.ID); e == nil && co.Language != "" && co.Language != "English" {
+			return b.MatchID(card.ID, foil, etched)
 		}
+	}
+	id, err := b.Match(card)
+	if err != nil || !etched {
+		return id, err
+	}
+	// Only the catalog's finish name says a product is the etched
+	// printing - the sku spells it as a plain foil - and the wording
+	// path has no other way to hear it.
+	return b.MatchID(id, foil, etched)
+}
 
-		card, err := preprocess(b, catalogHit(p, foil))
-		if err != nil {
-			return "", err
-		}
-		// Inherently foreign sets (Foreign Black Border, Rinascimento, ...)
-		// store the foreign printing as their canonical card, so a resolved id
-		// whose primary language isn't English is the right match. Match's
-		// English-only language validation would reject it, so use it directly.
-		// English-primary cards fall through so a foreign single isn't wrongly
-		// collapsed onto the English printing.
-		if card.ID != "" {
-			if co, e := b.GetUUID(card.ID); e == nil && co.Language != "" && co.Language != "English" {
-				return b.MatchID(card.ID, foil, etched)
-			}
-		}
-		id, err := b.Match(card)
-		if err != nil || !etched {
-			return id, err
-		}
-		// Only the catalog's finish name says a product is the etched
-		// printing - the sku spells it as a plain foil - and the wording
-		// path has no other way to hear it.
-		return b.MatchID(id, foil, etched)
+// resolveFleshAndBlood refuses the closed tables, then resolves the vendor
+// ids where the printing carries the sku's number, and reads the sku
+// otherwise.
+func resolveFleshAndBlood(b *matcher.Backend, p CatalogProduct, foil bool) (string, error) {
+	// The closed Flesh and Blood refusals hold whatever ids the product sends
+	if fabInserts[p.Name] || fabDuplicateStock[p.SKU] || fabUnmade[p.SKU] {
+		return "", matcher.ErrUnsupported
+	}
+	out, found := vendorPrinting(b, GameFleshAndBlood, p, foil, false)
+	if found && carriesSkuNumber(b, GameFleshAndBlood, p, out) && !fabUnmarkedTreatment(b, p, out) && !idContradictsProduct(b, p, out) {
+		return resalePrinting(b, fabSkuPrinting(b, out, p), p, foil, false), nil
 	}
 
 	// Flesh and Blood reads its number off the sku instead: the segments
@@ -1089,50 +1108,38 @@ func resolveProductID(b *matcher.Backend, game int, p CatalogProduct) (string, e
 	// the bare number only decides what the set-prefixed one could not.
 	// The catalog's own finish name rides beside the flag: a product is one
 	// printing in one treatment, and only the name says which.
-	if game == GameFleshAndBlood {
-		name := p.Name
-		if spelled, found := fabNames[name]; found {
-			name = spelled
-		}
-		edition, finish := fabPrintRun(p.Set, p.Finish)
-		numbers := fabNumbers(p.SKU)
-		if position := fabArtPosition(name, p.SKU); position != "" {
-			numbers = []string{position}
-		}
-		id, err := fabMatch(b, name, edition, finish, p.Rarity, foil, numbers)
-		if err == nil {
-			return fabSkuPrinting(b, id, p), nil
-		}
-		// A product named by both its faces at a single collector number
-		// is one printing plus the token printed on its back, not a
-		// two-numbered double-sided card: the catalog writes "Pass Over //
-		// Inner Chi" for NUU026, which the datastore files under the front
-		// face alone. The number segment is what tells the two apart, and
-		// it has to hold exactly one number - the genuine double-sided
-		// cards carry a pair ("048_047") and a front-face retry would
-		// flatten them onto the ordinary single.
-		front, back, twoFaced := strings.Cut(name, " // ")
-		if twoFaced && fabSingleNumbered(p.SKU) {
-			retry, rerr := fabMatch(b, front, edition, finish, p.Rarity, foil, numbers)
-			if rerr == nil {
-				return fabMarkedSibling(b, retry, p), nil
-			}
-		}
-		if twoFaced && !fabSingleNumbered(p.SKU) && fabFacesOnly(b, name, front, back) {
-			return "", matcher.ErrUnsupported
-		}
-		return "", err
+	name := p.Name
+	if spelled, found := fabNames[name]; found {
+		name = spelled
 	}
-
-	// Lorcana reads its number off the sku, which spells it more fully than
-	// the product's own number field does.
-	if game == GameLorcana {
-		return resolveLorcana(b, p, foil)
+	edition, finish := fabPrintRun(p.Set, p.Finish)
+	numbers := fabNumbers(p.SKU)
+	if position := fabArtPosition(name, p.SKU); position != "" {
+		numbers = []string{position}
 	}
-
-	// Riftbound identifies a card by name + collector number + finish; the
-	// catalog set narrows same-name-and-number collisions across sets.
-	return resolveRiftbound(b, p, foil)
+	id, err := fabMatch(b, name, edition, finish, p.Rarity, foil, numbers)
+	if err == nil {
+		return fabSkuPrinting(b, id, p), nil
+	}
+	// A product named by both its faces at a single collector number
+	// is one printing plus the token printed on its back, not a
+	// two-numbered double-sided card: the catalog writes "Pass Over //
+	// Inner Chi" for NUU026, which the datastore files under the front
+	// face alone. The number segment is what tells the two apart, and
+	// it has to hold exactly one number - the genuine double-sided
+	// cards carry a pair ("048_047") and a front-face retry would
+	// flatten them onto the ordinary single.
+	front, back, twoFaced := strings.Cut(name, " // ")
+	if twoFaced && fabSingleNumbered(p.SKU) {
+		retry, rerr := fabMatch(b, front, edition, finish, p.Rarity, foil, numbers)
+		if rerr == nil {
+			return fabMarkedSibling(b, retry, p), nil
+		}
+	}
+	if twoFaced && !fabSingleNumbered(p.SKU) && fabFacesOnly(b, name, front, back) {
+		return "", matcher.ErrUnsupported
+	}
+	return "", err
 }
 
 // riftboundEventHeadings names the promo shelf behind the event prefix of a
@@ -1147,8 +1154,14 @@ var riftboundEventHeadings = map[string]string{
 // product's generic set drops. A lettered number that the named set carries
 // exactly is that set's printing: the Spiritforged runes "R01b" are filed in
 // Spiritforged itself, not beside the Vendetta runes of the same wording.
-// Otherwise the event prefix picks the promo shelf.
+// Otherwise the event prefix picks the promo shelf. The vendor ids answer
+// first, where the printing they name carries the sku's own set and number.
 func resolveRiftbound(b *matcher.Backend, p CatalogProduct, foil bool) (string, error) {
+	out, found := vendorPrinting(b, GameRiftbound, p, foil, false)
+	if found && carriesSkuNumber(b, GameRiftbound, p, out) && !idContradictsProduct(b, p, out) {
+		return resalePrinting(b, out, p, foil, false), nil
+	}
+
 	edition := p.Set
 	segments := strings.Split(skuNumber(p.SKU), "_")
 	if skuSetCode(p.SKU) == "PRM" && len(segments) == 3 {
@@ -1620,7 +1633,15 @@ func lorcanaMarker(number string) string {
 // is skipped rather than folded onto the base card: Star City Games sells a
 // printing the datastore does not carry (a misprint, or one not added yet),
 // and a missing price beats corrupting the price of a card that is carried.
+//
+// The vendor ids answer first, where the printing they name carries the
+// sku's number.
 func resolveLorcana(b *matcher.Backend, p CatalogProduct, foil bool) (string, error) {
+	out, found := vendorPrinting(b, GameLorcana, p, foil, false)
+	if found && carriesSkuNumber(b, GameLorcana, p, out) && !idContradictsProduct(b, p, out) {
+		return resalePrinting(b, out, p, foil, false), nil
+	}
+
 	number := lorcanaNumber(p)
 	variation := number
 	total := lorcanaTotal(b, p)
