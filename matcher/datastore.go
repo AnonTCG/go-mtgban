@@ -51,8 +51,9 @@ func NewBackend(spaces ...IDSpace) *Backend {
 
 // Complete readies a Backend a datastore loader has filled with every set,
 // card and sealed product: AllSets and the name, promo type and sealed lists
-// are put in order, NormalizedSets and SetUUIDs are built, and the game's
-// rules are attached, last because SetRules reads every printing's finishes.
+// are put in order, NormalizedSets and SetUUIDs are built, every entry of a
+// name is given the Printings of the name, and the game's rules are
+// attached, last because SetRules reads every printing's finishes.
 func (b *Backend) Complete(rules GameRules) {
 	sort.Strings(b.AllSets)
 	b.IndexSets()
@@ -63,7 +64,49 @@ func (b *Backend) Complete(rules GameRules) {
 	b.SortSealed()
 	b.IndexSetUUIDs()
 	b.IndexRarities()
+	b.sharePrintings()
 	b.SetRules(rules)
+}
+
+// sharePrintings gives every entry of a name the sets any entry of that name
+// is printed in, in the order the first one lists them: variants of a name
+// can be reprinted apart (Unstable's Ineffable Blessing), and Printings
+// answers for the name. A token and a card of one name are kept apart.
+// Every entry of a name then holds one shared list, so it is read-only.
+func (b *Backend) sharePrintings() {
+	for norm, uuids := range b.Hashes {
+		var groups [][]*CardObject
+		for _, uuid := range uuids {
+			co, found := b.UUIDs[uuid]
+			if !found || Normalize(co.Name) != norm {
+				continue
+			}
+			i := slices.IndexFunc(groups, func(group []*CardObject) bool {
+				return strings.EqualFold(group[0].Name, co.Name) && (group[0].Layout == "token") == (co.Layout == "token")
+			})
+			if i < 0 {
+				i = len(groups)
+				groups = append(groups, nil)
+			}
+			groups[i] = append(groups[i], co)
+		}
+		for _, group := range groups {
+			printings := group[0].Printings
+			for _, co := range group[1:] {
+				if slices.Equal(co.Printings, group[0].Printings) {
+					continue
+				}
+				for _, code := range co.Printings {
+					if !slices.Contains(printings, code) {
+						printings = append(slices.Clip(printings), code)
+					}
+				}
+			}
+			for _, co := range group {
+				co.Printings = printings
+			}
+		}
+	}
 }
 
 // ProductKeyOf names the product a stored card is a printing of: the
