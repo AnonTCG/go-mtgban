@@ -436,10 +436,36 @@ func (sz *Strikezone) parseRows(doc *goquery.Document, pageURL, mode string, cha
 	})
 }
 
+// visitedPages is the set of category pages the crawl has reached, shared
+// by the pool's workers.
+type visitedPages struct {
+	mu    sync.Mutex
+	pages map[string]bool
+}
+
+func newVisitedPages(pages ...string) *visitedPages {
+	v := &visitedPages{pages: map[string]bool{}}
+	for _, page := range pages {
+		v.pages[page] = true
+	}
+	return v
+}
+
+// first reports whether this is the first visit to the page, and records it.
+func (v *visitedPages) first(page string) bool {
+	v.mu.Lock()
+	defer v.mu.Unlock()
+	if v.pages[page] {
+		return false
+	}
+	v.pages[page] = true
+	return true
+}
+
 // processPage fetches one category page, emits its rows, then walks any
 // deeper category links the same way mtgseattle recurses into subcategories.
-func (sz *Strikezone) processPage(ctx context.Context, channel chan<- respChan, pageURL, mode string, visited *sync.Map) error {
-	if _, loaded := visited.LoadOrStore(pageURL, true); loaded {
+func (sz *Strikezone) processPage(ctx context.Context, channel chan<- respChan, pageURL, mode string, visited *visitedPages) error {
+	if !visited.first(pageURL) {
 		return nil
 	}
 
@@ -509,10 +535,9 @@ func (sz *Strikezone) scrape(ctx context.Context, mode string) error {
 	close(hubCh)
 	hubWG.Wait()
 
-	visited := &sync.Map{}
 	// The hub is already loaded; keep workers from fetching it again when a
 	// child page links back.
-	visited.Store(link, true)
+	visited := newVisitedPages(link)
 
 	mtgban.WorkerPool(ctx, sz.maxConcurrency, links,
 		func(ctx context.Context, page string, results chan<- respChan) error {
