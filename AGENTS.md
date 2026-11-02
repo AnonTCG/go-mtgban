@@ -316,10 +316,10 @@ before the core language filter, preserving its historical ordering. Second,
 hooks receive `InputCard` by pointer and may mutate it; those mutations persist
 through the rest of the pipeline and remain visible to the caller.
 
-`FilterCards` receives a map, which Go iterates in random order. An
-implementation is responsible for producing deterministic output when more
-than one candidate survives, because that slice feeds the user-visible
-aliasing diagnostics.
+`FilterCards` receives its candidates as a `[]CandidateSet`, one per set
+`CandidateSets` admitted, sorted by set code. An implementation keeps that
+order, or imposes its own as Magic does, so the slice it returns is the same
+on every call: it feeds the user-visible aliasing diagnostics.
 
 ### Games register themselves
 

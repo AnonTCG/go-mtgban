@@ -570,7 +570,7 @@ type GameRules interface {
     FilterPrintings(b *Backend, inCard *InputCard, editions []string) []string
     CandidateSets(b *Backend, inCard *InputCard, editions []string) []string
     FinalizeCandidates(b *Backend, inCard *InputCard, cards []Card) []Card
-    FilterCards(b *Backend, inCard *InputCard, cardSet map[string][]Card) []Card
+    FilterCards(b *Backend, inCard *InputCard, candidates []CandidateSet) []Card
     IsUnsupported(b *Backend, inCard *InputCard, co *CardObject, stage Stage) bool
     IsToken(b *Backend, name string) bool
     PlainNumber(number string) string
@@ -588,11 +588,13 @@ Two contracts matter when implementing it. **Hooks receive the `InputCard` by
 pointer and may mutate it**; mutations persist for the rest of the pipeline
 *and* are visible to the caller after `Match` returns - the Magic
 `AdjustEdition` sets `PromoWildcard` and `BeyondBaseSet` that way, and later
-stages read them. And **`FilterCards` owns determinism**: the `cardSet` map it
-receives iterates in random order, so an implementation returning more than one
-candidate must impose its own ordering, because that result feeds the
-user-visible aliasing diagnostics. The datastore games read it in set code
-order.
+stages read them. And **`FilterCards` receives its candidates in order**:
+core hands it one `CandidateSet` per admitted set, sorted by set code, each
+with the printings of the input's name filed there (a set holding none is
+still listed, with no cards). An implementation keeps its result in an order
+that does not change between calls, because that result feeds the
+user-visible aliasing diagnostics; the datastore games return it in set code
+order, and Magic sorts its own by set code and number.
 
 A `Backend` with no rules attached returns `ErrDatastoreEmpty` from the name
 path - checked explicitly before the prefilter runs.
@@ -644,11 +646,11 @@ The pipeline:
    more than one printing survives *or* the original name ended in "Token"
    (single-printing token names still need filtering). An empty result is
    `ErrCardNotInEdition`, or `ErrUnsupported` for tokens/oversize. Then a
-   call to `rules.CandidateSets` chooses the set codes, and core fills
-   `cardSet map[setCode][]Card` from the name index: every printing filed
-   under the name's `Normalize` spelling in those sets, once whatever
-   finishes it is sold in, so printings spelled apart by case or punctuation
-   stay reachable.
+   call to `rules.CandidateSets` chooses the set codes, and core fills one
+   `CandidateSet` per code, sorted by code, from the name index: every
+   printing filed under the name's `Normalize` spelling in those sets, once
+   whatever finishes it is sold in, so printings spelled apart by case or
+   punctuation stay reachable.
 
    `DefaultRules` tries exact normalized edition names, then partial names,
    then all printings. `PromoWildcard` keeps all printings, as used by Gundam
