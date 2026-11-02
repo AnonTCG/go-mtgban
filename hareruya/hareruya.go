@@ -564,7 +564,12 @@ func (ha *Hareruya) getLazy(ctx context.Context, products []Product, attempt int
 			return nil, errors.New("timeout exceeded")
 		}
 		ha.printf("lazy request returned forbidden, trying again in a bit (%d)", attempt)
-		time.Sleep(5 * 60 * time.Second)
+		resp.Body.Close()
+		select {
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		case <-time.After(5 * time.Minute):
+		}
 		return ha.getLazy(ctx, products, attempt)
 	}
 
