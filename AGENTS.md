@@ -462,13 +462,16 @@ path. The core lookup surface is in `matcher/api.go`: `GetUUIDs`,
    `matcher.AllGames` × `mtgban.Registered(game)` to build the option
    table, so a registered scraper needs no entry written there by hand,
    only the import, and is immediately selectable as `-game <game> -store
-   name`. Add one `bantool-<game>-<store>.yml` workflow per target,
-   dispatched on `<game>-<store>` and `<game>-all`;
+   name`. Add one row per target to `internal/workflowgen/targets.go`
+   and run `go generate ./internal/workflowgen`, which writes its
+   `bantool-<game>-<store>.yml` workflow, dispatched on `<game>-<store>` and
+   `<game>-all`; never edit a generated file by hand, since the package's
+   test fails CI on any file its row does not reproduce.
    `cmd/bantool/workflows_test.go`'s
    `TestEveryTargetIsScheduledByItsOwnWorkflow` fails the build if a
    registered target has no workflow scheduling it, a workflow names a
    target that is not registered, or a file's dispatch types are wrong.
-   `.github/workflows/README.md` says what to copy and change.
+   `.github/workflows/README.md` says what a row holds.
 5. Set the right `ScraperInfo` flags: `MetadataOnly`, `NoQuantityInventory`,
    `SealedMode`, `CreditMultiplier`, `Family`, and `Game` - every scraper sets
    `Game` explicitly, `matcher.GameMagic` included; nothing reads as Magic
@@ -506,8 +509,9 @@ A game is named in `matcher` first and reaches the scrapers from there:
    `<recv>Games` map. Nothing else in the scraper changes.
 4. Per scraper that should run it: add the game to that store's own
    `register.go` (its `mtgban.Register` games list) alongside the map entry
-   from step 3, and add a `bantool-<game>-<store>.yml` workflow
-   (`.github/workflows/README.md`). Nothing is
+   from step 3, and add its row to `internal/workflowgen/targets.go`, then
+   run `go generate ./internal/workflowgen` (`.github/workflows/README.md`).
+   Nothing is
    written in `cmd/bantool/main.go` itself - `targets()` derives the entry
    from the registry, and it is reachable at `-game <game> -store <store>`
    as soon as the registration lands.

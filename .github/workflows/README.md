@@ -2,7 +2,9 @@
 
 Most files here are bantool workflows, one per store a game prices:
 `bantool-<game>-<store>.yml`. Each is a thin caller of the reusable
-`run-bantool.yml`. The rest:
+`run-bantool.yml`, generated from one row of the table in
+`internal/workflowgen/targets.go`: edit the row, never the file, and run
+`go generate ./internal/workflowgen`. The rest:
 
 | File | What it does |
 |---|---|
@@ -54,7 +56,9 @@ is matched on somewhere else:
 - `run-bantool.yml` builds the dump path and the reload URL from the inputs.
 
 `cmd/bantool/workflows_test.go` fails CI unless every registered store has
-exactly one workflow and all four agree.
+exactly one workflow and all four agree, and
+`internal/workflowgen`'s test fails it when a committed file is not what
+its row generates.
 
 ## What a run does
 
@@ -78,10 +82,13 @@ A job may run for 24 hours (`timeout-minutes: 1440`).
 
 ## Datastores
 
-The two shapes differ on purpose, so copy a workflow of the same game:
+The two shapes differ on purpose, and the generator picks one from the
+game and the runner:
 
 - **Magic** runs a `cache-datastore` job first (`cache-file.yml` on
-  `vars.DATASTORE_MAGIC`) and passes the cached path and its key.
+  `vars.DATASTORE_MAGIC`) and passes the cached path and its key. On a
+  self-hosted runner, which cannot restore that cache, it passes
+  `vars.DATASTORE_MAGIC` itself.
 - **Every other game** passes `b2://mtgban-datastore/<game>/<game>.json.xz`,
   which bantool reads straight from the bucket.
 
@@ -125,8 +132,8 @@ Workflows pass `secrets: inherit`. They read:
 ## Adding a store
 
 1. Register the scraper (AGENTS.md, "Adding a scraper").
-2. Copy a workflow of the same game. Change the store in the file name,
-   `name:`, `store:` and the first dispatch type, then pick a cron slot, the
-   vendor's concurrency group and its affiliate variable.
+2. Add a row to `internal/workflowgen/targets.go` with the game and store,
+   a cron slot, the vendor's concurrency group and its affiliate variable,
+   then run `go generate ./internal/workflowgen` and commit the new file.
 3. Merge. The store's first run publishes its dumps and the site picks it
    up, with nothing to configure there.
