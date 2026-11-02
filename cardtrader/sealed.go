@@ -360,7 +360,7 @@ func (ct *Sealed) Load(ctx context.Context) error {
 	if ct.targetEdition != "" {
 		ct.printf("-> only targeting edition %s", ct.targetEdition)
 	}
-	blueprintsRaw, expansionsRaw, err := BlueprintsForGameID(ctx, ct.client, ct.gameID, ct.targetEdition, ct.printf)
+	blueprintsRaw, expansionsRaw, err := BlueprintsForGameID(ctx, ct.client, ct.gameID, ct.targetEdition, ct.maxConcurrency, ct.printf)
 	if err != nil {
 		return err
 	}

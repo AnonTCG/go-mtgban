@@ -171,8 +171,8 @@ func ConvertProducts(b *matcher.Backend, blueprints map[int]*Blueprint, products
 	return inventory
 }
 
-// BlueprintsForGame fetches every blueprint of a game, one expansion at a
-// time, skipping the expansions that fail to fetch rather than aborting
+// BlueprintsForGame fetches every blueprint of a game, a few expansions at
+// a time, skipping the expansions that fail to fetch rather than aborting
 // the lot. A non-empty targetEdition narrows the fetch to that expansion
 // by name or code; logf, when given, reports the skips. The expansions
 // are returned too, since callers key edition names off them.
@@ -181,26 +181,28 @@ func BlueprintsForGame(ctx context.Context, client *CTAuthClient, game matcher.G
 	if !found {
 		return nil, nil, fmt.Errorf("unsupported game %q", game)
 	}
-	return BlueprintsForGameID(ctx, client, gameID, targetEdition, logf)
+	return BlueprintsForGameID(ctx, client, gameID, targetEdition, defaultConcurrency, logf)
 }
 
 // BlueprintsForGameID is the same fetch asked by Card Trader's own catalog
 // number, which reaches the games above that mtgban models no Game for at
-// all - Digimon, Vanguard, Union Arena and the rest of this catalog.
+// all - Digimon, Vanguard, Union Arena and the rest of this catalog. It
+// fetches up to concurrency expansions at once and returns the blueprints
+// in catalog order all the same.
 //
 // It is also what the scrapers here call, because they already hold the id:
 // asking by the typed game would make a run read one field where everything
 // else reads the other, and the Game a scraper never set is Magic rather than
 // nothing - so a disagreement would fetch Magic's blueprints and process them
 // as some other game without saying a word.
-func BlueprintsForGameID(ctx context.Context, client *CTAuthClient, gameID int, targetEdition string, logf func(string, ...any)) ([]Blueprint, []Expansion, error) {
+func BlueprintsForGameID(ctx context.Context, client *CTAuthClient, gameID int, targetEdition string, concurrency int, logf func(string, ...any)) ([]Blueprint, []Expansion, error) {
 	expansions, err := client.Expansions(ctx)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	var blueprints []Blueprint
-	for _, exp := range expansions {
+	var wanted []int
+	for i, exp := range expansions {
 		if exp.GameID != gameID {
 			continue
 		}
@@ -213,16 +215,36 @@ func BlueprintsForGameID(ctx context.Context, client *CTAuthClient, gameID int, 
 		if targetEdition != "" && exp.Name != targetEdition && exp.Code != strings.ToLower(targetEdition) {
 			continue
 		}
-		bp, err := client.Blueprints(ctx, exp.ID)
-		if err != nil {
-			if logf != nil {
-				logf("skipping %d %s due to %s", exp.ID, exp.Name, err.Error())
-			}
-			continue
-		}
-		blueprints = append(blueprints, bp...)
+		wanted = append(wanted, i)
 	}
-	return blueprints, expansions, nil
+
+	type fetched struct {
+		index      int
+		blueprints []Blueprint
+	}
+	perExpansion := make([][]Blueprint, len(expansions))
+	mtgban.WorkerPool(ctx, concurrency, wanted,
+		func(ctx context.Context, i int, results chan<- fetched) error {
+			exp := expansions[i]
+			bp, err := client.Blueprints(ctx, exp.ID)
+			if err != nil {
+				return fmt.Errorf("skipping %d %s due to %s", exp.ID, exp.Name, err.Error())
+			}
+			results <- fetched{i, bp}
+			return nil
+		},
+		func(f fetched) {
+			perExpansion[f.index] = f.blueprints
+		},
+		logf,
+	)
+	// A cancelled walk leaves expansions undispatched; fail rather than
+	// hand back a partial catalog.
+	err = ctx.Err()
+	if err != nil {
+		return nil, nil, err
+	}
+	return slices.Concat(perExpansion...), expansions, nil
 }
 
 // gameLanguage and gameFoil read a listing's language and foil flag for the
