@@ -203,8 +203,8 @@ var fleshandbloodSeeds = []gametest.Case{
 	},
 	// The treatment siblings of a number are one name, one number and two
 	// products, so the finish the caller names is the only thing that
-	// tells them apart - and a finish the product was never sold in names
-	// no product at all.
+	// tells them apart. A promo is one product, so its number answers even
+	// a finish it was never sold in.
 	{
 		Desc: "the named finish picks its treatment sibling at the number",
 		In:   matcher.InputCard{Name: "Will of Arcana", Edition: "Rosetta", Variation: "ROS000", Finish: "Cold Foil", Foil: true},
@@ -214,7 +214,7 @@ var fleshandbloodSeeds = []gametest.Case{
 		In:   matcher.InputCard{Name: "Will of Arcana", Edition: "Rosetta", Variation: "ROS000", Finish: "Rainbow Foil", Foil: true},
 	},
 	{
-		Desc: "negative: the name path refuses a treatment the product never sold",
+		Desc: "a promo's number outranks a treatment the product never sold",
 		In:   matcher.InputCard{Name: "Fyendal's Spring Tunic", Variation: "FAB001", Finish: "Rainbow Foil", Foil: true},
 	},
 	{

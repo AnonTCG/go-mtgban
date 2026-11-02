@@ -33,6 +33,16 @@
         "uuid": "tnp001_692575_rainbowfoil"
     },
     {
+        "description": "a promo's number outranks a treatment the product never sold",
+        "input": {
+            "name": "Fyendal's Spring Tunic",
+            "variant": "FAB001",
+            "foil": true,
+            "finish": "Rainbow Foil"
+        },
+        "uuid": "fab001_225501_1steditioncoldfoil"
+    },
+    {
         "description": "a tag written behind another still names its printing",
         "input": {
             "name": "Tome of Quandaries",
@@ -181,7 +191,6 @@
             "name": "Hyper Driver (Red)",
             "variant": "036"
         },
-        "uuid": "",
         "error": "unknown variant"
     },
     {
@@ -189,7 +198,6 @@
         "input": {
             "name": "Brutal Assault"
         },
-        "uuid": "",
         "error": "aliasing detected"
     },
     {
@@ -199,7 +207,6 @@
             "variant": "UPR103",
             "finish": "Normal"
         },
-        "uuid": "",
         "error": "unknown variant"
     },
     {
@@ -208,7 +215,6 @@
             "name": "Hyper Driver (Red)",
             "variant": "ARC999"
         },
-        "uuid": "",
         "error": "unknown variant"
     },
     {
@@ -219,7 +225,6 @@
             "foil": true,
             "finish": "Rainbow Foil"
         },
-        "uuid": "",
         "error": "unknown variant"
     },
     {
@@ -230,7 +235,6 @@
             "variant": "FAB001",
             "finish": "Rainbow Foil"
         },
-        "uuid": "",
         "error": "unknown finish"
     },
     {
@@ -239,18 +243,7 @@
             "name": "Sink Below (Red)",
             "variant": "WTR999"
         },
-        "uuid": "",
         "error": "unknown variant"
-    },
-    {
-        "description": "negative: the name path refuses a treatment the product never sold",
-        "input": {
-            "name": "Fyendal's Spring Tunic",
-            "variant": "FAB001",
-            "foil": true,
-            "finish": "Rainbow Foil"
-        },
-        "uuid": "fab001_225501_1steditioncoldfoil"
     },
     {
         "description": "negative: unknown card name",
@@ -258,7 +251,6 @@
             "name": "Nonexistent Imaginary Hero",
             "variant": "WTR001"
         },
-        "uuid": "",
         "error": "unknown card name"
     },
     {
@@ -424,7 +416,6 @@
             "name": "Kayo, Strong-arm",
             "variant": "SUP064"
         },
-        "uuid": "",
         "error": "unknown variant"
     },
     {
@@ -450,7 +441,6 @@
             "name": "Cindra",
             "variant": "HNT055"
         },
-        "uuid": "",
         "error": "unknown variant"
     }
 ]
