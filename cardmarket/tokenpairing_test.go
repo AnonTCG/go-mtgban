@@ -21,7 +21,7 @@ func TestResolveMagicResolvesTokenPairing(t *testing.T) {
 		IDProduct: 362664, Name: "Manifest Token // Angel Token (W 4/4)",
 		ExpansionName: "Commander 2018", Number: "T 01/03", // as the catalog lists it
 	}
-	cardID, _, byName, err := res.resolveMagic(product)
+	cardID, _, byName, err := resolveMagic(res, product)
 	if err != nil {
 		t.Fatalf("resolveMagic(%d) = %v", product.IDProduct, err)
 	}
@@ -57,7 +57,7 @@ func TestResolveMagicRefusesAmbiguousTokenPairing(t *testing.T) {
 		IDProduct: 294192, Name: "Bird Token (W 1/1) // Spirit Token (W 1/1)",
 		ExpansionName: "Commander 2016", Number: "T 2/6",
 	}
-	cardID, cardIDFoil, _, err := res.resolveMagic(product)
+	cardID, cardIDFoil, _, err := resolveMagic(res, product)
 	if err != nil {
 		t.Fatalf("resolveMagic(%d) = %v", product.IDProduct, err)
 	}
@@ -80,7 +80,7 @@ func TestResolveMagicRefusesOtherFaces(t *testing.T) {
 		{"CT 37/2", false},
 	} {
 		product := &cm.Product{Name: "Copy Token // Eldrazi Angel Token (C 4/4)", ExpansionName: "Modern Horizons 3: Tokens", Number: tt.number}
-		cardID, cardIDFoil, _, err := res.resolveMagic(product)
+		cardID, cardIDFoil, _, err := resolveMagic(res, product)
 		if err != nil || (cardID != "") != tt.landed || (cardIDFoil != "") != tt.landed {
 			t.Errorf("resolveMagic(%q) = (%q, %q, %v), want landed %v", tt.number, cardID, cardIDFoil, err, tt.landed)
 		}

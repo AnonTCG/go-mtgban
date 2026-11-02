@@ -1,6 +1,7 @@
 package cardmarket
 
 import (
+	"cmp"
 	"fmt"
 	"strings"
 
@@ -230,4 +231,86 @@ func (r *resolver) giveWay(results []resolved) {
 		}
 		results[i] = resolved{product: res.product, err: errTwin}
 	}
+}
+
+// resolveOnePiece names a One Piece product's printing: the one the
+// datastore records under the product's id, the pre-errata printings no
+// TCGplayer product sells; else the one onePieceByID links; else the one its
+// name, number and version index reach, held to the shelf that sells it.
+func resolveOnePiece(r *resolver, product *cm.Product) (string, string, bool, error) {
+	if onePieceNonEnglish[product.IDProduct] {
+		return "", "", false, errForeign
+	}
+	cardID := r.backend.ConvertID(matcher.IDSpaceCardmarket, fmt.Sprint(product.IDProduct))
+	if cardID != "" {
+		return r.withFoil(cardID)
+	}
+	id, err := r.onePieceByID(product)
+	if err != nil {
+		return "", "", false, err
+	}
+	if id != "" {
+		return r.withFoil(id)
+	}
+	if onePieceTrophy(product) {
+		return "", "", false, nil
+	}
+
+	fields := strings.SplitN(product.Name, " (V.", 2)
+	cardName := fields[0]
+	// Alias the shelf before picking the number: onePieceNumber only trusts
+	// the name's own code on a shelf naming a set of ours, and Reprints/Demo
+	// Decks only do that once aliased.
+	edition := cmp.Or(onePieceShelves[product.ExpansionName], product.ExpansionName)
+	number := onePieceNumber(r.backend, cardName, product.Number, edition)
+	// The V-index Cardmarket synthesizes for same-number siblings tells a
+	// base art from its variants (V.1 the base, the rest its alternates).
+	// The foil probes are inert here: both flags resolve to the same
+	// printing.
+	if len(fields) > 1 {
+		number = strings.TrimSpace(number + " V." + strings.TrimSuffix(fields[1], ")"))
+	}
+	// Only the rarity tells an oversized card from the set's own at its
+	// number; a card with no oversized printing is then unsupported.
+	if product.Rarity == "Oversized" {
+		number = strings.TrimSpace(number + " Oversized")
+	}
+	// Store Tournament Promos and Winner Cards drop the event their own
+	// shelf names; the datastore labels the printing with it.
+	if label, found := onePieceShelfLabels[product.ExpansionName]; found {
+		number = strings.TrimSpace(number + " " + label)
+	}
+	// These DON!! products spell apart from the datastore's own label; carry
+	// each by id instead of by its product wording.
+	if don, found := onePieceDons[product.IDProduct]; found {
+		cardName, edition, number = "DON!!", cmp.Or(don.edition, edition), don.label
+	}
+
+	// A miss is judged beside the product's siblings first - a version of a
+	// card another version already priced is a twin, not a report - so the
+	// walk says what is left to say; see twinsAmong.
+	cardID, cardIDFoil, err := r.matchNumbered(cardName, edition, number, false)
+	if err != nil || cardID == "" {
+		return "", "", false, err
+	}
+
+	// One Piece is the catalog that files one card onto shelf after shelf;
+	// see offShelf.
+	if r.offShelf(product, cardID) {
+		if r.onePieceDeckReprint(product) {
+			return "", "", false, errTwin
+		}
+		return "", "", false, errNoPrinting
+	}
+	// A pre-errata printing the datastore records under a sibling product
+	// is that sibling's, whatever the name reaches.
+	if r.ownedElsewhere(product, cardID) {
+		return "", "", false, errNoPrinting
+	}
+	// A product on the pre-errata shelf lands on a pre-errata printing or
+	// not at all; see notPreErrata.
+	if r.notPreErrata(product, cardID) {
+		return "", "", false, errNoPrinting
+	}
+	return cardID, cardIDFoil, false, nil
 }

@@ -79,3 +79,14 @@ func clientPath(t types.Type, path string, seen map[types.Type]bool) string {
 	}
 	return ""
 }
+
+// TestEveryGameHasAResolver keeps gameResolvers in step with the games the
+// scrapers are built for, which would otherwise refuse every product.
+func TestEveryGameHasAResolver(t *testing.T) {
+	for game, id := range mkmGames {
+		_, found := gameResolvers[id]
+		if !found {
+			t.Errorf("%s has no resolver in gameResolvers", game)
+		}
+	}
+}

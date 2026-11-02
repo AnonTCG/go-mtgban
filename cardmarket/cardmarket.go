@@ -377,15 +377,6 @@ func otherPrintRun(number, full string) bool {
 	return prefix != "" && !strings.HasSuffix(numberPrefix(full), prefix)
 }
 
-// productFinish names the printing a product is, for the catalogs that sell
-// each printing as its own product rather than as a column beside the card.
-func productFinish(gameID cm.Game, product *cm.Product) string {
-	if gameID == cm.GameFleshAndBlood {
-		return fabFinish(product.ExpansionName, product.Name)
-	}
-	return ""
-}
-
 // foreignShelves are the tails Cardmarket appends to a set's name when it
 // shelves that set's non-English printings apart from the English ones. They
 // are separate catalogs of the same cards, and the datastore carries only the

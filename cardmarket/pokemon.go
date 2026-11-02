@@ -2,6 +2,7 @@ package cardmarket
 
 import (
 	"errors"
+	"fmt"
 	"regexp"
 	"strconv"
 	"strings"
@@ -541,4 +542,43 @@ func (r *resolver) bridgeHolds(cardID string, product int) bool {
 		}
 	}
 	return false
+}
+
+// resolvePokemon names a Pokemon product's printing. Same-name products
+// abound in the catalog, so a product resolves through an id first - the
+// datastore's own or a stamp link (pokemonByID), then the TCGplayer id the
+// bridge knows it by - and only falls back on what the catalog says of it.
+func resolvePokemon(r *resolver, product *cm.Product) (string, string, bool, error) {
+	if pokemonCodeCard(product.Name) {
+		return "", "", false, nil
+	}
+	cardID, err := r.pokemonByID(product)
+	if err != nil {
+		return "", "", false, err
+	}
+	tcgID, found := r.tcgBridge[product.IDProduct]
+	if cardID == "" && found && !pokemonCrossedLinks[product.IDProduct] {
+		cardID, _ = r.backend.MatchID(fmt.Sprint(tcgID), false)
+	}
+	var byName bool
+	if cardID == "" {
+		cardID, err = r.matchPokemon(product)
+		if err != nil {
+			if errors.Is(err, errNoPrinting) {
+				err = r.noPrinting(product)
+			}
+			return "", "", false, err
+		}
+		byName = cardID != ""
+	}
+	if cardID == "" {
+		return "", "", false, r.noPrinting(product)
+	}
+	// The second column is the reverse holo's, which the flag cannot name:
+	// a holo rare's own printing is already a foil one, so both flags answer
+	// it and the reverse beside it is never reached. Only Index reads this
+	// one: Market's own path (queryPokemonPrintings, pokemonFinishPlan)
+	// resolves cardID's whole finish set from the matcher instead.
+	cardIDFoil, _ := r.backend.MatchIDFinish(cardID, pokemonReverseHolo)
+	return cardID, cardIDFoil, byName, nil
 }

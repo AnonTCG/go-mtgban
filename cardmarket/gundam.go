@@ -1,6 +1,13 @@
 package cardmarket
 
-import "strings"
+import (
+	"fmt"
+	"strings"
+
+	cm "github.com/mtgban/go-cardmarket"
+
+	"github.com/mtgban/go-mtgban/matcher"
+)
 
 // gundamRarities maps Cardmarket's spelling of a Gundam rarity onto the
 // catalog's. The catalog marks a parallel by suffixing the rarity, where
@@ -82,4 +89,61 @@ func gundamNumber(cardName, number string) string {
 		return fields[1]
 	}
 	return number
+}
+
+// resolveGundam names a Gundam product's printing: the one the datastore
+// records under the product's id; else the one the bridge links, where the
+// code in the product's name agrees with it; else the one its name, number
+// and rarity reach.
+func resolveGundam(r *resolver, product *cm.Product) (string, string, bool, error) {
+	if gundamUnmade[product.IDProduct] {
+		return "", "", false, nil
+	}
+	if gundamNoRow[product.IDProduct] {
+		return "", "", false, errNoPrinting
+	}
+	cardID := r.backend.ConvertID(matcher.IDSpaceCardmarket, fmt.Sprint(product.IDProduct))
+	if cardID != "" {
+		return r.withFoil(cardID)
+	}
+	// A Gundam product writes the card's own number into its name, which
+	// says more than a name the two catalogs spell apart ("Tallgeese Ⅲ", a
+	// token without "Token").
+	id, found := r.bridged(product)
+	if found && !offCode(r.backend, product, id) {
+		if r.offShelf(product, id) {
+			return "", "", false, errNoPrinting
+		}
+		return r.withFoil(id)
+	}
+
+	fields := strings.SplitN(product.Name, " (V.", 2)
+	cardName := fields[0]
+	number := gundamNumber(cardName, product.Number)
+	edition := product.ExpansionName
+	if gundamPromoShelves[edition] {
+		edition = gundamPromoSet
+	}
+	if len(fields) > 1 {
+		// The rarity after the index is read from the product's own.
+		version, _, _ := strings.Cut(strings.TrimSuffix(fields[1], ")"), " - ")
+		number = strings.TrimSpace(number + " V." + version)
+	}
+	// Only the rarity tells an oversized card from the set's own at its
+	// number; a card with no oversized printing is then unsupported.
+	if product.Rarity == "Oversized" {
+		number = strings.TrimSpace(number + " Oversized")
+	}
+	// A parallel shares its base card's number, and only the rarity,
+	// spelled the catalog's way, tells the two apart.
+	number = strings.TrimSpace(number + " " + gundamRarity(product.Rarity))
+	if label, found := gundamLabels[product.IDProduct]; found {
+		number = strings.TrimSpace(number + " " + label)
+	}
+
+	cardID, cardIDFoil, err := r.matchNumbered(cardName, edition, number, true)
+	if err != nil || cardID == "" {
+		return "", "", false, err
+	}
+	return cardID, cardIDFoil, false, nil
 }

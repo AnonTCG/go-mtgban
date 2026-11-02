@@ -77,7 +77,7 @@ const (
 )
 
 // BridgeUseOf reports how much a game's Index and Market scrapers lean on
-// the TCGplayer bridge; see resolveProduct.
+// the TCGplayer bridge; see gameResolvers.
 func BridgeUseOf(game matcher.Game) BridgeUse {
 	switch game {
 	case matcher.GamePokemon, matcher.GameYuGiOh, matcher.GameFleshAndBlood:

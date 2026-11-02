@@ -219,6 +219,46 @@ func (r *resolver) notPreErrata(product *cm.Product, cardID string) bool {
 	return true
 }
 
+// resolveFab names a Flesh and Blood product's printing. The catalog
+// carries no collector number to tell its same-name products apart, so a
+// product resolves through the TCGplayer id the bridge knows it by first, and
+// only falls back on what the catalog says of it.
+//
+// The id names the card, and the product's own wording names the printing:
+// Cardmarket sells each treatment as its own product and each print run as
+// its own expansion, and the flag alone lands on the id's default printing.
+// The printing the wording names is asked for first, of the id and then of
+// the name, since the id's card may carry it under another row; only when
+// nothing carries it does the id's own printing stand, the card being agreed
+// on and the finish the one disagreement.
+func resolveFab(r *resolver, product *cm.Product) (string, string, bool, error) {
+	var cardID, loose string
+	tcgID, found := r.tcgBridge[product.IDProduct]
+	if found {
+		cardID, _ = r.backend.MatchID(fmt.Sprint(tcgID), false)
+		finish := fabFinish(product.ExpansionName, product.Name)
+		if finish != "" && cardID != "" {
+			loose = cardID
+			cardID, _ = r.backend.MatchIDFinish(fmt.Sprint(tcgID), finish)
+		}
+	}
+	// The bridge speaks through cardtrader's blueprints and knows only a
+	// third of the catalog, and what it leaves out is ordinary cards. They
+	// can be named without it.
+	var byName bool
+	if cardID == "" {
+		cardID = r.matchFab(product)
+		byName = cardID != ""
+	}
+	if cardID == "" {
+		cardID = loose
+	}
+	if cardID == "" {
+		return "", "", false, errNoPrinting
+	}
+	return cardID, cardID, byName, nil
+}
+
 // matchFab resolves a Flesh and Blood product the bridge does not know,
 // from what the catalog says of it. The edition has to name a set of ours
 // and the answer has to be in it: Cardmarket carries whole catalogs the
@@ -226,7 +266,7 @@ func (r *resolver) notPreErrata(product *cm.Product, cardID string) bool {
 // fits, so without both an unknown set's cards land on whichever set happens
 // to hold a number like theirs. Pokemon and Yu-Gi-Oh name their products
 // through matchPokemon and matchYugioh, and every other game through the
-// matcher alone; see resolveProduct.
+// matcher alone; see gameResolvers.
 func (r *resolver) matchFab(product *cm.Product) string {
 	fabRenamed(product)
 
@@ -342,7 +382,7 @@ func (r *resolver) matchFab(product *cm.Product) string {
 // belong to, and whether they were named rather than found by the product's
 // id. An empty id under a nil error means the product names nothing this
 // datastore carries, which is a skip rather than a failure.
-func (r *resolver) resolveMagic(product *cm.Product) (string, string, bool, error) {
+func resolveMagic(r *resolver, product *cm.Product) (string, string, bool, error) {
 	// An exact mcmId match ties the product to its printings more
 	// reliably than name/number matching, which cannot tell apart
 	// products sharing a collector number (e.g. RVR 312 vs 312z,
@@ -527,372 +567,104 @@ func (r *resolver) soldFoilApart(mapped cm.CatalogProduct, expansion cm.Expansio
 	return r.foilApart[expansion.IDExpansion][mapped.Number]
 }
 
+// gameResolvers names the printings a product of each game belongs to; see
+// resolveProduct.
+var gameResolvers = map[cm.Game]func(r *resolver, product *cm.Product) (string, string, bool, error){
+	cm.GameMagic:         resolveMagic,
+	cm.GameLorcana:       resolveLorcana,
+	cm.GameRiftbound:     resolveRiftbound,
+	cm.GameOnePiece:      resolveOnePiece,
+	cm.GameGundam:        resolveGundam,
+	cm.GameYuGiOh:        resolveYugioh,
+	cm.GameFleshAndBlood: resolveFab,
+	cm.GamePokemon:       resolvePokemon,
+}
+
 // resolveProduct answers a product with the printings its two price columns
-// belong to, whatever the game. An empty id under a nil error means the
+// belong to, and whether they were named rather than found by an id, the way
+// its game's resolver reads it. An empty id under a nil error means the
 // product names nothing this datastore carries, which is a skip rather than
 // a failure.
 func (r *resolver) resolveProduct(product *cm.Product) (string, string, bool, error) {
-	var cardID string
-	var cardIDFoil string
-	var byName bool
-	var err error
-
-	switch r.gameID {
-	case cm.GameMagic:
-		cardID, cardIDFoil, byName, err = r.resolveMagic(product)
-		if err != nil || cardID == "" {
-			return "", "", false, err
-		}
-	case cm.GameLorcana, cm.GameRiftbound, cm.GameOnePiece, cm.GameGundam:
-		if r.gameID == cm.GameLorcana && lorcanaFaces[product.IDProduct] {
-			return "", "", false, nil
-		}
-		if r.gameID == cm.GameOnePiece && onePieceNonEnglish[product.IDProduct] {
-			return "", "", false, errForeign
-		}
-		if r.gameID == cm.GameGundam && gundamUnmade[product.IDProduct] {
-			return "", "", false, nil
-		}
-		if r.gameID == cm.GameGundam && gundamNoRow[product.IDProduct] {
-			return "", "", false, errNoPrinting
-		}
-		if r.gameID == cm.GameRiftbound && riftboundNonEnglish[product.IDProduct] {
-			return "", "", false, errForeign
-		}
-		if r.gameID == cm.GameLorcana && lorcanaNonEnglish[product.IDProduct] {
-			return "", "", false, errForeign
-		}
-		// A product the datastore records by id is that printing: the
-		// pre-errata One Piece cards no TCGplayer product sells, or a
-		// Lorcana card Cardmarket names its own way.
-		uuid := r.backend.ConvertID(matcher.IDSpaceCardmarket, fmt.Sprint(product.IDProduct))
-		if uuid != "" {
-			cardID = uuid
-			cardIDFoil, _ = r.backend.MatchID(cardID, true)
-			break
-		}
-		// The foil is the whole product: the nonfoil of the same TCGplayer
-		// product is priced by the set's own rune.
-		foilLink, linked := riftboundFoilLinks[product.IDProduct]
-		if linked && r.gameID == cm.GameRiftbound {
-			cardID, err = r.backend.MatchIDFinish(fmt.Sprint(foilLink), "foil")
-			if err != nil {
-				return "", "", false, err
-			}
-			cardIDFoil = cardID
-			break
-		}
-		tcgID, found := r.tcgBridge[product.IDProduct]
-		if crossed, linked := productLinks[product.IDProduct]; linked {
-			tcgID, found = crossed, true
-		}
-		// The bridge answers next: One Piece through onePieceByID's
-		// off-code/off-shelf checks, Riftbound and Lorcana only where the
-		// name still agrees with the printing it names.
-		if r.gameID == cm.GameOnePiece {
-			id, idErr := r.onePieceByID(product)
-			if idErr != nil {
-				return "", "", false, idErr
-			}
-			if id != "" {
-				cardID = id
-				cardIDFoil, _ = r.backend.MatchID(cardID, true)
-				break
-			}
-		} else if found {
-			id, idErr := r.backend.MatchID(fmt.Sprint(tcgID), false)
-			agrees := idErr == nil && bridgeNamesCard(r.backend, product, id)
-			if r.gameID == cm.GameGundam {
-				// A Gundam product writes the card's own number into its
-				// name, which says more than a name the two catalogs spell
-				// apart ("Tallgeese Ⅲ", a token without "Token").
-				agrees = idErr == nil && !offCode(r.backend, product, id)
-			}
-			if idErr == nil && !agrees {
-				idErr = errNoPrinting
-			}
-			if idErr == nil {
-				cardID = id
-				cardIDFoil, _ = r.backend.MatchID(cardID, true)
-				if r.offShelf(product, cardID) || r.notPreErrata(product, cardID) {
-					return "", "", false, errNoPrinting
-				}
-				break
-			}
-		}
-		if r.gameID == cm.GameOnePiece && onePieceTrophy(product) {
-			return "", "", false, nil
-		}
-
-		fields := strings.SplitN(product.Name, " (V.", 2)
-		cardName := fields[0]
-		if r.gameID == cm.GameLorcana {
-			cardName = cmp.Or(lorcanaRenames[product.IDProduct], cardName)
-		}
-		number := product.Number
-		edition := product.ExpansionName
-		if r.gameID == cm.GameGundam {
-			number = gundamNumber(cardName, number)
-			if gundamPromoShelves[edition] {
-				edition = gundamPromoSet
-			}
-		}
-		if r.gameID == cm.GameOnePiece {
-			// Alias the shelf before picking the number: onePieceNumber
-			// only trusts the name's own code on a shelf naming a set of
-			// ours, and Reprints/Demo Decks only do that once aliased.
-			edition = cmp.Or(onePieceShelves[edition], edition)
-			number = onePieceNumber(r.backend, cardName, product.Number, edition)
-		}
-		// The V-index cardmarket synthesizes for same-number siblings is
-		// how One Piece tells a base art from its variants (V.1 the base,
-		// the rest its alternates); hand it to the matcher's own rules
-		// either way. Lorcana reads it too, but only as a last-resort
-		// tiebreak among same-named Special printings a bare number cannot
-		// separate - a promo Ravensburger reprints wave to wave, each wave
-		// its own locally-numbered pool - so it is otherwise inert. The
-		// foil probes are inert for One Piece too - both flags resolve to
-		// the same printing.
-		if len(fields) > 1 {
-			version := strings.TrimSuffix(fields[1], ")")
-			if r.gameID == cm.GameGundam {
-				// The rarity after the index is read from the product's own.
-				version, _, _ = strings.Cut(version, " - ")
-			}
-			number = strings.TrimSpace(number + " V." + version)
-		}
-		// Only the rarity tells an oversized card from the set's own at its
-		// number; a card with no oversized printing is then unsupported.
-		if product.Rarity == "Oversized" {
-			number = strings.TrimSpace(number + " Oversized")
-		}
-		// A Gundam parallel shares its base card's number, and only the
-		// rarity, spelled the catalog's way, tells the two apart.
-		if r.gameID == cm.GameGundam {
-			number = strings.TrimSpace(number + " " + gundamRarity(product.Rarity))
-			if label, found := gundamLabels[product.IDProduct]; found {
-				number = strings.TrimSpace(number + " " + label)
-			}
-		}
-		// Store Tournament Promos and Winner Cards drop the event their
-		// own shelf names; the datastore labels the printing with it.
-		if r.gameID == cm.GameOnePiece {
-			if label, found := onePieceShelfLabels[product.ExpansionName]; found {
-				number = strings.TrimSpace(number + " " + label)
-			}
-			// These DON!! products spell apart from the datastore's own
-			// label; carry each by id instead of by its product wording.
-			if don, found := onePieceDons[product.IDProduct]; found {
-				cardName, edition, number = "DON!!", cmp.Or(don.edition, edition), don.label
-			}
-		}
-
-		if r.gameID == cm.GameRiftbound {
-			if shelf, found := riftboundShelves[product.ExpansionName]; found {
-				label := shelf.label
-				if strings.HasSuffix(product.Number, "*") {
-					label = shelf.starLabel
-				}
-				edition, number = shelf.edition, strings.TrimSpace(number+" "+label)
-			}
-		}
-
-		cardID, err = r.backend.Match(&matcher.InputCard{Name: cardName, Edition: edition, Variation: number, Foil: false})
-		if errors.Is(err, matcher.ErrUnsupported) {
-			return "", "", false, nil
-		} else if err != nil && !errors.Is(err, matcher.ErrCardWrongVariant) {
-			// One Piece's misses are judged beside the product's
-			// siblings first - a version of a card another version
-			// already priced is a twin, not a report - so the walk says
-			// what is left to say; see twinsAmong.
-			var alias *matcher.AliasingError
-			if r.gameID == cm.GameOnePiece {
-				return "", "", false, err
-			}
-			if errors.As(err, &alias) {
-				probes := alias.Probe()
-				r.logf("%s got ids: %s", cardName, probes)
-				for _, probe := range probes {
-					co, _ := r.backend.GetUUID(probe)
-					r.logf("%s: %s", probe, co)
-				}
-			}
-			return "", "", false, err
-		}
-		// A wrong-variant miss above may just mean the card has no nonfoil
-		// printing (Match validates the finish); adopt the foil id then.
-		var errFoil error
-		cardIDFoil, errFoil = r.backend.Match(&matcher.InputCard{Name: cardName, Edition: edition, Variation: number, Foil: true})
-		if cardID == "" {
-			cardID = cardIDFoil
-		}
-
-		if cardID == "" {
-			// Neither finish matched, so the miss was genuine; the foil
-			// probe's error may carry the more informative verdict
-			if errFoil != nil {
-				err = errFoil
-			}
-			return "", "", false, err
-		}
-
-		// A starter deck's exclusive foil is a V.N at its card's own number,
-		// filed by the datastore as that card's Holofoil.
-		if r.gameID == cm.GameLorcana && len(fields) > 1 && strings.TrimSuffix(fields[1], ")") != "1" {
-			holo, holoErr := r.backend.MatchIDFinish(cardID, "Holofoil")
-			if holoErr == nil && holo != cardID && holo != cardIDFoil {
-				cardID, cardIDFoil = holo, holo
-			}
-		}
-
-		// One Piece is the catalog that files one card onto shelf after
-		// shelf; see offShelf.
-		if r.gameID == cm.GameOnePiece && r.offShelf(product, cardID) {
-			if r.onePieceDeckReprint(product) {
-				return "", "", false, errTwin
-			}
-			return "", "", false, errNoPrinting
-		}
-		// A pre-errata printing the datastore records under a sibling
-		// product is that sibling's, whatever the name reaches.
-		if r.gameID == cm.GameOnePiece && r.ownedElsewhere(product, cardID) {
-			return "", "", false, errNoPrinting
-		}
-		// A product on the pre-errata shelf lands on a pre-errata printing
-		// or not at all; see notPreErrata.
-		if r.notPreErrata(product, cardID) {
-			return "", "", false, errNoPrinting
-		}
-		if r.otherSetPromo(product, cardID) {
-			return "", "", false, errNoPrinting
-		}
-		// Lorcana's are misprints and pre-errata prints the datastore has
-		// no printing of apart from the card's own.
-		if r.gameID == cm.GameLorcana && r.ownedElsewhere(product, cardID) {
-			return "", "", false, nil
-		}
-	case cm.GameYuGiOh, cm.GameFleshAndBlood, cm.GamePokemon:
-		// Same-name products abound in these catalogs - and Yu-Gi-Oh and
-		// Flesh and Blood carry no collector number to tell them apart,
-		// though Pokemon does - so a product resolves through the
-		// TCGplayer id the cardtrader bridge knows it by first, and only
-		// falls back on what the catalog says of it.
-		if r.gameID == cm.GamePokemon && pokemonCodeCard(product.Name) {
-			return "", "", false, nil
-		}
-		if r.gameID == cm.GameYuGiOh && yugiohNoRow[product.IDProduct] {
-			return "", "", false, errNoPrinting
-		}
-		// A product named by id is that printing; its wording reads as
-		// a European print or another card.
-		var byID bool
-		if r.gameID == cm.GameYuGiOh {
-			cardID = r.yugiohByID(product)
-			byID = cardID != ""
-		}
-		if r.gameID == cm.GameYuGiOh && !byID {
-			product, err = yugiohPrintNumber(product)
-			if err != nil {
-				return "", "", false, err
-			}
-		}
-		// The id names the card, and the product's own wording names the
-		// printing: Cardmarket sells each Flesh and Blood treatment as its
-		// own product and each print run as its own expansion, and the
-		// flag alone lands on the id's default printing. The printing the
-		// wording names is asked for first, of the id and then of the
-		// name, since the id's card may carry it under another row; only
-		// when nothing carries it does the id's own printing stand, the
-		// card being agreed on and the finish the one disagreement.
-		var loose string
-		if r.gameID == cm.GamePokemon {
-			cardID, err = r.pokemonByID(product)
-			if err != nil {
-				return "", "", false, err
-			}
-		}
-		tcgID, found := r.tcgBridge[product.IDProduct]
-		if cardID == "" && found && !pokemonCrossedLinks[product.IDProduct] {
-			cardID, _ = r.backend.MatchID(fmt.Sprint(tcgID), false)
-			if finish := productFinish(r.gameID, product); finish != "" && cardID != "" {
-				loose = cardID
-				cardID, _ = r.backend.MatchIDFinish(fmt.Sprint(tcgID), finish)
-			}
-		}
-		// CardTrader's tcg id can name a sibling rarity, another card,
-		// another printing's number or another set; distrust it.
-		if r.gameID == cm.GameYuGiOh && cardID != "" && !byID {
-			if r.yugiohOtherCard(product, cardID) || r.yugiohOtherNumber(product, cardID) {
-				cardID = ""
-			} else {
-				id := r.yugiohWorded(product, cardID)
-				if id == "" {
-					id = r.yugiohShelfSet(product, cardID)
-				}
-				if id != "" {
-					cardID, byName = id, true
-				}
-			}
-		}
-		// The bridge speaks through cardtrader's blueprints and knows only
-		// part of the catalog - half of Yu-Gi-Oh's, a third of Flesh and
-		// Blood's - and what it leaves out is ordinary cards. They can be
-		// named without it.
-		if cardID == "" {
-			switch r.gameID {
-			case cm.GamePokemon:
-				cardID, err = r.matchPokemon(product)
-			case cm.GameYuGiOh:
-				cardID, err = r.matchYugioh(product)
-			}
-			if err != nil {
-				if errors.Is(err, errNoPrinting) {
-					err = r.noPrinting(product)
-				}
-				return "", "", false, err
-			}
-			byName = cardID != ""
-		}
-		if cardID == "" && r.gameID == cm.GameFleshAndBlood {
-			cardID = r.matchFab(product)
-			byName = cardID != ""
-		}
-		if cardID == "" {
-			cardID = loose
-		}
-		if cardID == "" {
-			return "", "", false, r.noPrinting(product)
-		}
-		cardIDFoil = cardID
-		if r.gameID == cm.GameYuGiOh {
-			// Yu-Gi-Oh's second printing is the first edition, a print run
-			// rather than a foil, so the flag cannot name it. Naming the
-			// run reaches it, and errors into an empty id for the products
-			// sold in no first edition, which the guard below drops.
-			cardIDFoil, _ = r.backend.MatchIDFinish(cardID, "1st Edition")
-		}
-		if r.gameID == cm.GamePokemon {
-			// Pokemon's second column is the reverse holo's, which the flag
-			// cannot name either: a holo rare's own printing is already a
-			// foil one, so both flags answer it and the reverse beside it
-			// is never reached. Only Index reads this cardIDFoil,
-			// though resolveProduct serves both scrapers: Market's
-			// own path (queryPokemonPrintings, pokemonFinishPlan)
-			// resolves cardID's whole finish set from the matcher
-			// instead.
-			cardIDFoil, _ = r.backend.MatchIDFinish(cardID, pokemonReverseHolo)
-		}
-	default:
+	resolve, found := gameResolvers[r.gameID]
+	if !found {
 		return "", "", false, errors.New("unsupported game")
 	}
-
+	cardID, cardIDFoil, byName, err := resolve(r, product)
+	if err != nil || cardID == "" {
+		return "", "", false, err
+	}
 	// A foil Cardmarket sells as a product of its own is that product's to
-	// price, not the plain version's second column.
-	if r.gameID == cm.GameOnePiece && cardIDFoil != cardID && r.foilSold[cardIDFoil] {
+	// price, not the plain version's second column; see claimByID.
+	if cardIDFoil != cardID && r.foilSold[cardIDFoil] {
 		cardIDFoil = ""
 	}
-
 	return cardID, cardIDFoil, byName, nil
+}
+
+// withFoil answers a product with a printing and its foil.
+func (r *resolver) withFoil(cardID string) (string, string, bool, error) {
+	cardIDFoil, _ := r.backend.MatchID(cardID, true)
+	return cardID, cardIDFoil, false, nil
+}
+
+// bridged names the printing the bridge links a product to, where a row of
+// productLinks does not link it instead.
+func (r *resolver) bridged(product *cm.Product) (string, bool) {
+	tcgID, found := r.tcgBridge[product.IDProduct]
+	if crossed, linked := productLinks[product.IDProduct]; linked {
+		tcgID, found = crossed, true
+	}
+	if !found {
+		return "", false
+	}
+	id, err := r.backend.MatchID(fmt.Sprint(tcgID), false)
+	return id, err == nil
+}
+
+// probeAliasing logs the printings an aliasing error could not choose
+// between.
+func (r *resolver) probeAliasing(cardName string, err error) {
+	var alias *matcher.AliasingError
+	if !errors.As(err, &alias) {
+		return
+	}
+	probes := alias.Probe()
+	r.logf("%s got ids: %s", cardName, probes)
+	for _, probe := range probes {
+		co, _ := r.backend.GetUUID(probe)
+		r.logf("%s: %s", probe, co)
+	}
+}
+
+// matchNumbered names the printing a name, edition and number reach, and
+// its foil. Both empty under a nil error is a product the matcher does not
+// support. A wrong-variant miss may just mean the card has no nonfoil
+// printing (Match validates the finish), so the foil is taken for both then;
+// where neither finish matches the miss was genuine, and the foil probe's
+// error may carry the more informative verdict. report logs the printings
+// an aliasing error names.
+func (r *resolver) matchNumbered(cardName, edition, number string, report bool) (string, string, error) {
+	cardID, err := r.backend.Match(&matcher.InputCard{Name: cardName, Edition: edition, Variation: number})
+	if errors.Is(err, matcher.ErrUnsupported) {
+		return "", "", nil
+	} else if err != nil && !errors.Is(err, matcher.ErrCardWrongVariant) {
+		if report {
+			r.probeAliasing(cardName, err)
+		}
+		return "", "", err
+	}
+	cardIDFoil, errFoil := r.backend.Match(&matcher.InputCard{Name: cardName, Edition: edition, Variation: number, Foil: true})
+	if cardID == "" {
+		cardID = cardIDFoil
+	}
+	if cardID == "" {
+		if errFoil != nil {
+			err = errFoil
+		}
+		return "", "", err
+	}
+	return cardID, cardIDFoil, nil
 }
 
 // pokemonReverseHolo is the printing Pokemon's guide prices in its second

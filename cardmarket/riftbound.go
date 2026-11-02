@@ -1,6 +1,7 @@
 package cardmarket
 
 import (
+	"fmt"
 	"strings"
 
 	cm "github.com/mtgban/go-cardmarket"
@@ -91,4 +92,65 @@ func (r *resolver) otherSetPromo(product *cm.Product, cardID string) bool {
 		}
 	}
 	return false
+}
+
+// resolveRiftbound names a Riftbound product's printing: the one the
+// datastore records under the product's id; else, for a Vendetta promo rune,
+// the foil TCGplayer sells it as; else the one the bridge links, where the
+// name still agrees with it; else the one its name and number reach, on the
+// shelf riftboundShelves files it under.
+func resolveRiftbound(r *resolver, product *cm.Product) (string, string, bool, error) {
+	if riftboundNonEnglish[product.IDProduct] {
+		return "", "", false, errForeign
+	}
+	cardID := r.backend.ConvertID(matcher.IDSpaceCardmarket, fmt.Sprint(product.IDProduct))
+	if cardID != "" {
+		return r.withFoil(cardID)
+	}
+	// The foil is the whole product: the nonfoil of the same TCGplayer
+	// product is priced by the set's own rune.
+	foilLink, linked := riftboundFoilLinks[product.IDProduct]
+	if linked {
+		id, err := r.backend.MatchIDFinish(fmt.Sprint(foilLink), "foil")
+		if err != nil {
+			return "", "", false, err
+		}
+		return id, id, false, nil
+	}
+	id, found := r.bridged(product)
+	if found && bridgeNamesCard(r.backend, product, id) {
+		if r.offShelf(product, id) {
+			return "", "", false, errNoPrinting
+		}
+		return r.withFoil(id)
+	}
+
+	fields := strings.SplitN(product.Name, " (V.", 2)
+	cardName := fields[0]
+	number := product.Number
+	edition := product.ExpansionName
+	if len(fields) > 1 {
+		number = strings.TrimSpace(number + " V." + strings.TrimSuffix(fields[1], ")"))
+	}
+	// Only the rarity tells an oversized card from the set's own at its
+	// number; a card with no oversized printing is then unsupported.
+	if product.Rarity == "Oversized" {
+		number = strings.TrimSpace(number + " Oversized")
+	}
+	if shelf, found := riftboundShelves[product.ExpansionName]; found {
+		label := shelf.label
+		if strings.HasSuffix(product.Number, "*") {
+			label = shelf.starLabel
+		}
+		edition, number = shelf.edition, strings.TrimSpace(number+" "+label)
+	}
+
+	cardID, cardIDFoil, err := r.matchNumbered(cardName, edition, number, true)
+	if err != nil || cardID == "" {
+		return "", "", false, err
+	}
+	if r.otherSetPromo(product, cardID) {
+		return "", "", false, errNoPrinting
+	}
+	return cardID, cardIDFoil, false, nil
 }

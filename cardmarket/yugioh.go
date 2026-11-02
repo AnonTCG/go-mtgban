@@ -1,6 +1,8 @@
 package cardmarket
 
 import (
+	"errors"
+	"fmt"
 	"regexp"
 	"slices"
 	"strconv"
@@ -444,4 +446,68 @@ func rarityNames(worded, rarity string) bool {
 		}
 	}
 	return true
+}
+
+// resolveYugioh names a Yu-Gi-Oh product's printing. The catalog carries no
+// collector number to tell its same-name products apart, so a product
+// resolves through an id first - the one yugiohByID reads, then the
+// TCGplayer id the bridge knows it by - and only falls back on what the
+// catalog says of it. Its second column is the first edition's.
+func resolveYugioh(r *resolver, product *cm.Product) (string, string, bool, error) {
+	if yugiohNoRow[product.IDProduct] {
+		return "", "", false, errNoPrinting
+	}
+	// A product named by id is that printing; its wording reads as a
+	// European print or another card.
+	cardID := r.yugiohByID(product)
+	byID := cardID != ""
+	if !byID {
+		var err error
+		product, err = yugiohPrintNumber(product)
+		if err != nil {
+			return "", "", false, err
+		}
+	}
+	tcgID, found := r.tcgBridge[product.IDProduct]
+	if cardID == "" && found {
+		cardID, _ = r.backend.MatchID(fmt.Sprint(tcgID), false)
+	}
+	// CardTrader's tcg id can name a sibling rarity, another card, another
+	// printing's number or another set; distrust it.
+	var byName bool
+	if cardID != "" && !byID {
+		if r.yugiohOtherCard(product, cardID) || r.yugiohOtherNumber(product, cardID) {
+			cardID = ""
+		} else {
+			id := r.yugiohWorded(product, cardID)
+			if id == "" {
+				id = r.yugiohShelfSet(product, cardID)
+			}
+			if id != "" {
+				cardID, byName = id, true
+			}
+		}
+	}
+	// The bridge speaks through cardtrader's blueprints and knows only half
+	// of the catalog, and what it leaves out is ordinary cards. They can be
+	// named without it.
+	if cardID == "" {
+		var err error
+		cardID, err = r.matchYugioh(product)
+		if err != nil {
+			if errors.Is(err, errNoPrinting) {
+				err = r.noPrinting(product)
+			}
+			return "", "", false, err
+		}
+		byName = cardID != ""
+	}
+	if cardID == "" {
+		return "", "", false, r.noPrinting(product)
+	}
+	// The second printing is the first edition, a print run rather than a
+	// foil, so the flag cannot name it. Naming the run reaches it, and errors
+	// into an empty id for the products sold in no first edition.
+	cardIDFoil, _ := r.backend.MatchIDFinish(cardID, "1st Edition")
+	return cardID, cardIDFoil, byName, nil
 }
