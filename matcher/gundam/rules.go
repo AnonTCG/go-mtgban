@@ -6,7 +6,6 @@ import (
 	"slices"
 	"sort"
 	"strings"
-	"sync"
 
 	"github.com/mtgban/go-mtgban/matcher"
 )
@@ -366,7 +365,7 @@ func pointedElsewhere(b *matcher.Backend, inCard *matcher.InputCard) bool {
 // still answers, which is the whole question being asked here.
 func saysAnyRarity(b *matcher.Backend, wording string, cards []matcher.Card) bool {
 	for _, card := range cards {
-		if saysRarity(wording, b.RarityLabel(card.Rarity)) {
+		if matcher.SaysWord(wording, b.RarityLabel(card.Rarity), "+") {
 			return true
 		}
 	}
@@ -535,7 +534,7 @@ func rarityNamed(b *matcher.Backend, variation string, cards []matcher.Card) []m
 	longest := 0
 	for _, card := range cards {
 		rarity := b.RarityLabel(card.Rarity)
-		if saysRarity(variation, rarity) && len(rarity) > longest {
+		if matcher.SaysWord(variation, rarity, "+") && len(rarity) > longest {
 			longest = len(rarity)
 		}
 	}
@@ -545,7 +544,7 @@ func rarityNamed(b *matcher.Backend, variation string, cards []matcher.Card) []m
 	var out []matcher.Card
 	for _, card := range cards {
 		rarity := b.RarityLabel(card.Rarity)
-		if len(rarity) == longest && saysRarity(variation, rarity) {
+		if len(rarity) == longest && matcher.SaysWord(variation, rarity, "+") {
 			out = append(out, card)
 		}
 	}
@@ -554,25 +553,6 @@ func rarityNamed(b *matcher.Backend, variation string, cards []matcher.Card) []m
 		return nil
 	}
 	return out
-}
-
-// rarityPatterns caches one matcher per rarity spelling. The boundaries are
-// written out rather than left to \\b, which does not fire after a "+": the
-// class excludes "+" on both sides so "C+" cannot match inside "C++".
-var rarityPatterns sync.Map
-
-// saysRarity reports whether the wording names this rarity as a word of its
-// own. An empty rarity is named by nothing.
-func saysRarity(variation, rarity string) bool {
-	if rarity == "" {
-		return false
-	}
-	cached, found := rarityPatterns.Load(rarity)
-	if !found {
-		pattern := regexp.MustCompile(`(?i)(?:^|[^A-Za-z0-9+])` + regexp.QuoteMeta(rarity) + `(?:$|[^A-Za-z0-9+])`)
-		cached, _ = rarityPatterns.LoadOrStore(rarity, pattern)
-	}
-	return cached.(*regexp.Regexp).MatchString(variation)
 }
 
 // baseRarity keeps the printings of the plain run: the rarities that carry

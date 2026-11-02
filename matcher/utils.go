@@ -113,6 +113,68 @@ var months = []string{
 	"december",
 }
 
+// SaysWord reports whether the wording carries the word as a word of its
+// own, under simple case folding: not run into a letter, a digit, or one
+// of the joiners, the ascii characters that bind to a word in the caller's
+// vocabulary ("+" where "C+" is a rarity of its own, so "C" is not said by
+// "C+"). A rune that folds to an ascii letter, such as the Kelvin sign,
+// counts as a letter. An empty word is said by nothing.
+func SaysWord(wording, word, joiners string) bool {
+	if word == "" {
+		return false
+	}
+	for i := range wording {
+		n, ok := foldedPrefix(wording[i:], word)
+		if !ok {
+			continue
+		}
+		before, _ := utf8.DecodeLastRuneInString(wording[:i])
+		after, _ := utf8.DecodeRuneInString(wording[i+n:])
+		if !wordRune(before, joiners) && !wordRune(after, joiners) {
+			return true
+		}
+	}
+	return false
+}
+
+func wordRune(r rune, joiners string) bool {
+	if r < utf8.RuneSelf {
+		return 'A' <= r && r <= 'Z' || 'a' <= r && r <= 'z' || '0' <= r && r <= '9' || strings.ContainsRune(joiners, r)
+	}
+	for f := unicode.SimpleFold(r); f != r; f = unicode.SimpleFold(f) {
+		if f < utf8.RuneSelf {
+			return true
+		}
+	}
+	return false
+}
+
+// foldedPrefix reports whether s opens with word under simple case folding,
+// and how many bytes of s that prefix spans.
+func foldedPrefix(s, word string) (int, bool) {
+	n := 0
+	for _, w := range word {
+		r, size := utf8.DecodeRuneInString(s[n:])
+		if size == 0 || !sameFold(r, w) {
+			return 0, false
+		}
+		n += size
+	}
+	return n, true
+}
+
+func sameFold(r, w rune) bool {
+	for f := r; ; {
+		if f == w {
+			return true
+		}
+		f = unicode.SimpleFold(f)
+		if f == r {
+			return false
+		}
+	}
+}
+
 // ExtractNumber returns the _first_ collector number below 1993 found in
 // the given string, lowercased, or an empty string if there is none.
 //

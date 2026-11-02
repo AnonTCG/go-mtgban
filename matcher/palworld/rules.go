@@ -5,7 +5,6 @@ import (
 	"regexp"
 	"slices"
 	"strings"
-	"sync"
 
 	"github.com/mtgban/go-mtgban/matcher"
 )
@@ -191,7 +190,7 @@ func (Rules) FilterCards(b *matcher.Backend, inCard *matcher.InputCard, cardSet 
 		// A wording naming no number but saying "Prototype" settles the
 		// set outright, deciding the five of these names that also exist,
 		// numbered, elsewhere.
-		if saysWord(inCard.Variation, "Prototype") {
+		if matcher.SaysWord(inCard.Variation, "Prototype", "") {
 			return withSet(candidates, palworldPrototypeSet)
 		}
 		return withPromoTypes(b, candidates, inCard.Variation)
@@ -295,9 +294,9 @@ func tailSaid(variation string) string {
 	// a longer one.
 	spelled := map[string]bool{}
 	for tail, rarity := range rarityTails {
-		if saysWord(variation, tail) {
+		if matcher.SaysWord(variation, tail, "") {
 			spelled[tail] = false
-		} else if saysWord(variation, rarity) {
+		} else if matcher.SaysWord(variation, rarity, "") {
 			spelled[tail] = true
 		}
 	}
@@ -318,23 +317,6 @@ func tailSaid(variation string) string {
 		found = tail
 	}
 	return found
-}
-
-// wordPatterns caches one matcher per spelling.
-var wordPatterns sync.Map
-
-// saysWord reports whether the wording carries the given spelling as a word
-// of its own rather than inside a longer one.
-func saysWord(variation, word string) bool {
-	if word == "" {
-		return false
-	}
-	cached, found := wordPatterns.Load(word)
-	if !found {
-		pattern := regexp.MustCompile(`(?i)(?:^|[^A-Za-z0-9])` + regexp.QuoteMeta(word) + `(?:$|[^A-Za-z0-9])`)
-		cached, _ = wordPatterns.LoadOrStore(word, pattern)
-	}
-	return cached.(*regexp.Regexp).MatchString(variation)
 }
 
 // splitNumber cuts a collector number into the run's number and the rarity
