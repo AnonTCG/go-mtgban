@@ -108,7 +108,7 @@
     {
         "description": "a field center flips onto the phrase order the catalog files",
         "input": {
-            "name": "Ash Blossom \u0026 Joyous Spring Field Center Token",
+            "name": "Ash Blossom & Joyous Spring Field Center Token",
             "variant": "Cat ears and tail Common",
             "edition": "Tokens"
         },
@@ -348,7 +348,6 @@
             "variant": "LOB-DE005",
             "edition": "Promo"
         },
-        "uuid": "",
         "error": "unsupported"
     },
     {
@@ -358,7 +357,6 @@
             "variant": "Super Rare",
             "edition": "Tokens"
         },
-        "uuid": "",
         "error": "unsupported"
     },
     {
@@ -368,7 +366,6 @@
             "variant": "Yellow background w/ Dark Magician Common",
             "edition": "Tokens"
         },
-        "uuid": "",
         "error": "unknown card name"
     },
     {
@@ -378,7 +375,6 @@
             "variant": "DL13-EN004 Rare",
             "edition": "Duelist League 13"
         },
-        "uuid": "",
         "error": "aliasing detected"
     },
     {
@@ -388,7 +384,6 @@
             "variant": "LODT-EN001 Secret Rare",
             "edition": "Promo"
         },
-        "uuid": "",
         "error": "aliasing detected"
     },
     {
@@ -408,7 +403,6 @@
             "variant": "TP1-017",
             "finish": "1st Edition"
         },
-        "uuid": "",
         "error": "unknown finish"
     },
     {
@@ -417,7 +411,6 @@
             "name": "Blue-Eyes White Dragon",
             "variant": "LCKC-EN001 Version 3"
         },
-        "uuid": "",
         "error": "aliasing detected"
     },
     {
@@ -426,7 +419,6 @@
             "name": "Blue-Eyes White Dragon",
             "variant": "LOB-999"
         },
-        "uuid": "",
         "error": "unknown variant"
     },
     {
@@ -435,7 +427,6 @@
             "name": "Diabellstar the Black Witch",
             "variant": "25LP-EN001"
         },
-        "uuid": "",
         "error": "aliasing detected"
     },
     {
@@ -444,7 +435,6 @@
             "name": "Dark Magician Girl",
             "variant": "RA03-EN123qsec"
         },
-        "uuid": "",
         "error": "aliasing detected"
     },
     {
@@ -453,7 +443,6 @@
             "name": "Blue-Eyes White Dragon",
             "variant": "LOB-EN001"
         },
-        "uuid": "",
         "error": "aliasing detected"
     },
     {
@@ -462,7 +451,6 @@
             "name": "Nonexistent Imaginary Duelist",
             "variant": "LOB-001"
         },
-        "uuid": "",
         "error": "unknown card name"
     },
     {

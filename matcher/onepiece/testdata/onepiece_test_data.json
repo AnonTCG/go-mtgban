@@ -503,7 +503,6 @@
             "edition": "PRB01 - Premium Booster",
             "foil": true
         },
-        "uuid": "",
         "error": "aliasing detected"
     },
     {
@@ -512,7 +511,6 @@
             "name": "DON!! (Kumamoto 2026 Chopper)",
             "edition": "One Piece Products"
         },
-        "uuid": "",
         "error": "aliasing detected"
     },
     {
@@ -523,7 +521,6 @@
             "edition": "OP14 - Azure Sea's Seven",
             "foil": true
         },
-        "uuid": "",
         "error": "aliasing detected"
     },
     {
@@ -533,7 +530,6 @@
             "variant": "OP01-047 V.1",
             "edition": "The Best"
         },
-        "uuid": "",
         "error": "unknown variant"
     },
     {
@@ -543,7 +539,6 @@
             "variant": "122",
             "edition": "Promo"
         },
-        "uuid": "",
         "error": "unknown card name"
     },
     {
@@ -554,7 +549,6 @@
             "edition": "EB03 - Heroines Edition",
             "foil": true
         },
-        "uuid": "",
         "error": "unknown card name"
     },
     {
@@ -564,7 +558,6 @@
             "variant": "OP06-118",
             "edition": "Premium Booster"
         },
-        "uuid": "",
         "error": "aliasing detected"
     },
     {
@@ -574,7 +567,6 @@
             "variant": "ST05-010",
             "edition": "OP02 - Paramount War"
         },
-        "uuid": "",
         "error": "unknown variant"
     },
     {
@@ -584,7 +576,6 @@
             "variant": "V.3",
             "edition": "The Best Vol.2"
         },
-        "uuid": "",
         "error": "aliasing detected"
     },
     {
@@ -595,7 +586,6 @@
             "edition": "OP15 - Adventure On Kami's Island",
             "foil": true
         },
-        "uuid": "",
         "error": "aliasing detected"
     },
     {
@@ -605,7 +595,6 @@
             "variant": "023",
             "edition": "One Piece Products"
         },
-        "uuid": "",
         "error": "aliasing detected"
     },
     {
@@ -614,7 +603,6 @@
             "name": "Roronoa Zoro",
             "variant": "OP01-999"
         },
-        "uuid": "",
         "error": "unknown variant"
     },
     {
@@ -625,7 +613,6 @@
             "edition": "OP10 - Royal Blood",
             "foil": true
         },
-        "uuid": "",
         "error": "aliasing detected"
     },
     {
@@ -636,7 +623,6 @@
             "edition": "PRB01 - Premium Booster",
             "foil": true
         },
-        "uuid": "",
         "error": "aliasing detected"
     },
     {
@@ -645,7 +631,6 @@
             "name": "Nami",
             "variant": "OP01-016"
         },
-        "uuid": "",
         "error": "aliasing detected"
     },
     {
@@ -655,7 +640,6 @@
             "variant": "ST01-015f Regional 2024 | Finalist",
             "edition": "Store Tournaments Promos"
         },
-        "uuid": "",
         "error": "aliasing detected"
     },
     {
@@ -664,7 +648,6 @@
             "name": "Nonexistent Imaginary Pirate",
             "variant": "OP01-001"
         },
-        "uuid": "",
         "error": "unknown card name"
     },
     {
