@@ -22,5 +22,6 @@ jobs:
     with:
       store: miniaturemarket_sealed
       game: "onepiece"
+      affiliate: ${{ vars.MM_PARTNER }}
       datastore-filepath: b2://mtgban-datastore/onepiece/onepiece.json.xz
     secrets: inherit
