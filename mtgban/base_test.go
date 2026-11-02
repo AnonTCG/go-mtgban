@@ -484,3 +484,36 @@ func TestBuylistAddReportsAcrossInstances(t *testing.T) {
 		t.Errorf("Add accepted a duplicate buylist entry: %v", err)
 	}
 }
+
+// TestBuylistMergeResorts pins that a merge which raises a quantity moves the
+// entry ahead of a same-priced one it now outnumbers.
+func TestBuylistMergeResorts(t *testing.T) {
+	bl := BuylistRecord{}
+	for _, entry := range []BuylistEntry{
+		{Conditions: NM, BuyPrice: 9, Quantity: 1},
+		{Conditions: NM, BuyPrice: 5, Quantity: 3},
+		{Conditions: NM, BuyPrice: 5, Quantity: 2},
+	} {
+		err := bl.AddRelaxed("A", &entry)
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	err := bl.AddRelaxed("A", &BuylistEntry{Conditions: NM, BuyPrice: 5, Quantity: 2})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	expectedPrice := []float64{9, 5, 5}
+	expectedQty := []int{1, 4, 3}
+	entries := bl["A"]
+	if len(entries) != len(expectedQty) {
+		t.Fatalf("got %d entries, want %d", len(entries), len(expectedQty))
+	}
+	for i := range entries {
+		if entries[i].BuyPrice != expectedPrice[i] || entries[i].Quantity != expectedQty[i] {
+			t.Errorf("entry %d is %v x%d, want %v x%d", i, entries[i].BuyPrice, entries[i].Quantity, expectedPrice[i], expectedQty[i])
+		}
+	}
+}
