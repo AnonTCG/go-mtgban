@@ -1173,6 +1173,12 @@ golang.org/x/text (normalization), plus the in-house `go-cardkingdom`,
    silent-skip channel distinct from real errors.
 7. **Injected logging + bounded worker pools** - uniform operational
    behavior across scrapers via `WorkerPool` and injected log callbacks.
+   Shared mutable state is rare: first none at all, computed per call or
+   precomputed into the immutable backend; then an atomic snapshot,
+   counter or flag, or a single owning goroutine; then a plain map behind
+   a mutex. `sync.Map` is a last resort for a read-mostly cache whose
+   lock-free reads were measured to matter, and the `Normalize` cache is
+   the only one.
 8. **No global, no publication** - loaders build independent backends and
    hand them to callers directly; there is nothing ambient to swap and
    nothing to publish. Several related operations capture a backend

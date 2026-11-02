@@ -272,6 +272,17 @@ the cause. Do not accept the diff as a new baseline.
 - **Concurrency = `mtgban.WorkerPool`.** New fetch code uses it; do not
   hand-roll goroutine/channel pools. Cancelling the context stops dispatch but
   lets in-flight workers finish.
+- **`sync.Map` is a last resort.** First, no shared state: compute per
+  call, or precompute at load into the immutable `Backend`, as the game
+  rules do with their tables. Then the simple shapes: an immutable
+  snapshot swapped through an `atomic.Pointer`, an atomic counter or flag,
+  or one goroutine that owns the state. Only when none of those fit, a
+  plain map behind a `sync.Mutex`, which says what it is and is read with
+  the lock held. Reach for `sync.Map` only for a read-mostly cache of
+  unbounded keys whose reads measurably cannot afford a lock, and put the
+  measurement in the comment. The one such use today is the `Normalize`
+  cache in `matcher/replacer.go`, and #1380 is about removing the need
+  for it.
 - **No call folded into an `if`'s init-statement**, tests included: assign
   first, then test - `id := f(x)` then `if id != ""`, and `err := f()` then
   `if err != nil`. A bare comma-ok map lookup, `if v, ok := m[k]; ok`, is the
