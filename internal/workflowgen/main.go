@@ -88,14 +88,11 @@ jobs:
     secrets: inherit
 <<end>>
 <<- if and (eq .Game "magic") (not .CacheDatastore)>>
-  # No cache-datastore job here, unlike the Index workflow this was copied
-  # from: actions/cache cannot restore on this job's own self-hosted runner
-  # an entry a GitHub-hosted job saved (a real, documented gap, not a flake -
-  # confirmed live, twice, against this exact key). The datastore is read
-  # live over HTTPS instead, straight from the same DATASTORE_MAGIC variable
-  # the Index workflow's cache-datastore job downloads from - simplecloud.Open
-  # supports that scheme directly, no staging required. The id map is read
-  # straight from its bucket, as every game's is.
+  # No cache-datastore job on a self-hosted runner: actions/cache cannot
+  # restore there an entry a GitHub-hosted job saved (a documented gap,
+  # confirmed live twice against this key). The datastore is read over
+  # HTTPS straight from DATASTORE_MAGIC, which simplecloud.Open reads
+  # directly, and the id map straight from its bucket, as every game's is.
 <<- end>>
   deploy:
     name: ${{ github.workflow }}
