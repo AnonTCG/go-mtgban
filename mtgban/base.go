@@ -206,24 +206,30 @@ func (bl BuylistRecord) add(cardID string, entry *BuylistEntry, strict int) erro
 	}
 
 	bl[cardID] = append(bl[cardID], *entry)
+	bl.sort(cardID)
 
-	sort.Slice(bl[cardID], func(i, j int) bool {
-		iIdx := slices.Index(FullGradeTags, bl[cardID][i].Conditions)
-		jIdx := slices.Index(FullGradeTags, bl[cardID][j].Conditions)
+	return nil
+}
+
+// sort orders a card's entries by condition, then by higher price, then by
+// higher quantity.
+func (bl BuylistRecord) sort(cardID string) {
+	entries := bl[cardID]
+	sort.Slice(entries, func(i, j int) bool {
+		iIdx := slices.Index(FullGradeTags, entries[i].Conditions)
+		jIdx := slices.Index(FullGradeTags, entries[j].Conditions)
 
 		if iIdx == jIdx {
-			if bl[cardID][i].BuyPrice == bl[cardID][j].BuyPrice {
+			if entries[i].BuyPrice == entries[j].BuyPrice {
 				// Prioritize higher quantity for same price and same condition
-				return bl[cardID][i].Quantity > bl[cardID][j].Quantity
+				return entries[i].Quantity > entries[j].Quantity
 			}
 			// Prioritize higher prices first for the same condition
-			return bl[cardID][i].BuyPrice > bl[cardID][j].BuyPrice
+			return entries[i].BuyPrice > entries[j].BuyPrice
 		}
 
 		return iIdx < jIdx
 	})
-
-	return nil
 }
 
 // BaseSeller holds an inventory that has already been collected. It is what
