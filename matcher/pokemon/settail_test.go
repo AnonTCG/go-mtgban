@@ -1,6 +1,8 @@
 package pokemon
 
 import (
+	"maps"
+	"slices"
 	"testing"
 
 	"github.com/mtgban/go-mtgban/internal/gametest"
@@ -34,5 +36,27 @@ func TestSetNamedByTail(t *testing.T) {
 
 	if NewRules(b).setsByTail == nil {
 		t.Error("NewRules left the index unbuilt")
+	}
+}
+
+// TestSetIndexesMatchBareRules pins the yearly-run and subset indexes the
+// same way: every set's shelf figures and subsets come out the same whether
+// Load precomputed them or not.
+func TestSetIndexesMatchBareRules(t *testing.T) {
+	b := gametest.Backend(t, matcher.GamePokemon)
+	loaded, bare := NewRules(b), Rules{}
+	if loaded.runs == nil || loaded.subsets == nil {
+		t.Fatal("NewRules left an index unbuilt")
+	}
+
+	for code := range b.Sets {
+		sets := []matcher.CandidateSet{{Code: code}}
+		if !maps.Equal(loaded.shelfFigures(b, sets), bare.shelfFigures(b, sets)) {
+			t.Errorf("%s: loaded and bare rules read different shelf figures", code)
+		}
+		codes := []string{code}
+		if !slices.Equal(loaded.subsetsOf(b, codes), bare.subsetsOf(b, codes)) {
+			t.Errorf("%s: loaded and bare rules list different subsets", code)
+		}
 	}
 }

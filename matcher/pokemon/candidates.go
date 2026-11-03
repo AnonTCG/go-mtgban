@@ -11,7 +11,7 @@ import (
 // inside them.
 func (r Rules) CandidateSets(b *matcher.Backend, in *matcher.InputCard, editions []string) []string {
 	codes := r.editionSets(b, in, editions)
-	return append(codes, subsetsOf(b, codes)...)
+	return append(codes, r.subsetsOf(b, codes)...)
 }
 
 // editionSets preserves Pokemon's promo-shelf fallback. An unresolved
@@ -54,16 +54,34 @@ func (r Rules) editionSets(b *matcher.Backend, in *matcher.InputCard, editions [
 // and every promo set under PR. The subset's name opening with its parent's
 // is what tells the two apart, and it costs nothing to require: every real
 // subset spells its parent out.
-func subsetsOf(b *matcher.Backend, codes []string) []string {
+func (r Rules) subsetsOf(b *matcher.Backend, codes []string) []string {
+	index := r.subsets
+	if index == nil {
+		index = indexSubsets(b)
+	}
+
 	var subsets []string
-	for code := range b.Sets {
-		parent, found := parentOf(b, code)
-		if found && slices.Contains(codes, parent) && !slices.Contains(codes, code) {
-			subsets = append(subsets, code)
+	for _, parent := range codes {
+		for _, code := range index[parent] {
+			if !slices.Contains(codes, code) {
+				subsets = append(subsets, code)
+			}
 		}
 	}
 	slices.Sort(subsets)
-	return subsets
+	return slices.Compact(subsets)
+}
+
+// indexSubsets lists the subsets filed inside each set by the set's code.
+func indexSubsets(b *matcher.Backend) map[string][]string {
+	index := map[string][]string{}
+	for code := range b.Sets {
+		parent, found := parentOf(b, code)
+		if found {
+			index[parent] = append(index[parent], code)
+		}
+	}
+	return index
 }
 
 // parentOf names the set a subset is filed inside, false for a set that is

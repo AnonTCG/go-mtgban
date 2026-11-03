@@ -24,14 +24,22 @@ type Rules struct {
 	matcher.DefaultRules
 
 	// The sets indexed by the name left after the catalog's era-and-number
-	// prefix, built once by Load because the sets do not change afterwards.
-	// A Rules built without it still answers, by indexing on the spot.
+	// prefix, each set's yearly run by its code, and each set's subsets by
+	// its code, built once by Load because the sets do not change
+	// afterwards. A Rules built without them still answers, by indexing on
+	// the spot.
 	setsByTail map[string][]string
+	runs       map[string][]string
+	subsets    map[string][]string
 }
 
 // NewRules returns the rules with whatever the backend lets them precompute.
 func NewRules(b *matcher.Backend) Rules {
-	return Rules{setsByTail: indexSetsByTail(b)}
+	return Rules{
+		setsByTail: indexSetsByTail(b),
+		runs:       indexRuns(b),
+		subsets:    indexSubsets(b),
+	}
 }
 
 // fullNumberRe matches the game's collector number shapes: "001/102",
@@ -732,7 +740,7 @@ func (r Rules) setNamedByTail(b *matcher.Backend, edition string) string {
 // FilterCards narrows candidates by edition, collector number and label, in
 // that order. A bare input facing several labels keeps them all and surfaces
 // as an aliasing error rather than a guess.
-func (Rules) FilterCards(b *matcher.Backend, inCard *matcher.InputCard, sets []matcher.CandidateSet) []matcher.Card {
+func (r Rules) FilterCards(b *matcher.Backend, inCard *matcher.InputCard, sets []matcher.CandidateSet) []matcher.Card {
 	// A wording naming a metal card is answered by the metal printing before
 	// its numbers are read one at a time: "205 151 Metal Card" is Mew ex 205,
 	// and 151 is both the set's name and a Mew ex of its own.
@@ -741,7 +749,7 @@ func (Rules) FilterCards(b *matcher.Backend, inCard *matcher.InputCard, sets []m
 			return metal
 		}
 	}
-	candidates := filterCandidates(b, inCard, sets)
+	candidates := r.filterCandidates(b, inCard, sets)
 
 	// A wording naming a stamp or a misprint prices a physical variant the
 	// plain printing is not: "Pokemon Center Stamped", "Professor Program
@@ -921,7 +929,7 @@ func demandsStamp(variation string) bool {
 	return strings.Contains(variation, "stamp") || strings.Contains(variation, "misprint")
 }
 
-func filterCandidates(b *matcher.Backend, inCard *matcher.InputCard, sets []matcher.CandidateSet) []matcher.Card {
+func (r Rules) filterCandidates(b *matcher.Backend, inCard *matcher.InputCard, sets []matcher.CandidateSet) []matcher.Card {
 	// A pooled storefront name restricts the candidates to its pair of
 	// sets outright: the edition kept the name, so nothing upstream could
 	// narrow, and falling through past the pool would price a card the
@@ -957,7 +965,7 @@ func filterCandidates(b *matcher.Backend, inCard *matcher.InputCard, sets []matc
 	var candidates, promo []matcher.Card
 	for _, number0 := range slices.Backward(numbers) {
 		number = number0
-		candidates = filterByNumber(b, inCard, sets, number)
+		candidates = r.filterByNumber(b, inCard, sets, number)
 		// A lettered number the edition admits no printing of names a
 		// promo printing filed in a set of its own. The storefronts sell
 		// the alternate arts under the set the card was first printed in
@@ -1018,7 +1026,7 @@ func filterCandidates(b *matcher.Backend, inCard *matcher.InputCard, sets []matc
 				continue
 			}
 			number = bare
-			candidates = filterByNumber(b, inCard, sets, bare)
+			candidates = r.filterByNumber(b, inCard, sets, bare)
 			if len(candidates) > 0 {
 				break
 			}
@@ -1028,7 +1036,7 @@ func filterCandidates(b *matcher.Backend, inCard *matcher.InputCard, sets []matc
 	// at all: any number the wording did write overwrites it on the loop's
 	// first turn, kept or not.
 	if len(numbers) == 0 {
-		candidates = filterByNumber(b, inCard, sets, "")
+		candidates = r.filterByNumber(b, inCard, sets, "")
 	}
 	if len(candidates) <= 1 {
 		return candidates
@@ -1590,7 +1598,7 @@ func letteredPromo(b *matcher.Backend, inCard *matcher.InputCard, numbers []stri
 // filterByNumber collects the printings of the input's name that the edition
 // admits and that carry the given collector number, one per product. An
 // empty number asks for every printing the edition admits.
-func filterByNumber(b *matcher.Backend, inCard *matcher.InputCard, sets []matcher.CandidateSet, number string) []matcher.Card {
+func (r Rules) filterByNumber(b *matcher.Backend, inCard *matcher.InputCard, sets []matcher.CandidateSet, number string) []matcher.Card {
 	var candidates []matcher.Card
 	// The sizes the edition's shelf can lend a listing, read once and only
 	// where a total has to be told from the shelf's.
@@ -1605,7 +1613,7 @@ func filterByNumber(b *matcher.Backend, inCard *matcher.InputCard, sets []matche
 		}
 		if totalDisagrees(inCard.Variation, printedFace(&card)) {
 			if figures == nil {
-				figures = shelfFigures(b, sets)
+				figures = r.shelfFigures(b, sets)
 			}
 			if !shelfTotal(inCard.Variation, &card, figures) {
 				continue
@@ -2033,6 +2041,23 @@ func totalDisagrees(variation, number string) bool {
 // the run's name: "2015 World Championship Decks".
 var yearlessRe = regexp.MustCompile(`^(?:19|20)\d{2} `)
 
+// indexRuns lists each set's yearly run by its code: the sets named as it
+// is once the year in front is dropped, itself included.
+func indexRuns(b *matcher.Backend) map[string][]string {
+	byName := map[string][]string{}
+	for code, set := range b.Sets {
+		run := yearlessRe.ReplaceAllString(set.Name, "")
+		byName[run] = append(byName[run], code)
+	}
+	index := make(map[string][]string, len(b.Sets))
+	for _, codes := range byName {
+		for _, code := range codes {
+			index[code] = codes
+		}
+	}
+	return index
+}
+
 // shelfTotal reports whether the total the wording spells for the card's
 // numerator is the shelf's figure rather than the card's. A storefront that
 // composes number/size from the set it files a card under is right wherever
@@ -2071,7 +2096,12 @@ func shelfTotal(variation string, card *matcher.Card, figures map[string]bool) b
 // the total most of the decks' cards print - which no single year's figures
 // would recognise. A set named as another with a year in front is a year of
 // it, and the run is the only such family the datastore holds.
-func shelfFigures(b *matcher.Backend, sets []matcher.CandidateSet) map[string]bool {
+func (r Rules) shelfFigures(b *matcher.Backend, sets []matcher.CandidateSet) map[string]bool {
+	runs := r.runs
+	if runs == nil {
+		runs = indexRuns(b)
+	}
+
 	out := map[string]bool{}
 	totals := map[string]int{}
 	products := map[string]bool{}
@@ -2088,12 +2118,8 @@ func shelfFigures(b *matcher.Backend, sets []matcher.CandidateSet) map[string]bo
 		if found && slices.ContainsFunc(sets, func(s matcher.CandidateSet) bool { return s.Code == parent }) {
 			continue
 		}
-		shelf[code] = true
-		run := yearlessRe.ReplaceAllString(set.Name, "")
-		for other, candidate := range b.Sets {
-			if yearlessRe.ReplaceAllString(candidate.Name, "") == run {
-				shelf[other] = true
-			}
+		for _, other := range runs[code] {
+			shelf[other] = true
 		}
 	}
 	for code := range shelf {
