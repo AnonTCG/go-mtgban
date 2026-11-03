@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
+	"slices"
 	"strings"
 	"time"
 
@@ -253,26 +254,6 @@ func (abu *ABUGames) processEntry(ctx context.Context, filter string, channel ch
 						InstanceID: doc.ID,
 						VendorName: availableTraderNames[1],
 					}
-
-					// ABU has no SP grade for foils and no MP one for
-					// non-foils, so pay the grade below there too.
-					var gap mtgban.Condition
-					if cond == mtgban.MP && theCard.Foil {
-						gap = mtgban.SP
-					} else if cond == mtgban.HP && !theCard.Foil {
-						gap = mtgban.MP
-					}
-					if gap != "" {
-						gapBuy, gapTrade := *buyEntry, *tradeEntry
-						gapBuy.Conditions = gap
-						gapTrade.Conditions = gap
-						channel <- resultChan{
-							theCard:    *theCard,
-							cardID:     cardID,
-							buyEntry:   &gapBuy,
-							tradeEntry: &gapTrade,
-						}
-					}
 				}
 			}
 
@@ -386,10 +367,57 @@ func (abu *ABUGames) Load(ctx context.Context) error {
 		abu.printf,
 	)
 
+	abu.floorGrades()
 	abu.inventoryDate = time.Now()
 	abu.buylistDate = time.Now()
 
 	return nil
+}
+
+// floorGrades files every grade at the best offer at it or below it, per
+// trader. A grade on this buylist is the lowest ABU takes at that price, so
+// a PLD offer also buys NM, an HP offer paying more than PLD buys PLD too,
+// and the grade PLD skips, SP for foils and MP otherwise, is filled. A grade
+// priced from a worse offer shares its quantity rather than adding to it.
+func (abu *ABUGames) floorGrades() {
+	floored := map[string][]mtgban.BuylistEntry{}
+	for cardID, entries := range abu.buylist {
+		var out []mtgban.BuylistEntry
+		var changed bool
+		for _, trader := range availableTraderNames {
+			var offer *mtgban.BuylistEntry
+			for i := len(mtgban.FullGradeTags) - 1; i >= 0; i-- {
+				grade := mtgban.FullGradeTags[i]
+				j := slices.IndexFunc(entries, func(e mtgban.BuylistEntry) bool {
+					return e.VendorName == trader && e.Conditions == grade
+				})
+				if j >= 0 && (offer == nil || entries[j].BuyPrice >= offer.BuyPrice) {
+					offer = &entries[j]
+					out = append(out, *offer)
+					continue
+				}
+				if offer == nil {
+					continue
+				}
+				entry := *offer
+				entry.Conditions = grade
+				out = append(out, entry)
+				changed = true
+			}
+		}
+		if changed {
+			floored[cardID] = out
+		}
+	}
+	for cardID, out := range floored {
+		delete(abu.buylist, cardID)
+		for i := range out {
+			err := abu.buylist.AddRelaxed(cardID, &out[i])
+			if err != nil {
+				abu.printf("%s", err.Error())
+			}
+		}
+	}
 }
 
 // Inventory returns what Load collected. See mtgban.Seller.
