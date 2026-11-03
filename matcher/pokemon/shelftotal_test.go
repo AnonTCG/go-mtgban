@@ -54,3 +54,27 @@ func TestShelfTotalDoesNotVeto(t *testing.T) {
 		})
 	}
 }
+
+// BenchmarkMatchShelfTotal matches listings whose total is read off the
+// shelf they are filed under, the path that admits a shelf and its subsets
+// and then reads the shelf's figures.
+func BenchmarkMatchShelfTotal(bench *testing.B) {
+	b := gametest.Backend(bench, matcher.GamePokemon)
+	inputs := []matcher.InputCard{
+		{Name: "Blastoise", Edition: "Celebrations: Classic Collection", Variation: "2/25"},
+		{Name: "Unown", Edition: "EX Unseen Forces", Variation: "Z/115"},
+		{Name: "AZ", Edition: "World Championship Decks", Variation: "91/100 2015 Patrick Martinez"},
+		{Name: "Luxio", Edition: "SWSH09: Brilliant Stars", Variation: "050/206"},
+	}
+
+	bench.ReportAllocs()
+	for bench.Loop() {
+		for _, input := range inputs {
+			in := input
+			_, err := b.Match(&in)
+			if err != nil {
+				bench.Fatal(err)
+			}
+		}
+	}
+}
