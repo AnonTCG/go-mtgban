@@ -9,6 +9,8 @@ import (
 	"net/url"
 	"time"
 
+	"github.com/mtgban/go-mtgban/mtgban"
+
 	"github.com/hashicorp/go-retryablehttp"
 )
 
@@ -20,15 +22,13 @@ type Client struct {
 // NewClient returns a client using the given token.
 func NewClient(token string) *Client {
 	cs := Client{}
-	client := retryablehttp.NewClient()
-	client.Logger = nil
 	// The api is very sensitive to multiple concurrent requests,
 	// This backoff strategy lets the system chill out a bit before retrying
-	client.Backoff = retryablehttp.LinearJitterBackoff
-	client.RetryWaitMin = 2 * time.Second
-	client.RetryWaitMax = 10 * time.Second
-	client.RetryMax = 20
-	cs.client = client.StandardClient()
+	cs.client = mtgban.NewHTTPClient(
+		mtgban.WithHTTPBackoff(retryablehttp.LinearJitterBackoff),
+		mtgban.WithHTTPRetryWait(2*time.Second, 10*time.Second),
+		mtgban.WithHTTPRetries(20),
+	)
 
 	jar, _ := cookiejar.New(nil)
 
