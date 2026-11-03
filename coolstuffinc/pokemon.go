@@ -700,17 +700,21 @@ func pokemonBasicEnergy(b *matcher.Backend, energyType, bracket, edition, number
 	if err != nil {
 		return nil
 	}
-	redirected := build(fromVariation, strings.TrimSpace(strings.Replace(tail, pm[0], pm[2], 1)))
-	redirected.Edition = set
-	id, err := b.Match(redirected)
-	if err != nil {
-		return nil
+	// The code pads a number the set may not: MEE's plain energy is 2, and
+	// its 002 is the 30th Celebration holo.
+	for _, number := range slices.Compact([]string{bare, pm[2]}) {
+		redirected := build(fromVariation, strings.TrimSpace(strings.Replace(tail, pm[0], number, 1)))
+		redirected.Edition = set
+		id, err := b.Match(redirected)
+		if err != nil {
+			continue
+		}
+		co, err := b.GetUUID(id)
+		if err == nil && co.SetCode == target.Code {
+			return redirected
+		}
 	}
-	co, err := b.GetUUID(id)
-	if err != nil || co.SetCode != target.Code {
-		return nil
-	}
-	return redirected
+	return nil
 }
 
 // pokemonCosmosBracket matches the bracket this storefront names a cosmos
