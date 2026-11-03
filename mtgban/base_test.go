@@ -1,8 +1,11 @@
 package mtgban
 
 import (
+	"cmp"
 	"errors"
+	"fmt"
 	"math/rand"
+	"slices"
 	"testing"
 )
 
@@ -516,4 +519,158 @@ func TestBuylistMergeResorts(t *testing.T) {
 			t.Errorf("entry %d is %v x%d, want %v x%d", i, entries[i].BuyPrice, entries[i].Quantity, expectedPrice[i], expectedQty[i])
 		}
 	}
+}
+
+// TestInventoryOrder pins the order Add keeps a card's entries in: grade,
+// then lower price, then higher quantity, and an entry tied on all three
+// after the ones already there, a merged one included.
+func TestInventoryOrder(t *testing.T) {
+	inv := InventoryRecord{}
+	for _, entry := range []InventoryEntry{
+		{URL: "a", Conditions: SP, Price: 8, Quantity: 1, SellerName: "1"},
+		{URL: "b", Conditions: NM, Price: 20, Quantity: 2, SellerName: "1"},
+		{URL: "c", Conditions: NM, Price: 20, Quantity: 2, SellerName: "2"},
+		{URL: "d", Conditions: NM, Price: 20, Quantity: 5, SellerName: "3"},
+		{URL: "e", Conditions: NM, Price: 10, Quantity: 1, SellerName: "4"},
+		{URL: "f", Conditions: PO, Price: 1, Quantity: 1, SellerName: "1"},
+		{URL: "g", Conditions: HP, Price: 1, Quantity: 1, SellerName: "1"},
+		{URL: "h", Conditions: MP, Price: 1, Quantity: 1, SellerName: "1"},
+		{URL: "i", Conditions: SP, Price: 8, Quantity: 1, SellerName: "2"},
+		{URL: "j", Conditions: NM, Price: 20, Quantity: 1, SellerName: "5"},
+		// Merges into c, which now ties d and stays behind it
+		{URL: "c2", Conditions: NM, Price: 20, Quantity: 3, SellerName: "2"},
+	} {
+		err := inv.AddRelaxed("A", &entry)
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	var got []string
+	for _, entry := range inv["A"] {
+		got = append(got, entry.URL)
+	}
+	want := []string{"e", "d", "c", "b", "j", "a", "i", "h", "g", "f"}
+	if !slices.Equal(got, want) {
+		t.Errorf("order is %v, want %v", got, want)
+	}
+}
+
+// TestBuylistOrder pins the buylist's order: grade, then higher price, then
+// higher quantity, ties after the entries already there.
+func TestBuylistOrder(t *testing.T) {
+	bl := BuylistRecord{}
+	for _, entry := range []BuylistEntry{
+		{URL: "a", Conditions: SP, BuyPrice: 8, Quantity: 1, VendorName: "1"},
+		{URL: "b", Conditions: NM, BuyPrice: 20, Quantity: 2, VendorName: "1"},
+		{URL: "c", Conditions: NM, BuyPrice: 20, Quantity: 2, VendorName: "2"},
+		{URL: "d", Conditions: NM, BuyPrice: 20, Quantity: 4, VendorName: "3"},
+		{URL: "e", Conditions: NM, BuyPrice: 30, Quantity: 1, VendorName: "4"},
+		{URL: "f", Conditions: PO, BuyPrice: 1, Quantity: 1, VendorName: "1"},
+		{URL: "g", Conditions: HP, BuyPrice: 1, Quantity: 1, VendorName: "1"},
+		{URL: "h", Conditions: MP, BuyPrice: 1, Quantity: 1, VendorName: "1"},
+		{URL: "i", Conditions: SP, BuyPrice: 8, Quantity: 1, VendorName: "2"},
+		{URL: "j", Conditions: NM, BuyPrice: 20, Quantity: 1, VendorName: "5"},
+		{URL: "k", Conditions: NM, BuyPrice: 15, Quantity: 0, VendorName: "6"},
+		// Merges into c, which now ties d and stays behind it
+		{URL: "c2", Conditions: NM, BuyPrice: 20, Quantity: 2, VendorName: "2"},
+		// Merges into k without changing its quantity
+		{URL: "k2", Conditions: NM, BuyPrice: 15, Quantity: 0, VendorName: "6"},
+	} {
+		err := bl.AddRelaxed("A", &entry)
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	var got []string
+	for _, entry := range bl["A"] {
+		got = append(got, entry.URL)
+	}
+	want := []string{"e", "d", "c", "b", "j", "k", "a", "i", "h", "g", "f"}
+	if !slices.Equal(got, want) {
+		t.Errorf("order is %v, want %v", got, want)
+	}
+}
+
+// wideShape is one card offered by 100 vendors at four grades each, in the
+// order a scraper walking its vendors would add them.
+func wideShape() (grades []Condition, prices []float64) {
+	r := rand.New(rand.NewSource(1))
+	for range 100 {
+		for _, grade := range []Condition{NM, SP, MP, HP} {
+			grades = append(grades, grade)
+			prices = append(prices, float64(r.Intn(10000))/100)
+		}
+	}
+	return grades, prices
+}
+
+// TestWideOrder pins the order of a card with hundreds of entries, where
+// every entry differs from the others in grade, price or quantity.
+func TestWideOrder(t *testing.T) {
+	grades, prices := wideShape()
+
+	inv := InventoryRecord{}
+	bl := BuylistRecord{}
+	for i := range grades {
+		err := inv.AddStrict("A", &InventoryEntry{Conditions: grades[i], Price: prices[i], Quantity: i + 1, SellerName: fmt.Sprint(i)})
+		if err != nil {
+			t.Fatal(err)
+		}
+		err = bl.Add("A", &BuylistEntry{Conditions: grades[i], BuyPrice: prices[i], Quantity: i + 1})
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	invOrder := func(a, b InventoryEntry) int {
+		return cmp.Or(
+			cmp.Compare(slices.Index(FullGradeTags, a.Conditions), slices.Index(FullGradeTags, b.Conditions)),
+			cmp.Compare(a.Price, b.Price),
+			cmp.Compare(b.Quantity, a.Quantity),
+		)
+	}
+	if !slices.IsSortedFunc(inv["A"], invOrder) || len(inv["A"]) != len(grades) {
+		t.Errorf("inventory of %d entries is out of order", len(inv["A"]))
+	}
+	blOrder := func(a, b BuylistEntry) int {
+		return cmp.Or(
+			cmp.Compare(slices.Index(FullGradeTags, a.Conditions), slices.Index(FullGradeTags, b.Conditions)),
+			cmp.Compare(b.BuyPrice, a.BuyPrice),
+			cmp.Compare(b.Quantity, a.Quantity),
+		)
+	}
+	if !slices.IsSortedFunc(bl["A"], blOrder) || len(bl["A"]) != len(grades) {
+		t.Errorf("buylist of %d entries is out of order", len(bl["A"]))
+	}
+}
+
+func BenchmarkAddWide(b *testing.B) {
+	grades, prices := wideShape()
+
+	b.Run("inventory", func(b *testing.B) {
+		b.ReportAllocs()
+		for b.Loop() {
+			inv := InventoryRecord{}
+			for i := range grades {
+				err := inv.Add("A", &InventoryEntry{Conditions: grades[i], Price: prices[i], SellerName: fmt.Sprint(i / 4)})
+				if err != nil {
+					b.Fatal(err)
+				}
+			}
+		}
+	})
+	b.Run("buylist", func(b *testing.B) {
+		b.ReportAllocs()
+		for b.Loop() {
+			bl := BuylistRecord{}
+			for i := range grades {
+				err := bl.Add("A", &BuylistEntry{Conditions: grades[i], BuyPrice: prices[i], VendorName: fmt.Sprint(i / 4)})
+				if err != nil {
+					b.Fatal(err)
+				}
+			}
+		}
+	})
 }
