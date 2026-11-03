@@ -15,7 +15,6 @@ import (
 	"github.com/mtgban/go-mtgban/mtgban"
 
 	"github.com/PuerkitoBio/goquery"
-	"github.com/hashicorp/go-retryablehttp"
 )
 
 const (
@@ -42,9 +41,7 @@ func NewScraper(b *matcher.Backend) *TOAMagic {
 	toa := TOAMagic{backend: b}
 	toa.inventory = mtgban.InventoryRecord{}
 	toa.maxConcurrency = defaultConcurrency
-	client := retryablehttp.NewClient()
-	client.Logger = nil
-	toa.client = client.StandardClient()
+	toa.client = mtgban.NewHTTPClient()
 	return &toa
 }
 
