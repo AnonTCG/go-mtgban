@@ -5,6 +5,7 @@ import (
 	"regexp"
 	"slices"
 	"strings"
+	"unicode"
 
 	"github.com/mtgban/go-mtgban/matcher"
 )
@@ -1221,15 +1222,17 @@ func onePieceCodeless(displayName string) bool {
 }
 
 // landedOnLeader reports whether a printing is one of the promo leaders the
-// catalog numbers "LEADER", which is all a listing with no code can name.
+// catalog gives no collector number, which is all a listing with no code can
+// name. A number holding no digit is none, the way the matcher reads it.
 func landedOnLeader(b *matcher.Backend, id string) bool {
 	landed, err := b.GetUUID(id)
-	return err == nil && landed.Number == "LEADER"
+	return err == nil && !strings.ContainsFunc(landed.Number, unicode.IsDigit) &&
+		slices.Contains(landed.Types, "Leader")
 }
 
 // preprocessOnePieceLeader answers a promo leader that carries no card code,
-// "Monkey.D.Luffy (Sealed Battle 2024 Vol. 2)". The catalog numbers these
-// "LEADER" and tells them apart by their label alone, so the head up to its
+// "Monkey.D.Luffy (Sealed Battle 2024 Vol. 2)". The catalog numbers none
+// of these and tells them apart by their label alone, so the head up to its
 // last bracket stays whole as the name, the way a DON!! listing's does.
 // resolveOnePiece keeps the answer only where it lands on such a leader.
 func preprocessOnePieceLeader(product GNProduct) (*matcher.InputCard, error) {
