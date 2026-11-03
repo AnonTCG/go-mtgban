@@ -168,7 +168,7 @@ nothing.
 ```bash
 export GOTOOLCHAIN=$(go mod edit -json | jq -r .Toolchain)   # as CI
 go build ./... && go vet ./... && ! "$(go env GOROOT)/bin/gofmt" -s -l . | grep . \
-  && go run github.com/mgechev/revive@v1.13.0 -set_exit_status -config .revive.toml ./... \
+  && go run github.com/mgechev/revive@v1.17.1 -set_exit_status -config .revive.toml ./... \
   && go run honnef.co/go/tools/cmd/staticcheck@2026.2.2 ./... \
   && go test -count=1 ./...
 ```
