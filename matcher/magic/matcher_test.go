@@ -178,6 +178,27 @@ func BenchmarkMatch(b *testing.B) {
 	}
 }
 
+// The corpus matched from parallel workers, the way scrapers call Match.
+func BenchmarkMatchQuietParallel(b *testing.B) {
+	realDatastore(b)
+	saved := testBackend.Logger
+	testBackend.Logger = log.New(io.Discard, "", log.LstdFlags)
+	b.Cleanup(func() { testBackend.Logger = saved })
+
+	b.ReportAllocs()
+	b.ResetTimer()
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			for _, test := range matchTests {
+				_, err := runMatch(testBackend, test)
+				if err != nil {
+					b.Errorf("FAIL: %s", err.Error())
+				}
+			}
+		}
+	})
+}
+
 // BenchmarkMatchQuiet runs the match set with the logger left as
 // production leaves it - discarding - so the measurement is of the
 // matching rather than of writing the matcher's narration to stderr.
