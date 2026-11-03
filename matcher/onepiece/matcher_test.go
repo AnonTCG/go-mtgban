@@ -460,23 +460,23 @@ func filedWithNoNumber(b *matcher.Backend, name string) bool {
 }
 
 // TestOnepieceNumbered pins the datastore invariant the DON!! rules rest
-// on: the resource card is the one name in the game whose every printing is
-// filed under a code rather than a number, so a storefront's number field
-// can say nothing about which of them it means. A name with even one
-// numbered printing is not that case, and Monkey.D.Luffy is the proof: a
-// handful of his event printings wear "LEADER" while the rest wear real
-// numbers, and those still have to be told apart by number.
+// on: the resource card is the one name in the game none of whose printings
+// carries a number, so a storefront's number field can say nothing about
+// which of them it means. A name with even one numbered printing is not
+// that case, and Monkey.D.Luffy is the proof: a handful of his event
+// printings carry no number while the rest wear real numbers, and those
+// still have to be told apart by number.
 //
-// A card the catalog files with no number at all is the other way to have
-// none to compare - the Flame-Flame Fruit Trophy Card is one - and the rule
-// is right to ignore a storefront's number for it too. A new name filed
+// Another card the catalog files with no number has none to compare either
+// - the Flame-Flame Fruit Trophy Card is one - and the rule is right to
+// ignore a storefront's number for it too. A new name filed
 // under a code of its own still trips this, because its number is not empty.
 func TestOnepieceNumbered(t *testing.T) {
 	b := gametest.Backend(t, matcher.GameOnePiece)
 
 	// CanonicalNames holds the card names alone; the qualified spellings
 	// naming one printing apiece are searchable but never canonical, and a
-	// qualified name reaching a "LEADER" printing has no number to compare
+	// qualified name reaching a printing with no number has none to compare
 	// either.
 	for _, name := range b.CanonicalNames {
 		want := !strings.HasPrefix(name, "DON!! Card") && !filedWithNoNumber(b, name)

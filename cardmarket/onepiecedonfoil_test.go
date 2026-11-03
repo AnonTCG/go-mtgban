@@ -16,9 +16,9 @@ const onePieceDonDatastore = `{"data": {
  "game": "onepiece",
  "sets": {"PRB-01": {"name": "Premium Booster -The Best-", "releaseDate": "2024-11-08"}},
  "cards": [
-  {"color": "", "externalLinks": {"tcgPlayerId": 587192}, "finish": "Foil", "id": "don_587192_foil", "name": "DON!! Card", "number": "DON", "promoTypes": ["gold"], "rarity": "DON!!", "setCode": "PRB-01", "type": "DON!!", "variant": "Zoro Gold", "watermark": "zoro"},
-  {"color": "", "externalLinks": {"tcgPlayerId": 593830}, "finish": "Normal", "id": "don_593830", "name": "DON!! Card", "number": "DON", "rarity": "DON!!", "setCode": "PRB-01", "type": "DON!!", "variant": "Zoro", "watermark": "zoro"},
-  {"color": "", "externalLinks": {"tcgPlayerId": 593830}, "finish": "Foil", "id": "don_593830_foil", "name": "DON!! Card", "number": "DON", "rarity": "DON!!", "setCode": "PRB-01", "type": "DON!!", "variant": "Zoro", "watermark": "zoro"}
+  {"color": "", "externalLinks": {"tcgPlayerId": 587192}, "finish": "Foil", "id": "587192_foil", "name": "DON!! Card", "promoTypes": ["gold"], "rarity": "DON!!", "setCode": "PRB-01", "type": "DON!!", "variant": "Zoro Gold", "watermark": "zoro"},
+  {"color": "", "externalLinks": {"tcgPlayerId": 593830}, "finish": "Normal", "id": "593830", "name": "DON!! Card", "rarity": "DON!!", "setCode": "PRB-01", "type": "DON!!", "variant": "Zoro", "watermark": "zoro"},
+  {"color": "", "externalLinks": {"tcgPlayerId": 593830}, "finish": "Foil", "id": "593830_foil", "name": "DON!! Card", "rarity": "DON!!", "setCode": "PRB-01", "type": "DON!!", "variant": "Zoro", "watermark": "zoro"}
  ]
 }}`
 
@@ -44,15 +44,15 @@ func TestOnePieceDonFoilVersion(t *testing.T) {
 	mkm.resolver.claimByID(map[int][]int{5805: {799541, 799542, 799543}}, products, []cm.Expansion{exp})
 
 	for id, want := range map[int]string{
-		799541: "don_593830",
-		799542: "don_593830_foil",
-		799543: "don_587192_foil",
+		799541: "593830",
+		799542: "593830_foil",
+		799543: "587192_foil",
 	} {
 		got := mkm.resolver.resolveMapped(id, products[id], exp)
 		if got.err != nil || got.cardID != want {
 			t.Errorf("%d %q: resolveMapped = (%q, %v), want %q", id, products[id].Name, got.cardID, got.err, want)
 		}
-		if got.cardIDFoil == "don_593830_foil" && id != 799542 {
+		if got.cardIDFoil == "593830_foil" && id != 799542 {
 			t.Errorf("%d %q: cardIDFoil = %q, the V.2 sells it", id, products[id].Name, got.cardIDFoil)
 		}
 	}

@@ -24,23 +24,23 @@ func TestOnePieceDonNameReachesTheCard(t *testing.T) {
 	}{
 		// The storefront numbers a booster's DON!! cards in the name,
 		// and the character is what tells them apart.
-		{"a numbered character", "DON!! (03) - Uta", "PRB01 - Premium Booster", true, "don_593826_foil"},
-		{"another at the same shelf", "DON!! (13) - Sakazuki", "PRB01 - Premium Booster", true, "don_593824_foil"},
+		{"a numbered character", "DON!! (03) - Uta", "PRB01 - Premium Booster", true, "593826_foil"},
+		{"another at the same shelf", "DON!! (13) - Sakazuki", "PRB01 - Premium Booster", true, "593824_foil"},
 		// The gold border is a promo type of its own, so the gold and
 		// the plain printing of one character must not be confused.
-		{"a gold border", "DON!! (07) - Kaido (GOLD)", "PRB01 - Premium Booster", true, "don_586552_foil"},
+		{"a gold border", "DON!! (07) - Kaido (GOLD)", "PRB01 - Premium Booster", true, "586552_foil"},
 		// The second booster spells the same shape differently.
-		{"the second booster's wording", "Don!! Card (33) (Buggy)", "PRB02 - Premium Booster 2", false, "don_655130"},
-		{"its gold wording", "Don!! Card (35) (Carrot) (Gold Foil)", "PRB02 - Premium Booster 2", true, "don_655138_foil"},
+		{"the second booster's wording", "Don!! Card (33) (Buggy)", "PRB02 - Premium Booster 2", false, "655130"},
+		{"its gold wording", "Don!! Card (35) (Carrot) (Gold Foil)", "PRB02 - Premium Booster 2", true, "655138_foil"},
 		// A set's own DON!! carries no number at all.
-		{"an unnumbered character", "DON!! - Nico Robin", "EB03 - Heroines Edition", true, "don_677568_foil"},
-		{"an unnumbered gold", "DON!! - Nami (GOLD)", "EB03 - Heroines Edition", true, "don_677559_foil"},
+		{"an unnumbered character", "DON!! - Nico Robin", "EB03 - Heroines Edition", true, "677568_foil"},
+		{"an unnumbered gold", "DON!! - Nami (GOLD)", "EB03 - Heroines Edition", true, "677559_foil"},
 		// The double packs label theirs by the pair and the volume.
-		{"a double pack", "DON!! - Katakuri (Double Pack Vol. 7)", "OP11 - A Fist Of Divine Speed", true, "don_636745_foil"},
+		{"a double pack", "DON!! - Katakuri (Double Pack Vol. 7)", "OP11 - A Fist Of Divine Speed", true, "636745_foil"},
 		// The storefront names four characters in full where the
 		// catalog names them by the promo type's own wording.
-		{"a renamed character", "DON!! (04) - Edward Newgate", "PRB01 - Premium Booster", true, "don_593828_foil"},
-		{"a renamed character, gold", "DON!! (16) - Charlotte Linlin (GOLD)", "PRB01 - Premium Booster", true, "don_587954_foil"},
+		{"a renamed character", "DON!! (04) - Edward Newgate", "PRB01 - Premium Booster", true, "593828_foil"},
+		{"a renamed character, gold", "DON!! (16) - Charlotte Linlin (GOLD)", "PRB01 - Premium Booster", true, "587954_foil"},
 	} {
 		t.Run(tt.desc, func(t *testing.T) {
 			name, description, isDon := onePieceDonName(tt.name)

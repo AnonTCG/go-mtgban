@@ -2098,11 +2098,11 @@ func catalogWording(wording string) string {
 	return wording
 }
 
-// unnumberedTiebreak keeps the one printing numbered by a word where the
-// wording wrote no number and the printings beside it wear one.
+// unnumberedTiebreak keeps the one printing with no collector number where
+// the wording wrote none and the printings beside it wear one.
 //
 // The 3rd Anniversary Tournament pack holds a leader card the catalog files
-// under "LEADER" and a card filed under ST01-012, both wearing the pack's
+// with no number and a card filed under ST01-012, both wearing the pack's
 // label and nothing else, and the catalog names the second by its number and
 // the first by nothing: the number is what tells the one from the other,
 // and a listing that wrote none is the card there was no number to write.
@@ -2681,15 +2681,14 @@ func slugRuns(words []string, slug string) map[int]int {
 }
 
 // numbered reports whether any printing of a name wears a collector number
-// with a digit in it. The DON!! cards are the game's one exception: every
-// printing of them is filed under the literal code "DON" instead of a
-// number, so nothing a storefront writes in its number field is one of
-// theirs - coolstuffinc writes the set code there ("PRB-01"), cardmarket the
-// number of the card the DON!! was packed with - and comparing it deleted
-// every candidate the name had. A name with even one numbered printing is
-// not that case: "Monkey.D.Luffy" wears "LEADER" on a few event printings
-// and a real number everywhere else, and the number still has to tell those
-// apart.
+// with a digit in it. The DON!! cards are the game's one exception: no
+// printing of them carries a number, so nothing a storefront writes in its
+// number field is one of theirs - coolstuffinc writes the set code there
+// ("PRB-01"), cardmarket the number of the card the DON!! was packed with -
+// and comparing it deleted every candidate the name had. A name with even
+// one numbered printing is not that case: "Monkey.D.Luffy" carries none on
+// a few event printings and a real number everywhere else, and the number
+// still has to tell those apart.
 func numbered(b *matcher.Backend, name string) bool {
 	for _, uuid := range b.Hashes[matcher.Normalize(name)] {
 		co, found := b.UUIDs[uuid]

@@ -35,7 +35,7 @@ const labelWordingFixture = `{"data": {
 		{"id": "p-069_668433_foil", "name": "Koala", "number": "P-069", "setCode": "OP-PR", "rarity": "PR", "finish": "Foil", "variant": "CS 25-26 Top Player Pack Vol. 2", "promoTypes": ["cs", "topplayerpack"], "watermark": "25-26 vol. 2", "image": "x", "externalLinks": {"tcgPlayerId": 668433}},
 		{"id": "p-069_668434_foil", "name": "Koala", "number": "P-069", "setCode": "OP-PR", "rarity": "PR", "finish": "Foil", "variant": "CS 25-26 Finalist Card Set 2", "promoTypes": ["cs", "finalistcardset"], "watermark": "25-26 2", "image": "x", "externalLinks": {"tcgPlayerId": 668434}},
 		{"id": "p-069_668435_foil", "name": "Koala", "number": "P-069", "setCode": "OP-PR", "rarity": "PR", "finish": "Foil", "variant": "CS 25-26 Winner Card Set 2", "promoTypes": ["cs", "winnercardset"], "watermark": "25-26 2", "image": "x", "externalLinks": {"tcgPlayerId": 668435}},
-		{"id": "leader_661879", "name": "Monkey.D.Luffy", "number": "LEADER", "setCode": "OP13-ANN", "rarity": "L", "finish": "Normal", "variant": "3rd Anniversary Tournament 3 Brothers Pack", "promoTypes": ["anniversarytournament", "3brotherspack"], "watermark": "3rd", "image": "x", "externalLinks": {"tcgPlayerId": 661879}},
+		{"id": "661879", "name": "Monkey.D.Luffy", "setCode": "OP13-ANN", "rarity": "L", "finish": "Normal", "variant": "3rd Anniversary Tournament 3 Brothers Pack", "promoTypes": ["anniversarytournament", "3brotherspack"], "watermark": "3rd", "image": "x", "externalLinks": {"tcgPlayerId": 661879}},
 		{"id": "op13-081_661880", "name": "Monkey.D.Luffy", "number": "OP13-081", "setCode": "OP13-ANN", "rarity": "SR", "finish": "Normal", "image": "x", "externalLinks": {"tcgPlayerId": 661880}},
 		{"id": "st01-012_661882", "name": "Monkey.D.Luffy", "number": "ST01-012", "setCode": "OP13-ANN", "rarity": "SR", "finish": "Normal", "variant": "3rd Anniversary Tournament 3 Brothers Pack", "promoTypes": ["anniversarytournament", "3brotherspack"], "watermark": "3rd", "image": "x", "externalLinks": {"tcgPlayerId": 661882}},
 		{"id": "op13-081_657350_foil", "name": "Monkey.D.Luffy", "number": "OP13-081", "setCode": "OP13", "rarity": "SR", "finish": "Foil", "image": "x", "externalLinks": {"tcgPlayerId": 657350}},
@@ -112,7 +112,7 @@ func TestLabelWording(t *testing.T) {
 				Name: "Monkey.D.Luffy", Variation: "3rd Anniversary Tournament 3 Brothers Pack",
 				Edition: "Carrying On His Will: 3rd Anniversary Tournament Cards",
 			},
-			want: "leader_661879",
+			want: "661879",
 		},
 		{
 			desc: "and the card packed with it is named by its number",

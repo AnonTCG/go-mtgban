@@ -15,7 +15,7 @@
             "variant": "PRB-02",
             "edition": "PRB02 - Premium Booster 2"
         },
-        "uuid": "don_655130"
+        "uuid": "655130"
     },
     {
         "description": "a Double Pack volume naming a word of one label takes it",
@@ -25,7 +25,7 @@
             "edition": "OP15 - Adventure On Kami's Island",
             "foil": true
         },
-        "uuid": "don_689811_foil"
+        "uuid": "689811_foil"
     },
     {
         "description": "a PRB-coded bracket narrows the edition even where the code holds two printings",
@@ -139,7 +139,7 @@
             "variant": "PRB-01 (Gold Hook)",
             "edition": "PRB01 - Premium Booster"
         },
-        "uuid": "don_593803"
+        "uuid": "593803"
     },
     {
         "description": "a gold wording takes the treated half of a DON!! pair",
@@ -149,7 +149,7 @@
             "edition": "PRB02 - Premium Booster 2",
             "foil": true
         },
-        "uuid": "don_655116_foil"
+        "uuid": "655116_foil"
     },
     {
         "description": "a later set's reprint is reached by the code the wording names",
@@ -204,7 +204,7 @@
             "variant": "V.1",
             "edition": "The Best Vol.2"
         },
-        "uuid": "don_655117"
+        "uuid": "655117"
     },
     {
         "description": "a positional V.2 takes the treated half of a DON!! pair",
@@ -213,7 +213,7 @@
             "variant": "V.2",
             "edition": "The Best Vol.2"
         },
-        "uuid": "don_655116_foil"
+        "uuid": "655116_foil"
     },
     {
         "description": "a promo line spelled a word off still selects the event set",
@@ -275,7 +275,7 @@
             "variant": "PRB-02 (Silhouette Purple White)",
             "edition": "PRB02 - Premium Booster 2"
         },
-        "uuid": "don_655119"
+        "uuid": "655119"
     },
     {
         "description": "a treatment marker beside the border word takes the gold half",
@@ -285,7 +285,7 @@
             "edition": "EB03 - Heroines Edition",
             "foil": true
         },
-        "uuid": "don_677571_foil"
+        "uuid": "677571_foil"
     },
     {
         "description": "a treatment the wording spells out answers before the art word",
@@ -842,7 +842,7 @@
             "name": "DON!!",
             "edition": "ST10 - Ultra Deck: The Three Captains"
         },
-        "uuid": "don_527633_foil"
+        "uuid": "527633_foil"
     },
     {
         "description": "the word's other sense keeps the base printing it names",

@@ -239,7 +239,7 @@ func (payload *Datastore) newBackend() *matcher.Backend {
 		// declared as one. It is not a promotion - nothing promoted a
 		// DON!! card for picturing Nami - so it has no place in the
 		// vocabulary a query is written against; but every DON!! card is
-		// named "DON!! Card" at one number, so what it pictures is the
+		// named "DON!! Card" with no number, so what it pictures is the
 		// only thing a listing can name to tell one from another, and
 		// every rule that asks what a printing answers with reads this
 		// list. The other games keep undeclared tokens on the card for
