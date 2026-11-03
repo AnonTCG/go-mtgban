@@ -445,7 +445,7 @@ func (payload *Datastore) newBackend() *matcher.Backend {
 	for _, product := range payload.Sealed {
 		b.AddSealed(product.ID, product.Name, product.SetCode, product.Image, product.ExternalLinks.TcgPlayerID)
 	}
-	b.Complete(Rules{})
+	b.Complete(newRules(b))
 
 	return b
 }

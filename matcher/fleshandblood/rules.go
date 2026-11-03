@@ -1,6 +1,7 @@
 package fleshandblood
 
 import (
+	"cmp"
 	"maps"
 	"regexp"
 	"slices"
@@ -18,7 +19,66 @@ import (
 // named finish routes the match onto the entry it names, whether it arrives
 // in the finish field or as the words storefronts append ("Rainbow Foil",
 // "Cold Foil", the print-run edition suffixes).
-type Rules struct{ matcher.DefaultRules }
+type Rules struct {
+	matcher.DefaultRules
+
+	// The fused cards, indexed once by Load because the printings do not
+	// change afterwards: their names by faceKey, and their printings by
+	// each normalized face.
+	fusedByFaces map[string][]string
+	fusedByFace  map[string][]fusedFace
+}
+
+// fusedFace is a fused printing seen from one of its faces: the card's name
+// and pair number, and the half of the pair that numbers the face.
+type fusedFace struct {
+	name, number, half string
+}
+
+// newRules returns the rules with the fused cards of b indexed.
+func newRules(b *matcher.Backend) Rules {
+	r := Rules{
+		fusedByFaces: map[string][]string{},
+		fusedByFace:  map[string][]fusedFace{},
+	}
+	for _, co := range b.UUIDs {
+		if co.Sealed || !strings.Contains(co.Name, "//") {
+			continue
+		}
+		key := faceKey(co.Name)
+		if !slices.Contains(r.fusedByFaces[key], co.Name) {
+			r.fusedByFaces[key] = append(r.fusedByFaces[key], co.Name)
+		}
+
+		// The pair is read on one slash as well as two, the way
+		// numberMatches and sortedPair read it.
+		if !strings.Contains(co.Number, "/") {
+			continue
+		}
+		faces := strings.Split(co.Name, "//")
+		pair := strings.Split(strings.ReplaceAll(co.Number, "//", "/"), "/")
+		if len(faces) != len(pair) {
+			continue
+		}
+		for i := range faces {
+			face := matcher.Normalize(strings.TrimSpace(faces[i]))
+			entry := fusedFace{co.Name, co.Number, strings.TrimSpace(pair[i])}
+			if !slices.Contains(r.fusedByFace[face], entry) {
+				r.fusedByFace[face] = append(r.fusedByFace[face], entry)
+			}
+		}
+	}
+	for key, names := range r.fusedByFaces {
+		slices.Sort(names)
+		r.fusedByFaces[key] = slices.Clip(names)
+	}
+	for _, entries := range r.fusedByFace {
+		slices.SortFunc(entries, func(a, b fusedFace) int {
+			return cmp.Or(strings.Compare(a.name, b.name), strings.Compare(a.number, b.number))
+		})
+	}
+	return r
+}
 
 // fullNumberRe matches the game's collector number shapes: "WTR215",
 // "1HP408", with an optional letter tail (cardtrader suffixes marvels
@@ -38,10 +98,10 @@ const letters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
 // a variant the datastore labels beside the plain name. A full name that is
 // itself canonical stays as it is - the pitch-color parentheticals ("Sink
 // Below (Red)") are part of the name.
-func (Rules) Prefilter(b *matcher.Backend, inCard *matcher.InputCard) {
+func (r Rules) Prefilter(b *matcher.Backend, inCard *matcher.InputCard) {
 	inCard.Name = dashQualifierRe.ReplaceAllString(inCard.Name, " ($1)")
-	adjustQualifier(b, inCard)
-	adjustFusedName(b, inCard)
+	r.adjustQualifier(b, inCard)
+	r.adjustFusedName(b, inCard)
 	if _, found := b.CanonicalNames[matcher.Normalize(inCard.Name)]; found {
 		return
 	}
@@ -99,7 +159,7 @@ const marvelLabel = " (Marvel)"
 // the number is already right, and an ambiguous one is left alone. The
 // parenthetical the re-spelling drops is handed to the wording, since the same
 // shape also spells a treatment label rather than a piece of the name.
-func adjustQualifier(b *matcher.Backend, inCard *matcher.InputCard) {
+func (r Rules) adjustQualifier(b *matcher.Backend, inCard *matcher.InputCard) {
 	number := labelledNumber(inCard.Variation)
 	if !fullNumberRe.MatchString(number) && !pairNumberRe.MatchString(number) &&
 		!dashedNumberRe.MatchString(number) {
@@ -125,7 +185,7 @@ func adjustQualifier(b *matcher.Backend, inCard *matcher.InputCard) {
 	// storefront writes the tail to demand the labeled variant, and that
 	// demand must keep its say.
 	if qualifierWord(inCard.Name) == "" && !strings.ContainsAny(number[len(number)-1:], letters) {
-		fused, pairs := fusedFaceAt(b, inCard.Name, number)
+		fused, pairs := r.fusedFaceAt(inCard.Name, number)
 		// Refusing is the better answer only while the fused cards could
 		// be what is priced. A listing demanding a finish none of them was
 		// ever sold in - the pairs are plain printings, and the labelled
@@ -382,7 +442,7 @@ func soldAs(b *matcher.Backend, name, number, finish string) bool {
 // "Breakneck Battery (Red)" when the number picks the red pitch. Names
 // compare normalized, so punctuation variants of one name are not read as
 // ambiguity.
-func (Rules) AdjustName(b *matcher.Backend, inCard *matcher.InputCard) {
+func (r Rules) AdjustName(b *matcher.Backend, inCard *matcher.InputCard) {
 	if _, found := b.CanonicalNames[matcher.Normalize(inCard.Name)]; found {
 		return
 	}
@@ -415,7 +475,7 @@ func (Rules) AdjustName(b *matcher.Backend, inCard *matcher.InputCard) {
 	// marvel label's own printing while fused cards claim the face at this
 	// number.
 	if strings.HasSuffix(match, "(Marvel)") && number != "" {
-		if names, _ := fusedFaceAt(b, inCard.Name, number); len(names) > 0 && fusedAnswers(b, names, inCard) {
+		if names, _ := r.fusedFaceAt(inCard.Name, number); len(names) > 0 && fusedAnswers(b, names, inCard) {
 			return
 		}
 	}
@@ -444,67 +504,34 @@ func faceKey(name string) string {
 }
 
 // fusedNamedBy answers the fused cards spelled from the given name's faces,
-// in any order, by asking every fused printing whether its faces are the
-// same set.
+// in any order: the fused cards whose faces are the same set.
 //
 // The faces are compared as a set rather than tried as orderings. A storefront
 // writes the name, so how many faces arrive is the storefront's to decide -
 // asking after each ordering costs a factorial of that, and a name of eleven
 // faces stalls the match for the better part of a minute. Which orderings
 // exist is not the question anyway: the question is which printings wear
-// these faces, and a key answers it in one pass whatever the count.
-func fusedNamedBy(b *matcher.Backend, name string) []string {
+// these faces, and a key answers it in one lookup whatever the count.
+// The slice is the index's own, shared by every match, so it is read-only.
+func (r Rules) fusedNamedBy(name string) []string {
 	key := faceKey(name)
 	if key == "" {
 		return nil
 	}
-	var names []string
-	for _, co := range b.UUIDs {
-		if co.Sealed || !strings.Contains(co.Name, "//") {
-			continue
-		}
-		if faceKey(co.Name) != key {
-			continue
-		}
-		if !slices.Contains(names, co.Name) {
-			names = append(names, co.Name)
-		}
-	}
-	return names
+	return r.fusedByFaces[key]
 }
 
 // fusedFaceAt answers the fused cards one of whose faces is the given name
-// at the given collector number, by scanning the printings once: a face name
-// has no index of its own, and the fused pair cannot be reconstructed from
-// one face the way fusedNamedBy rebuilds it from both.
-//
-// The pair is read on one slash as well as two, the way numberMatches and
-// sortedPair already read it: eight printings write their pair with a single
-// slash, and demanding two here hid them from their own faces.
-func fusedFaceAt(b *matcher.Backend, name, number string) (names, numbers []string) {
-	norm := matcher.Normalize(name)
-	for _, co := range b.UUIDs {
-		if co.Sealed || !strings.Contains(co.Name, "//") || !strings.Contains(co.Number, "/") {
+// at the given collector number, with the pair number of each. The fused
+// pair cannot be reconstructed from one face the way fusedNamedBy rebuilds
+// it from both, so each face indexes the printings wearing it.
+func (r Rules) fusedFaceAt(name, number string) (names, numbers []string) {
+	for _, entry := range r.fusedByFace[matcher.Normalize(name)] {
+		if !numberMatches(number, entry.half) || slices.Contains(names, entry.name) {
 			continue
 		}
-		faces := strings.Split(co.Name, "//")
-		pair := strings.Split(strings.ReplaceAll(co.Number, "//", "/"), "/")
-		if len(faces) != len(pair) {
-			continue
-		}
-		for i := range faces {
-			if matcher.Normalize(strings.TrimSpace(faces[i])) != norm {
-				continue
-			}
-			if !numberMatches(number, strings.TrimSpace(pair[i])) {
-				continue
-			}
-			if !slices.Contains(names, co.Name) {
-				names = append(names, co.Name)
-				numbers = append(numbers, co.Number)
-			}
-			break
-		}
+		names = append(names, entry.name)
+		numbers = append(numbers, entry.number)
 	}
 	return names, numbers
 }
@@ -531,7 +558,7 @@ func fusedFaceAt(b *matcher.Backend, name, number string) (names, numbers []stri
 // replaces it - the faces already identified the card, and a pair kept
 // wrong would gate the match right back out. A number the printings
 // disagree on is left alone for the edition to settle.
-func adjustFusedName(b *matcher.Backend, inCard *matcher.InputCard) {
+func (r Rules) adjustFusedName(b *matcher.Backend, inCard *matcher.InputCard) {
 	if !strings.Contains(inCard.Name, "//") {
 		return
 	}
@@ -543,7 +570,7 @@ func adjustFusedName(b *matcher.Backend, inCard *matcher.InputCard) {
 	if pair != "" && numberedAs(b, inCard.Name, pair) && soldAs(b, inCard.Name, pair, inCard.Finish) {
 		return
 	}
-	names := fusedNamedBy(b, inCard.Name)
+	names := r.fusedNamedBy(inCard.Name)
 	if len(names) == 0 && pair != "" {
 		names = fusedNumbered(b, inCard.Name, pair)
 	}

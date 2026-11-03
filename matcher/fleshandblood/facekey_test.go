@@ -37,7 +37,7 @@ func TestFaceKey(t *testing.T) {
 // storefront chose. Asking after each ordering costs a factorial of that: at
 // eleven faces a spelling-by-spelling search takes the better part of a
 // minute inside Prefilter, which a vendor can aim at any run at will.
-// Comparing the faces as a set costs one pass whatever the count.
+// Comparing the faces as a set costs one lookup whatever the count.
 func TestFusedNamedByManyFaces(t *testing.T) {
 	b := gametest.Backend(t, matcher.GameFleshAndBlood)
 
@@ -48,7 +48,7 @@ func TestFusedNamedByManyFaces(t *testing.T) {
 	name := strings.Join(faces, " // ")
 
 	done := make(chan []string, 1)
-	go func() { done <- fusedNamedBy(b, name) }()
+	go func() { done <- newRules(b).fusedNamedBy(name) }()
 
 	select {
 	case got := <-done:
