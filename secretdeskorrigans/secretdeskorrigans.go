@@ -15,7 +15,6 @@ import (
 	"github.com/mtgban/go-mtgban/mtgban"
 
 	"github.com/PuerkitoBio/goquery"
-	"github.com/hashicorp/go-retryablehttp"
 )
 
 const (
@@ -45,9 +44,7 @@ func NewScraper(b *matcher.Backend) (*SecretDesKorrigans, error) {
 	sdk := SecretDesKorrigans{backend: b}
 	sdk.inventory = mtgban.InventoryRecord{}
 	sdk.maxConcurrency = defaultConcurrency
-	client := retryablehttp.NewClient()
-	client.Logger = nil
-	sdk.client = client.StandardClient()
+	sdk.client = mtgban.NewHTTPClient()
 	return &sdk, nil
 }
 
