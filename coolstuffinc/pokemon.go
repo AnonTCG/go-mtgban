@@ -810,3 +810,46 @@ func pokemonPromoShelf(b *matcher.Backend, name, itemSet, rarityName string, foi
 	}
 	return "Promo"
 }
+
+// retailPokemon reads an offer's shelf and treatment, matching a first
+// edition shelf in the run of finishes it was sold in.
+func retailPokemon(csi *Coolstuffinc, l sellListing) (*matcher.InputCard, string, error) {
+	b := csi.backend
+	shelf, shelfRun := firstEditionShelf(l.edition)
+	if shelfRun != nil {
+		l.run = shelfRun
+	}
+	// A preorder's release date follows its note, and the
+	// day of the month would read as a collector number.
+	head, _, _ := strings.Cut(l.notes, "Preorder Notes:")
+	variation := catalogTreatment(head)
+	shelf = pokemonPromoShelf(b, l.name, shelf, l.rarity, l.foil, variation)
+	theCard := pokemonHoloShelf(b, pokemonCosmosHolo(b, pokemonListing(b, l.name, shelf, variation, l.foil), l.rarity))
+	cardID, err := l.match(b, theCard)
+	return theCard, cardID, err
+}
+
+// buylistPokemon reads a buylist row, and drops a non-holo row that landed
+// on a printing only ever made holo.
+func buylistPokemon(csi *Coolstuffinc, p CSIPriceEntry) (*matcher.InputCard, string, error) {
+	b := csi.backend
+	theCard, run := pokemonBuylistCard(b, p)
+	var cardID string
+	var err error
+	if run != nil {
+		cardID, err = matchRun(b, theCard, run)
+	} else {
+		cardID, err = b.Match(theCard)
+	}
+	if err != nil {
+		return theCard, "", err
+	}
+	if pokemonNonHolo.MatchString(p.Name) {
+		co, cerr := b.GetUUID(cardID)
+		if cerr == nil && !co.HasFinish(matcher.FinishNonfoil) &&
+			strings.Contains(co.Rarity, "holo") {
+			return theCard, "", matcher.ErrUnsupported
+		}
+	}
+	return theCard, cardID, nil
+}

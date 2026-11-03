@@ -76,7 +76,7 @@ cases named shelves CSI is still selling on today (`Black Bordered
 (foreign)`, `Ikoria: Lair of Behemoths: Variants`, `Portal 3 Kingdoms`,
 `Double Masters: Variants`, `Dominaria United: Variants` - confirmed
 against a live fetch of the shelf checkbox list), and the live retail
-path (`preprocess()`, used by `processSearch`) carries no equivalent case
+path (`preprocess()`, used by `retailMagic`) carries no equivalent case
 for any of them. Checked live rows from all five against the real
 datastore: four resolve fine anyway - the live path's generic wording
 already covers what the dead function's special cases once bought it,
@@ -221,8 +221,8 @@ collision. That has held so far, but it is a real difference in rigor,
 not just a simpler special case - if a fourth game needs this shape,
 copy the probing version, not `onePieceShelf`'s.
 
-All three are wired into `processSearch` (retail) as well as `parseBL`
-(buylist) - confirmed as a live gap, not a hypothetical one, by fetching
+All three are wired into each game's retail resolver as well as its
+buylist one - confirmed as a live gap, not a hypothetical one, by fetching
 each game's affected shelf live and replaying every row through the pre-
 and post-fix resolution:
 

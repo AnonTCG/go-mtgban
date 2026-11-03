@@ -265,3 +265,45 @@ func riftboundCardAt(b *matcher.Backend, code, number string, foil bool) *matche
 		Foil:      foil,
 	}
 }
+
+// retailRiftbound reads an offer on the shelf its note and lettered promo
+// name, and from its image where that wording places nothing.
+func retailRiftbound(csi *Coolstuffinc, l sellListing) (*matcher.InputCard, string, error) {
+	b := csi.backend
+	riftboundCardName := riftboundSpellings.Replace(l.name)
+	variation := riftboundNotes.Replace(l.notes)
+	if l.edition == "Promo" && l.notes == "" {
+		variation = riftboundLetteredPromo(b, riftboundCardName, l.image, l.foil)
+	}
+	shelf := riftboundShelf(b, l.edition, l.notes, riftboundCardName, variation, l.foil)
+	theCard := &matcher.InputCard{Name: riftboundCardName, Edition: shelf, Variation: variation, Foil: l.foil}
+	_, err := b.Match(theCard)
+	if err != nil {
+		fromImage := riftboundImageCard(b, l.image, l.foil)
+		if fromImage != nil {
+			theCard = fromImage
+		}
+	}
+	cardID, err := l.match(b, theCard)
+	return theCard, cardID, err
+}
+
+// buylistRiftbound reads a buylist row the way retailRiftbound reads an
+// offer, from its sku where the wording places nothing. The note names the
+// printing: a promo's finish and prize track.
+func buylistRiftbound(csi *Coolstuffinc, p CSIPriceEntry) (*matcher.InputCard, string, error) {
+	b := csi.backend
+	riftboundCardName := riftboundSpellings.Replace(p.Name)
+	variation := riftboundNotes.Replace(buylistVariation(p))
+	shelf := riftboundShelf(b, p.ItemSet, p.Notes, riftboundCardName, variation, p.IsFoil == 1)
+	theCard := &matcher.InputCard{Name: riftboundCardName, Edition: shelf, Variation: variation, Foil: p.IsFoil == 1}
+	_, err := b.Match(theCard)
+	if err != nil {
+		fromSKU := riftboundSKUCard(b, p.Image, p.IsFoil == 1)
+		if fromSKU != nil {
+			theCard = fromSKU
+		}
+	}
+	cardID, err := b.Match(theCard)
+	return theCard, cardID, err
+}

@@ -390,3 +390,92 @@ func onePieceDonRenamed(description string) string {
 	}
 	return renamed
 }
+
+// retailOnePiece answers an offer by its product id where the wording cannot
+// reach it, reads the promos and DON!! cards apart, and refines the printing
+// the wording lands on.
+func retailOnePiece(csi *Coolstuffinc, l sellListing) (*matcher.InputCard, string, error) {
+	b := csi.backend
+	theCard := onePieceRetailCard(b, l)
+	cardID, err := l.match(b, theCard)
+	if err != nil {
+		return theCard, "", err
+	}
+	cardID = onePieceRefined(b, cardID, theCard.Edition, l.name, l.notes)
+	// A slab's finish, or a named printing's, is not told by the
+	// foil prefix, and a product id names its own printing.
+	if !l.foil && !l.graded && !l.slabbed && l.printing == "" && theCard.ID == "" {
+		cardID = onePieceNonfoilPrinting(b, cardID)
+	}
+	return theCard, cardID, nil
+}
+
+// onePieceRetailCard reads an offer: its product id, an alternate-art promo,
+// a DON!! card, or else its name, shelf and wording.
+func onePieceRetailCard(b *matcher.Backend, l sellListing) *matcher.InputCard {
+	tcgID, named := onePiecePIDs[l.pid]
+	if named {
+		return &matcher.InputCard{ID: tcgID, Foil: l.foil}
+	}
+	shelf := onePieceShelf(l.edition, l.name)
+	if onePieceAlternatePromo(l.name) {
+		return &matcher.InputCard{Name: onePieceSpelling(l.name), Edition: "One Piece Promotion Cards", Variation: "Alternate Art", Foil: l.foil}
+	}
+	donName, donDescription, isDon := onePieceDonName(l.name)
+	if isDon {
+		theCard := &matcher.InputCard{Name: donName, Edition: shelf, Variation: donDescription, Foil: l.foil}
+		_, err := b.Match(theCard)
+		if err != nil {
+			renamed := onePieceDonRenamed(donDescription)
+			if renamed != "" {
+				theCard = &matcher.InputCard{Name: donName, Edition: shelf, Variation: renamed, Foil: l.foil}
+			}
+		}
+		return theCard
+	}
+	spelled := onePieceSpelling(jpArtWording(l.name))
+	return &matcher.InputCard{Name: spelled, Edition: shelf, Variation: eventNamed(strings.TrimSpace(nameQualifiers(spelled) + " " + onePieceSpelling(jpArtWording(l.notes)))), Foil: l.foil}
+}
+
+// buylistOnePiece reads a buylist row the way retailOnePiece reads an offer.
+func buylistOnePiece(csi *Coolstuffinc, p CSIPriceEntry) (*matcher.InputCard, string, error) {
+	b := csi.backend
+	theCard := onePieceBuylistCard(b, p)
+	cardID, err := b.Match(theCard)
+	if err != nil {
+		return theCard, "", err
+	}
+	cardID = onePieceRefined(b, cardID, theCard.Edition, p.Name, p.Notes)
+	if p.IsFoil == 0 && theCard.ID == "" {
+		cardID = onePieceNonfoilPrinting(b, cardID)
+	}
+	return theCard, cardID, nil
+}
+
+// onePieceBuylistCard reads the row's number and only the place its note
+// names: One Piece spends the rest of the note describing the artwork.
+func onePieceBuylistCard(b *matcher.Backend, p CSIPriceEntry) *matcher.InputCard {
+	foil := p.IsFoil == 1
+	tcgID, named := onePiecePIDs[p.PID]
+	if named {
+		return &matcher.InputCard{ID: tcgID, Foil: foil}
+	}
+	if onePieceAlternatePromo(p.Name) {
+		return &matcher.InputCard{Name: onePieceSpelling(p.Name), Edition: "One Piece Promotion Cards", Variation: "Alternate Art", Foil: foil}
+	}
+	donName, donDescription, isDon := onePieceDonName(p.Name)
+	if isDon {
+		donShelf := onePieceShelf(p.ItemSet, p.Name)
+		theCard := &matcher.InputCard{Name: donName, Edition: donShelf, Variation: donDescription, Foil: foil}
+		_, err := b.Match(theCard)
+		if err != nil {
+			renamed := onePieceDonRenamed(donDescription)
+			if renamed != "" {
+				theCard = &matcher.InputCard{Name: donName, Edition: donShelf, Variation: renamed, Foil: foil}
+			}
+		}
+		return theCard
+	}
+	spelled := onePieceSpelling(jpArtWording(p.Name))
+	return &matcher.InputCard{Name: spelled, Edition: onePieceShelf(p.ItemSet, p.Name), Variation: eventNamed(strings.TrimSpace(p.Number + " " + nameQualifiers(spelled) + " " + onePieceNotePlace.FindString(p.Notes))), Foil: foil}
+}

@@ -277,3 +277,58 @@ func yugiohRetry(b *matcher.Backend, card *matcher.InputCard, variation, number 
 	}
 	return id
 }
+
+// retailYugioh answers an offer by its product id where the wording cannot
+// reach it, and retries from the image's sku what the wording leaves
+// ambiguous.
+func retailYugioh(csi *Coolstuffinc, l sellListing) (*matcher.InputCard, string, error) {
+	var theCard *matcher.InputCard
+	tcgID, named := yugiohPIDs[l.pid]
+	if named {
+		theCard = &matcher.InputCard{ID: tcgID, Foil: l.foil}
+	} else {
+		if unknownPrinting(l.name, l.edition) {
+			return nil, "", matcher.ErrUnsupported
+		}
+		theCard = yugiohArtCard(l.name, l.edition, "", l.notes, l.foil)
+		if theCard == nil {
+			theCard = yugiohListing(l.name, l.edition, l.notes, l.notes, l.rarity, l.foil)
+		}
+	}
+	cardID, err := l.match(csi.backend, theCard)
+	if l.run == nil && yugiohRetries(err, l.notes) {
+		fromImage := yugiohSKUCard(csi.backend, csi.skuIndex, theCard, l.image)
+		if fromImage != "" {
+			return theCard, fromImage, nil
+		}
+	}
+	return theCard, cardID, err
+}
+
+// buylistYugioh reads a buylist row the way retailYugioh reads an offer. The
+// rarity arrives in a field of its own here, where the sell listing spends
+// the note on it, so a row whose note says nothing still names the tier that
+// tells its printing from its siblings.
+func buylistYugioh(csi *Coolstuffinc, p CSIPriceEntry) (*matcher.InputCard, string, error) {
+	var theCard *matcher.InputCard
+	tcgID, named := yugiohPIDs[p.PID]
+	if named {
+		theCard = &matcher.InputCard{ID: tcgID, Foil: p.IsFoil == 1}
+	} else {
+		if unknownPrinting(p.Name, p.ItemSet) {
+			return nil, "", matcher.ErrUnsupported
+		}
+		theCard = yugiohArtCard(p.Name, p.ItemSet, p.Number, p.Notes, p.IsFoil == 1)
+		if theCard == nil {
+			theCard = yugiohListing(p.Name, p.ItemSet, p.Notes, yugiohBuylistVariation(p), p.RarityName, p.IsFoil == 1)
+		}
+	}
+	cardID, err := csi.backend.Match(theCard)
+	if yugiohRetries(err, p.Notes) {
+		fromImage := yugiohImageCard(csi.backend, theCard, p)
+		if fromImage != "" {
+			return theCard, fromImage, nil
+		}
+	}
+	return theCard, cardID, err
+}

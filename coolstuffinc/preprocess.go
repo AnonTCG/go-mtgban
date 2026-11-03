@@ -1591,3 +1591,50 @@ var finalFantasyBackground = regexp.MustCompile(`(?i) in .* Bl?ackground`)
 // promoPackSymbol reads the set a Universal Promo Pack listing names in its
 // note, "<Set Name> - Silver Planeswalker Symbol" once cleaned.
 var promoPackSymbol = regexp.MustCompile(`^(.+) Silver Planeswalker Symbol$`)
+
+// retailMagic reads an offer's wording, and keeps it only where the printing
+// was sold in the finish the offer names.
+func retailMagic(csi *Coolstuffinc, l sellListing) (*matcher.InputCard, string, error) {
+	theCard, err := preprocess(csi.backend, l.name, l.edition, l.notes, l.image, l.foil)
+	if err != nil {
+		return nil, "", matcher.ErrUnsupported
+	}
+	// preprocess() might return something that derived foil status
+	// from one of the fields (cardName in particular)
+	theCard.Foil = theCard.Foil || l.foil
+	cardID, err := l.match(csi.backend, theCard)
+	if err != nil {
+		return theCard, "", err
+	}
+	if strings.Contains(l.name, "Foil-etched") {
+		co, err := csi.backend.GetUUID(cardID)
+		if err != nil || !co.Etched {
+			return theCard, "", matcher.ErrUnsupported
+		}
+	}
+	if l.foil {
+		co, err := csi.backend.GetUUID(cardID)
+		if err != nil || (!co.Etched && !co.Foil) {
+			return theCard, "", matcher.ErrUnsupported
+		}
+	}
+	return theCard, cardID, nil
+}
+
+// buylistMagic reads a buylist row's wording, and drops the placeholder foil
+// row some products carry beside their nonfoil one.
+func buylistMagic(csi *Coolstuffinc, p CSIPriceEntry) (*matcher.InputCard, string, error) {
+	theCard, err := PreprocessBuylist(csi.backend, p)
+	if err != nil {
+		return nil, "", matcher.ErrUnsupported
+	}
+	cardID, err := csi.backend.Match(theCard)
+	if err != nil {
+		return theCard, "", err
+	}
+	co, cerr := csi.backend.GetUUID(cardID)
+	if cerr == nil && magicPhantomFoilTwin(co, p.IsFoil, csi.nonfoilPIDs[p.PID]) {
+		return theCard, "", matcher.ErrUnsupported
+	}
+	return theCard, cardID, nil
+}

@@ -3,6 +3,8 @@ package coolstuffinc
 import (
 	"regexp"
 	"strings"
+
+	"github.com/mtgban/go-mtgban/matcher"
 )
 
 // palworldNumberTail is a collector number with a rarity code written onto
@@ -104,4 +106,25 @@ const palworldPrototypeSuffix = " - Prototype"
 func palworldName(name string) string {
 	name = palworldSpellings.Replace(name)
 	return strings.TrimSuffix(name, palworldPrototypeSuffix)
+}
+
+// retailPalworld reads an offer's note on its own: Palworld numbers a
+// parallel apart from the card it parallels, so the note names one printing,
+// once the rarity code this storefront sometimes types onto the number is
+// written back beside it.
+func retailPalworld(csi *Coolstuffinc, l sellListing) (*matcher.InputCard, string, error) {
+	theCard := &matcher.InputCard{Name: palworldName(l.name), Edition: l.edition, Variation: palworldNotes(l.notes), Foil: l.foil}
+	cardID, err := l.match(csi.backend, theCard)
+	return theCard, cardID, err
+}
+
+// buylistPalworld reads a buylist row's number, the rarity riding in its own
+// tail, so the plain reading names one printing and nothing has to be read
+// out of the wording. The feed sometimes leaves the number empty and writes
+// it in the note, and it is the same hands typing the sell listings that
+// glue the rarity onto one.
+func buylistPalworld(csi *Coolstuffinc, p CSIPriceEntry) (*matcher.InputCard, string, error) {
+	theCard := &matcher.InputCard{Name: palworldName(p.Name), Edition: p.ItemSet, Variation: palworldNotes(buylistVariation(p)), Foil: p.IsFoil == 1}
+	cardID, err := csi.backend.Match(theCard)
+	return theCard, cardID, err
 }

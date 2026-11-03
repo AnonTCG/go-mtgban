@@ -292,3 +292,35 @@ var gundamPIDs = map[string]string{
 	"431198": "672000", // ST05-014 Fatal Strike (Alt-Art +) (Reflection) = ST07
 	"431220": "671979", // ST02-014 Siege Ploy (Alt-Art +) (Sword Fight) = ST08
 }
+
+// retailGundam answers an offer by its product id where the wording cannot
+// reach it.
+func retailGundam(csi *Coolstuffinc, l sellListing) (*matcher.InputCard, string, error) {
+	var theCard *matcher.InputCard
+	tcgID, named := gundamPIDs[l.pid]
+	if named {
+		theCard = &matcher.InputCard{ID: tcgID, Foil: l.foil}
+	} else {
+		name, variation := gundamCard(csi.backend, l.name, gundamNumber(l.notes))
+		theCard = &matcher.InputCard{Name: name, Edition: gundamShelf(l.edition), Variation: strings.TrimSpace(variation + " " + l.notes + " " + gundamTier(l.rarity, l.name)), Foil: l.foil}
+	}
+	cardID, err := l.match(csi.backend, theCard)
+	return theCard, cardID, err
+}
+
+// buylistGundam reads a buylist row the way retailGundam reads an offer.
+// Gundam prints the same card at the same number in three sets, so the shelf
+// has to narrow and the storefront's own code prefix stops it naming one; the
+// wording it hangs behind the name is what tells the parallel runs apart.
+func buylistGundam(csi *Coolstuffinc, p CSIPriceEntry) (*matcher.InputCard, string, error) {
+	var theCard *matcher.InputCard
+	tcgID, named := gundamPIDs[p.PID]
+	if named {
+		theCard = &matcher.InputCard{ID: tcgID, Foil: p.IsFoil == 1}
+	} else {
+		name, variation := gundamCard(csi.backend, p.Name, p.Number)
+		theCard = &matcher.InputCard{Name: name, Edition: gundamShelf(p.ItemSet), Variation: strings.TrimSpace(variation + " " + gundamTier(p.RarityName, p.Name)), Foil: p.IsFoil == 1}
+	}
+	cardID, err := csi.backend.Match(theCard)
+	return theCard, cardID, err
+}

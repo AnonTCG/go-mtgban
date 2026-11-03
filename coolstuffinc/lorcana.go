@@ -82,3 +82,19 @@ func lorcanaShelf(b *matcher.Backend, name, shelf, notes string) string {
 	}
 	return shelf
 }
+
+// retailLorcana reads an offer's name, shelf and note.
+func retailLorcana(csi *Coolstuffinc, l sellListing) (*matcher.InputCard, string, error) {
+	theCard := &matcher.InputCard{Name: lorcanaSpelling(l.name), Edition: lorcanaShelf(csi.backend, l.name, l.edition, l.notes), Variation: lorcanaVariation(l.notes), Foil: l.foil}
+	cardID, err := l.match(csi.backend, theCard)
+	return theCard, cardID, err
+}
+
+// buylistLorcana reads a buylist row's note, which starts with the same
+// number Number carries and spends the rest on the qualifier; Number alone
+// misses a Starter Deck Exclusive.
+func buylistLorcana(csi *Coolstuffinc, p CSIPriceEntry) (*matcher.InputCard, string, error) {
+	theCard := &matcher.InputCard{Name: lorcanaSpelling(p.Name), Edition: lorcanaShelf(csi.backend, p.Name, p.ItemSet, p.Notes), Variation: lorcanaVariation(p.Notes), Foil: p.IsFoil == 1}
+	cardID, err := csi.backend.Match(theCard)
+	return theCard, cardID, err
+}
