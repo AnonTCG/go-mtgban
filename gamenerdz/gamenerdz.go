@@ -832,8 +832,25 @@ func (gn *Gamenerdz) scrape(ctx context.Context, mode string) error {
 	}
 	gn.release(mode, state)
 	gn.printf("%s processed %d products", mode, len(state.seen))
+	if mode == modeBuylist {
+		gn.dropUnbought()
+	}
 
 	return nil
+}
+
+// dropUnbought removes the cards the store makes no NM offer on. Each grade
+// is a product of its own, so only the whole crawl says whether a card has
+// one, and the store buys nothing of a card it does not buy near mint.
+func (gn *Gamenerdz) dropUnbought() {
+	var dropped int
+	for cardID, entries := range gn.buylist {
+		if entries[0].Conditions != mtgban.NM {
+			delete(gn.buylist, cardID)
+			dropped++
+		}
+	}
+	gn.printf("buylist dropped %d cards with no NM offer", dropped)
 }
 
 // widen crawls one slice of the feed both ways, and when both windows ran
