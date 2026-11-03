@@ -47,6 +47,7 @@ type GameRules interface {
 	// AdjustName fixes up the input card name to match a canonical name.
 	AdjustName(b *Backend, inCard *InputCard)
 	// AdjustEdition fixes up the input card edition to a known set.
+	// DefaultRules applies AliasEdition alone.
 	AdjustEdition(b *Backend, inCard *InputCard)
 	// AliasEdition spells an edition string the way the datastore names its
 	// set, using only the string itself - the card-free part of

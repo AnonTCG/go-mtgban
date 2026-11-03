@@ -9,10 +9,19 @@ package matcher
 // The answers are the ones that change nothing: every candidate edition
 // survives and nothing is unsupported at any stage. A game that
 // means any of those has to say so itself, which is the point - a hook
-// nobody wrote is a hook nobody has to read.
+// nobody wrote is a hook nobody has to read. The one answer that changes
+// the input, AdjustEdition, applies only the game's own AliasEdition.
 //
 // Magic implements its policies explicitly and embeds nothing.
 type DefaultRules struct{}
+
+// AdjustEdition spells the edition through the game's own AliasEdition,
+// which is the whole fixup for a game whose edition wording says nothing
+// about the card. It asks the Backend's rules, since an embedded value
+// cannot reach the AliasEdition of the game embedding it.
+func (DefaultRules) AdjustEdition(b *Backend, inCard *InputCard) {
+	inCard.Edition = b.rules.AliasEdition(b, inCard.Edition)
+}
 
 // FilterPrintings keeps every candidate edition.
 func (DefaultRules) FilterPrintings(b *Backend, inCard *InputCard, editions []string) []string {

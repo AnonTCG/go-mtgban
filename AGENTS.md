@@ -411,9 +411,11 @@ overrides only what it actually needs different. All eight rely on
 `DefaultRules` - a real no-op - for `FinalizeCandidates` and `IsToken`, and
 all but Pokemon for `FilterPrintings`, which Pokemon uses to hold oversized
 and metal-card listings to those printings. All eight
-implement their own `Prefilter`, `AdjustName`, `AdjustEdition`,
-`AliasEdition`, `FilterCards` and `PlainNumber`, which is where a game's
-actual vocabulary - its editions and its number shapes - lives. Finishes are
+implement their own `Prefilter`, `AdjustName`, `AliasEdition`, `FilterCards`
+and `PlainNumber`, which is where a game's actual vocabulary - its editions
+and its number shapes - lives, and all but Lorcana and Riftbound their own
+`AdjustEdition`; `DefaultRules.AdjustEdition` applies the game's
+`AliasEdition` and nothing else. Finishes are
 not a game's to name: every one is read through `matcher.FinishSlug`, as
 TCGplayer prices it, and `matcher.Finishes` is the table of those names
 (`docs/finishes.md`). A few games additionally override one hook for a

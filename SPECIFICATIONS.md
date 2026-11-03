@@ -757,7 +757,9 @@ the listing left unsaid.
 game's `Rules` type embeds `matcher.DefaultRules` and overrides only the
 hooks its own catalog forces. `FinalizeCandidates` and `IsToken` fall
 through to `DefaultRules` - a genuine no-op - for all of them, and
-`FilterPrintings` for all but Pokemon. A couple override one hook further
+`FilterPrintings` for all but Pokemon. Lorcana and Riftbound also take
+`DefaultRules.AdjustEdition`, which applies the game's own `AliasEdition`
+and nothing else. A couple override one hook further
 where their catalog has a real, narrow case to handle: Lorcana and Yu-Gi-Oh
 give `IsUnsupported` real logic at `StageWording` (Lorcana drops
 puzzle-insert and cruise-promo products; Yu-Gi-Oh drops the storefront's own

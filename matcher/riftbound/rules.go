@@ -377,17 +377,12 @@ func qualifiedNameNumber(b *matcher.Backend, name string) string {
 	return number
 }
 
-// AdjustEdition normalizes scraper edition strings toward the gallery set
-// names: storefronts commonly prefix the game name ("Riftbound: Origins")
-// or append catalog suffixes ("... Singles"). An edition that still matches
-// no set name simply does not narrow the candidates (the Match skeleton
-// falls back to every printing), so trimming can only help.
-func (r Rules) AdjustEdition(b *matcher.Backend, inCard *matcher.InputCard) {
-	inCard.Edition = r.AliasEdition(b, inCard.Edition)
-}
-
-// AliasEdition spells an edition string toward a set name using the string
-// alone. See matcher.GameRules.
+// AliasEdition spells an edition string toward a gallery set name using the
+// string alone, and is the game's whole AdjustEdition: storefronts commonly
+// prefix the game name ("Riftbound: Origins") or append catalog suffixes
+// ("... Singles"). An edition that still matches no set name simply does not
+// narrow the candidates (the Match skeleton falls back to every printing), so
+// trimming can only help.
 func (Rules) AliasEdition(b *matcher.Backend, edition string) string {
 	edition = strings.TrimSpace(edition)
 	// An edition already naming a set verbatim needs no normalization - and

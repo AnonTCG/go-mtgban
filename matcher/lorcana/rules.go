@@ -303,17 +303,12 @@ func soleSet(b *matcher.Backend, edition string) string {
 	return found
 }
 
-// AdjustEdition normalizes scraper edition strings toward LorcanaJSON set
-// names: storefronts commonly prefix the game name ("Disney Lorcana: Rise of
-// the Floodborn") or append catalog suffixes ("... Singles"). An edition that
-// still matches no set name simply does not narrow the candidates (the Match
-// skeleton falls back to every printing), so trimming can only help.
-func (r Rules) AdjustEdition(b *matcher.Backend, inCard *matcher.InputCard) {
-	inCard.Edition = r.AliasEdition(b, inCard.Edition)
-}
-
-// AliasEdition spells an edition string toward a set name using the string
-// alone. See matcher.GameRules.
+// AliasEdition spells an edition string toward a LorcanaJSON set name using
+// the string alone, and is the game's whole AdjustEdition: storefronts
+// commonly prefix the game name ("Disney Lorcana: Rise of the Floodborn") or
+// append catalog suffixes ("... Singles"). An edition that still matches no
+// set name simply does not narrow the candidates (the Match skeleton falls
+// back to every printing), so trimming can only help.
 func (Rules) AliasEdition(b *matcher.Backend, edition string) string {
 	edition = trimEdition(edition)
 	if matcher.IsPromoHeading(edition) {
