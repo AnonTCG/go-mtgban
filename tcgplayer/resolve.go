@@ -216,6 +216,9 @@ func numberedAfter(number, base string) bool {
 // grade, to the printing it sells, by sku id: how a store reselling
 // TCGplayer's own skus names its listings.
 func SKUCards(b *matcher.Backend, dump *tcgplayer.CatalogDump) (map[int]string, error) {
+	if dump == nil {
+		return nil, errors.New("no catalog dump")
+	}
 	r, err := newResolver(b, dump)
 	if err != nil {
 		return nil, err
