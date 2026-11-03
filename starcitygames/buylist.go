@@ -239,6 +239,16 @@ func (scg *SCGClient) sellListOffers(ctx context.Context, game int) (map[string]
 	if got != want {
 		return nil, nil, fmt.Errorf("sell list returned %d of the %d products its facets count", got, want)
 	}
+
+	// The storefront buys nothing of a product it makes no NM bid on, and
+	// says "We are not currently buying this product" whatever its played
+	// grades are priced at.
+	for product, grades := range out {
+		if _, found := grades[mtgban.NM]; !found {
+			delete(out, product)
+			delete(products, product)
+		}
+	}
 	return out, products, nil
 }
 

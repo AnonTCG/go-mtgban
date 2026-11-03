@@ -61,17 +61,23 @@ func sellListHit(sku string, variants ...[3]any) map[string]any {
 
 // TestSellListOffers covers the crawl: a slice the index cannot page whole is
 // split again, a product with no finish is still read, only a variant's own
-// bid counts, and a crawl that comes back short is refused rather than
-// published as the whole buylist.
+// bid counts, a product with no NM bid is not bought at all, and a crawl that
+// comes back short is refused rather than published as the whole buylist.
 func TestSellListOffers(t *testing.T) {
 	const base = "game_id = 2 AND product_type_id = 1 AND primary_status IN [buying_at_cost, hotlist]"
 	facets := map[string]map[string]map[string]int{
-		base:                     {"finish": {"1": sellListCap, "2": 1}},
+		base:                     {"finish": {"1": sellListCap, "2": 2}},
 		base + " AND finish = 1": {"rarity": {"3": 1, "4": 1}},
 	}
 	hits := map[string][]map[string]any{
-		base + " AND finish = 2": {sellListHit("SGL-FAB-A-ENN",
-			[3]any{"NM", "buying_at_cost", 4}, [3]any{"PL", "buying_at_cost", 2.5}, [3]any{"HP", "buying_at_cost", 1})},
+		base + " AND finish = 2": {
+			sellListHit("SGL-FAB-A-ENN",
+				[3]any{"NM", "buying_at_cost", 4}, [3]any{"PL", "buying_at_cost", 2.5}, [3]any{"HP", "buying_at_cost", 1}),
+			// The Tournament Pack cold foil Cut to the Chase (Red) on
+			// 2026-11-02, which the storefront does not buy.
+			sellListHit("SGL-FAB-E-ENN",
+				[3]any{"PL", "buying_at_cost", 25}, [3]any{"HP", "buying_at_cost", 12}),
+		},
 		base + " AND finish = 1 AND rarity = 3": {sellListHit("SGL-FAB-B-ENN",
 			[3]any{"NM", "hotlist", 10}, [3]any{"PL", "buying_in_bulk", 0.05}, [3]any{"HP", "buying_at_cost", 0.005})},
 		base + " AND finish = 1 AND rarity = 4": {sellListHit("SGL-FAB-C-ENN",
@@ -84,7 +90,7 @@ func TestSellListOffers(t *testing.T) {
 
 	scg := NewSCGClient("")
 	scg.sellListURL = srv.URL
-	got, _, err := scg.sellListOffers(context.Background(), GameFleshAndBlood)
+	got, products, err := scg.sellListOffers(context.Background(), GameFleshAndBlood)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -107,13 +113,23 @@ func TestSellListOffers(t *testing.T) {
 			t.Errorf("%s: got %v, want %v", sku, prices, grades)
 		}
 	}
+	// The products feed the singles only the sell list carries, so one not
+	// bought leaves them too.
+	for sku := range want {
+		if _, found := products[sku]; !found {
+			t.Errorf("%s is missing from the sell list's products", sku)
+		}
+	}
+	if _, found := products["SGL-FAB-E-ENN"]; found {
+		t.Error("SGL-FAB-E-ENN, with no NM bid, is still among the sell list's products")
+	}
 	if got["SGL-FAB-A-ENN"][mtgban.SP].SKU != "SGL-FAB-A-ENN2" {
 		t.Errorf("the PL offer carries sku %q, want its own variant's", got["SGL-FAB-A-ENN"][mtgban.SP].SKU)
 	}
 
 	delete(hits, base+" AND finish = 1 AND rarity = 4")
 	_, _, err = scg.sellListOffers(context.Background(), GameFleshAndBlood)
-	if err == nil || !strings.Contains(err.Error(), "3 of the 4") {
+	if err == nil || !strings.Contains(err.Error(), "4 of the 5") {
 		t.Errorf("a crawl missing a product was not refused: %v", err)
 	}
 }

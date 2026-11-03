@@ -216,8 +216,8 @@ match.
 The catalog export lists a Played or Heavily Played variant for only some
 products, though SCG buys nearly every grade of every single: the index has
 NM, PL and HP on all but a few. So `Load` reads every product of the game
-whose NM is bought (`primary_status` `buying_at_cost` or `hotlist`) from
-`sell_list_products_v2` first, and `processProduct` prices each catalog
+the index marks as bought (`primary_status` `buying_at_cost` or `hotlist`)
+from `sell_list_products_v2` first, and `processProduct` prices each catalog
 product's grades from it, joined by sku: a variant sku is its product's
 plus one grade digit, `1` NM, `2` PL, `3` HP.
 
@@ -225,6 +225,9 @@ plus one grade digit, `1` NM, `2` PL, `3` HP.
   `hotlist`. `buying_in_bulk` is a flat rate for a whole rarity/finish tier
   (every Magic Rare $0.08), not a bid on the card, and `not_buying` and
   `do_not_show` are no offer at all.
+- A product with no NM bid is dropped whole. Its `primary_status` can read
+  `buying_at_cost` off a played grade alone, but the storefront shows it as
+  "We are not currently buying this product".
 - `scgMinBuyPrice` drops the sub-cent figures the index also carries.
 - SCG grades no MP, so the HP price is filed at MP as well.
 
