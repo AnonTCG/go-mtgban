@@ -11,6 +11,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/mtgban/go-mtgban/mtgban"
+
 	"github.com/hashicorp/go-retryablehttp"
 )
 
@@ -64,18 +66,18 @@ const (
 
 // STKSClient reads the MTGStocks API.
 type STKSClient struct {
-	client *retryablehttp.Client
+	client *http.Client
 }
 
 // NewClient returns a client.
 func NewClient() *STKSClient {
 	stks := STKSClient{}
-	stks.client = retryablehttp.NewClient()
-	stks.client.Backoff = retryablehttp.LinearJitterBackoff
-	stks.client.RetryWaitMin = 2 * time.Second
-	stks.client.RetryWaitMax = 10 * time.Second
-	stks.client.RetryMax = 10
-	stks.client.CheckRetry = customCheckRetry
+	stks.client = mtgban.NewHTTPClient(
+		mtgban.WithHTTPBackoff(retryablehttp.LinearJitterBackoff),
+		mtgban.WithHTTPRetryWait(2*time.Second, 10*time.Second),
+		mtgban.WithHTTPRetries(10),
+		mtgban.WithHTTPCheckRetry(customCheckRetry),
+	)
 	return &stks
 }
 
@@ -148,7 +150,7 @@ func (s *STKSClient) query(ctx context.Context, link string, foil bool) (*Intere
 	req.Header.Set("Connection", "keep-alive")
 	req.Header.Set("DNT", "1")
 
-	resp, err := s.client.StandardClient().Do(req)
+	resp, err := s.client.Do(req)
 	if err != nil {
 		return nil, err
 	}
