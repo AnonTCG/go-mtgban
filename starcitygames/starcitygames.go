@@ -241,13 +241,21 @@ func (scg *Starcitygames) fileProduct(p CatalogProduct, listed bool) (misplaced 
 			scg.printf("%s", err.Error())
 		}
 
-		// SCG grades no MP, so pay HP's price there too.
+		// A grade is the lowest SCG takes at that price, so HP's price is
+		// paid at MP, which SCG does not grade, and at PL where it does not
+		// buy PL.
 		if condition == mtgban.HP {
-			mp := *entry
-			mp.Conditions = mtgban.MP
-			err := scg.addBuylistStock(second, cardID, &mp)
-			if err != nil && !ignore {
-				scg.printf("%s", err.Error())
+			fills := []mtgban.Condition{mtgban.MP}
+			if _, found := scg.offers[p.SKU][mtgban.SP]; !found {
+				fills = append(fills, mtgban.SP)
+			}
+			for _, grade := range fills {
+				fill := *entry
+				fill.Conditions = grade
+				err := scg.addBuylistStock(second, cardID, &fill)
+				if err != nil && !ignore {
+					scg.printf("%s", err.Error())
+				}
 			}
 		}
 	}

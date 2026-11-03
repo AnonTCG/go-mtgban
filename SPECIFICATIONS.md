@@ -1019,7 +1019,7 @@ links stand in for the products the datastore names no card for.
 
 `starcitygames` (HawkSearch catalog for retail, the Meilisearch sell-your-cards
 index for every buylist grade by its own status, with HP filed at MP too since
-SCG grades none, serialized detection, sealed,
+SCG grades none, and at PL where SCG makes no PL bid, serialized detection, sealed,
 plus Lorcana, Riftbound and Flesh and Blood, which its `scgGames` table maps
 onto SCG's numeric game ids), `coolstuffinc` (seven of the eight non-Magic
 games - every one but Flesh and Blood - `CreditMultiplier 1.25`),

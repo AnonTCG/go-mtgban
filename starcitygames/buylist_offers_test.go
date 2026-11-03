@@ -136,7 +136,8 @@ func TestSellListOffers(t *testing.T) {
 
 // TestBuylistFromOffers covers what processProduct files from the index: every
 // grade SCG bids on, whether or not the catalog lists that variant, with HP's
-// price at MP too, since SCG grades no MP. The listing is the one the catalog
+// price at MP too, since SCG grades no MP, and at PL where SCG makes no PL
+// bid, since a grade is the lowest it takes. The listing is the one the catalog
 // carried on 2026-11-01 with only Near Mint and Heavily Played variants.
 func TestBuylistFromOffers(t *testing.T) {
 	b := withGameDatastore(t, "fleshandblood", "FLESHANDBLOOD_PATH")
@@ -164,6 +165,9 @@ func TestBuylistFromOffers(t *testing.T) {
 		{"every grade the index bids on, MP at HP's price",
 			map[mtgban.Condition]sellListVariant{mtgban.NM: offer("1", 0.5), mtgban.SP: offer("2", 0.3), mtgban.HP: offer("3", 0.1)},
 			map[mtgban.Condition]float64{mtgban.NM: 0.5, mtgban.SP: 0.3, mtgban.MP: 0.1, mtgban.HP: 0.1}},
+		{"PL at HP's price without a PL bid",
+			map[mtgban.Condition]sellListVariant{mtgban.NM: offer("1", 0.5), mtgban.HP: offer("3", 0.1)},
+			map[mtgban.Condition]float64{mtgban.NM: 0.5, mtgban.SP: 0.1, mtgban.MP: 0.1, mtgban.HP: 0.1}},
 		{"no MP without an HP bid",
 			map[mtgban.Condition]sellListVariant{mtgban.NM: offer("1", 0.5), mtgban.SP: offer("2", 0.3)},
 			map[mtgban.Condition]float64{mtgban.NM: 0.5, mtgban.SP: 0.3}},
@@ -182,14 +186,22 @@ func TestBuylistFromOffers(t *testing.T) {
 			for _, entries := range scg.buylist {
 				for _, entry := range entries {
 					got[entry.Conditions] = entry.BuyPrice
-					if entry.Conditions == mtgban.SP && entry.InstanceID != sku+"2" {
+					_, bidPL := tt.offers[mtgban.SP]
+					if entry.Conditions == mtgban.SP && bidPL && entry.InstanceID != sku+"2" {
 						t.Errorf("SP entry has instance %q, want the PL variant's sku", entry.InstanceID)
+					}
+					if entry.Conditions == mtgban.SP && !bidPL && entry.InstanceID != sku+"3" {
+						t.Errorf("SP entry has instance %q, want the HP variant's sku it is paid through", entry.InstanceID)
 					}
 					if entry.Conditions == mtgban.NM && entry.PriceRatio != 25 {
 						t.Errorf("NM price ratio = %v, want 25", entry.PriceRatio)
 					}
-					if entry.Conditions == mtgban.SP && entry.PriceRatio != 0 {
+					if entry.Conditions == mtgban.SP && bidPL && entry.PriceRatio != 0 {
 						t.Errorf("SP price ratio = %v with no Played retail price", entry.PriceRatio)
+					}
+					// HP's $0.10 bid against its $1.00 listing.
+					if entry.Conditions == mtgban.SP && !bidPL && entry.PriceRatio != 10 {
+						t.Errorf("SP price ratio = %v, want HP's 10", entry.PriceRatio)
 					}
 				}
 			}

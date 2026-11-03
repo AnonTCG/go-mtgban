@@ -229,7 +229,8 @@ plus one grade digit, `1` NM, `2` PL, `3` HP.
   `buying_at_cost` off a played grade alone, but the storefront shows it as
   "We are not currently buying this product".
 - `scgMinBuyPrice` drops the sub-cent figures the index also carries.
-- SCG grades no MP, so the HP price is filed at MP as well.
+- A grade is the lowest SCG takes at that price. SCG grades no MP, so the
+  HP price is filed at MP as well, and at PL where SCG makes no PL bid.
 
 The index serves at most 45,000 hits per filter, offset included, so
 `sellListSlices` splits a game by `finish`, then by `rarity` where a slice

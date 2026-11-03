@@ -131,8 +131,8 @@ func TestFileListed(t *testing.T) {
 		t.Errorf("got %v, want %v", got, want)
 	}
 	for sku := range want {
-		if grades[sku] != 3 {
-			t.Errorf("%s filed at %d grades, want NM, HP and MP at HP's price", sku, grades[sku])
+		if grades[sku] != 4 {
+			t.Errorf("%s filed at %d grades, want NM, HP, and PL and MP at HP's price", sku, grades[sku])
 		}
 	}
 
