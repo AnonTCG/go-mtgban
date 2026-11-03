@@ -390,8 +390,12 @@ func Arbit(b *matcher.Backend, opts *ArbitOpts, vendor Vendor, seller Seller) []
 
 	r := resolveOpts(b, opts)
 
-	for cardID, blEntries := range vendor.Buylist() {
-		invEntries, found := seller.Inventory()[cardID]
+	buylist := vendor.Buylist()
+	inventory := seller.Inventory()
+	noQuantity := seller.Info().NoQuantityInventory
+
+	for cardID, blEntries := range buylist {
+		invEntries, found := inventory[cardID]
 		if !found {
 			continue
 		}
@@ -413,7 +417,7 @@ func Arbit(b *matcher.Backend, opts *ArbitOpts, vendor Vendor, seller Seller) []
 		}
 
 		for _, invEntry := range invEntries {
-			price, ok := r.buyable(cardID, invEntry, seller.Info().NoQuantityInventory, customFactor)
+			price, ok := r.buyable(cardID, invEntry, noQuantity, customFactor)
 			if !ok {
 				continue
 			}
@@ -474,8 +478,12 @@ func Mismatch(b *matcher.Backend, opts *ArbitOpts, reference, probe Seller) []Ar
 
 	r := resolveOpts(b, opts)
 
-	for cardID, refEntries := range reference.Inventory() {
-		invEntries, found := probe.Inventory()[cardID]
+	refInventory := reference.Inventory()
+	inventory := probe.Inventory()
+	noQuantity := probe.Info().NoQuantityInventory
+
+	for cardID, refEntries := range refInventory {
+		invEntries, found := inventory[cardID]
 		if !found {
 			continue
 		}
@@ -489,7 +497,7 @@ func Mismatch(b *matcher.Backend, opts *ArbitOpts, reference, probe Seller) []Ar
 		// options describe what is worth buying, so they are asked once
 		// about the copy rather than once per price quoted at it.
 		for _, invEntry := range invEntries {
-			price, ok := r.buyable(cardID, invEntry, probe.Info().NoQuantityInventory, customFactor)
+			price, ok := r.buyable(cardID, invEntry, noQuantity, customFactor)
 			if !ok {
 				continue
 			}
