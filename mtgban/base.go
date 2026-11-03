@@ -1,6 +1,7 @@
 package mtgban
 
 import (
+	"cmp"
 	"context"
 	"errors"
 	"fmt"
@@ -83,39 +84,35 @@ func (inv InventoryRecord) add(cardID string, entry *InventoryEntry, strict int)
 					return fmt.Errorf("%w: duplicate inventory key, same url, and qty:\n-key: %s\n-new: %v\n-old: %v", ErrDuplicateEntry, cardID, *entry, entries[i])
 				}
 
-				inv[cardID][i].Quantity += entry.Quantity
-				inv[cardID][i].Available += entry.Available
-				inv.sort(cardID)
+				merged := entries[i]
+				merged.Quantity += entry.Quantity
+				merged.Available += entry.Available
+				inv[cardID] = slices.Delete(entries, i, i+1)
+				inv.insert(cardID, merged)
 				return nil
 			}
 		}
 	}
 
-	inv[cardID] = append(inv[cardID], *entry)
-	inv.sort(cardID)
+	inv.insert(cardID, *entry)
 
 	return nil
 }
 
-// sort orders a card's entries by condition, then by lower price, then by
-// higher quantity.
-func (inv InventoryRecord) sort(cardID string) {
+// insert places an entry among a card's entries, which are ordered by
+// condition, then by lower price, then by higher quantity. An entry tied
+// with others on all three goes after them.
+func (inv InventoryRecord) insert(cardID string, entry InventoryEntry) {
 	entries := inv[cardID]
-	sort.Slice(entries, func(i, j int) bool {
-		iIdx := slices.Index(FullGradeTags, entries[i].Conditions)
-		jIdx := slices.Index(FullGradeTags, entries[j].Conditions)
-
-		if iIdx == jIdx {
-			if entries[i].Price == entries[j].Price {
-				// Prioritize higher quantity for same price and same condition
-				return entries[i].Quantity > entries[j].Quantity
-			}
-			// Prioritize lower prices first for the same condition
-			return entries[i].Price < entries[j].Price
-		}
-
-		return iIdx < jIdx
+	grade := slices.Index(FullGradeTags, entry.Conditions)
+	i := sort.Search(len(entries), func(i int) bool {
+		return cmp.Or(
+			cmp.Compare(slices.Index(FullGradeTags, entries[i].Conditions), grade),
+			cmp.Compare(entries[i].Price, entry.Price),
+			cmp.Compare(entry.Quantity, entries[i].Quantity),
+		) > 0
 	})
+	inv[cardID] = slices.Insert(entries, i, entry)
 }
 
 // AddRelaxed adds a record to the inventory, always merging into an existing
@@ -199,38 +196,37 @@ func (bl BuylistRecord) add(cardID string, entry *BuylistEntry, strict int) erro
 				if strict > 0 {
 					return fmt.Errorf("%w: attempted to add a duplicate buylist card:\n-key: %s\n-new: %v\n-old: %v", ErrDuplicateEntry, cardID, *entry, entries[i])
 				}
-				bl[cardID][i].Quantity += entry.Quantity
-				bl.sort(cardID)
+				if entry.Quantity == 0 {
+					return nil
+				}
+				merged := entries[i]
+				merged.Quantity += entry.Quantity
+				bl[cardID] = slices.Delete(entries, i, i+1)
+				bl.insert(cardID, merged)
 				return nil
 			}
 		}
 	}
 
-	bl[cardID] = append(bl[cardID], *entry)
-	bl.sort(cardID)
+	bl.insert(cardID, *entry)
 
 	return nil
 }
 
-// sort orders a card's entries by condition, then by higher price, then by
-// higher quantity.
-func (bl BuylistRecord) sort(cardID string) {
+// insert places an entry among a card's entries, which are ordered by
+// condition, then by higher price, then by higher quantity. An entry tied
+// with others on all three goes after them.
+func (bl BuylistRecord) insert(cardID string, entry BuylistEntry) {
 	entries := bl[cardID]
-	sort.Slice(entries, func(i, j int) bool {
-		iIdx := slices.Index(FullGradeTags, entries[i].Conditions)
-		jIdx := slices.Index(FullGradeTags, entries[j].Conditions)
-
-		if iIdx == jIdx {
-			if entries[i].BuyPrice == entries[j].BuyPrice {
-				// Prioritize higher quantity for same price and same condition
-				return entries[i].Quantity > entries[j].Quantity
-			}
-			// Prioritize higher prices first for the same condition
-			return entries[i].BuyPrice > entries[j].BuyPrice
-		}
-
-		return iIdx < jIdx
+	grade := slices.Index(FullGradeTags, entry.Conditions)
+	i := sort.Search(len(entries), func(i int) bool {
+		return cmp.Or(
+			cmp.Compare(slices.Index(FullGradeTags, entries[i].Conditions), grade),
+			cmp.Compare(entry.BuyPrice, entries[i].BuyPrice),
+			cmp.Compare(entry.Quantity, entries[i].Quantity),
+		) > 0
 	})
+	bl[cardID] = slices.Insert(entries, i, entry)
 }
 
 // BaseSeller holds an inventory that has already been collected. It is what
