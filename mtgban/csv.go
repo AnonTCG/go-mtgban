@@ -343,7 +343,6 @@ func WriteInventoryToCSV(b *matcher.Backend, inventory InventoryRecord, w io.Wri
 		return errors.New("WriteInventoryToCSV: nil backend")
 	}
 	csvWriter := csv.NewWriter(w)
-	defer csvWriter.Flush()
 
 	// The header is the widest any entry needs, so no row loses a column
 	// to whichever card the map yields first
@@ -397,11 +396,9 @@ func WriteInventoryToCSV(b *matcher.Backend, inventory InventoryRecord, w io.Wri
 				return err
 			}
 		}
-		csvWriter.Flush()
 	}
 
-	// Every record above was flushed as it was written, so this reports
-	// what the last write to w returned rather than nil
+	csvWriter.Flush()
 	return csvWriter.Error()
 }
 
@@ -414,7 +411,6 @@ func WriteBuylistToCSV(b *matcher.Backend, buylist BuylistRecord, creditMuliplie
 		return errors.New("WriteBuylistToCSV: nil backend")
 	}
 	csvWriter := csv.NewWriter(w)
-	defer csvWriter.Flush()
 
 	err := csvWriter.Write(BuylistHeader)
 	if err != nil {
@@ -422,13 +418,12 @@ func WriteBuylistToCSV(b *matcher.Backend, buylist BuylistRecord, creditMuliplie
 	}
 
 	for cardID, entries := range buylist {
+		cardHeader, err := cardID2record(b, cardID)
+		if err != nil {
+			continue
+		}
 		for _, entry := range entries {
-			record, err := cardID2record(b, cardID)
-			if err != nil {
-				continue
-			}
-
-			record = append(record,
+			record := append(cardHeader,
 				string(entry.Conditions),
 				fmt.Sprintf("%0.2f", entry.BuyPrice),
 				fmt.Sprintf("%0.2f", entry.BuyPrice*creditMuliplier),
@@ -442,10 +437,10 @@ func WriteBuylistToCSV(b *matcher.Backend, buylist BuylistRecord, creditMuliplie
 			if err != nil {
 				return err
 			}
-			csvWriter.Flush()
 		}
 	}
 
+	csvWriter.Flush()
 	return csvWriter.Error()
 }
 
@@ -466,7 +461,6 @@ func WriteArbitrageToCSV(b *matcher.Backend, arbitrage []ArbitEntry, w io.Writer
 		return errors.New("WriteArbitrageToCSV: nil backend")
 	}
 	csvWriter := csv.NewWriter(w)
-	defer csvWriter.Flush()
 
 	hasExtraSeller := false
 	header := ArbitHeader
@@ -513,10 +507,9 @@ func WriteArbitrageToCSV(b *matcher.Backend, arbitrage []ArbitEntry, w io.Writer
 		if err != nil {
 			return err
 		}
-
-		csvWriter.Flush()
 	}
 
+	csvWriter.Flush()
 	return csvWriter.Error()
 }
 
@@ -528,7 +521,6 @@ func WriteMismatchToCSV(b *matcher.Backend, mismatch []ArbitEntry, w io.Writer) 
 		return errors.New("WriteMismatchToCSV: nil backend")
 	}
 	csvWriter := csv.NewWriter(w)
-	defer csvWriter.Flush()
 
 	hasExtraSeller := false
 	header := MismatchHeader
@@ -571,9 +563,8 @@ func WriteMismatchToCSV(b *matcher.Backend, mismatch []ArbitEntry, w io.Writer) 
 		if err != nil {
 			return err
 		}
-
-		csvWriter.Flush()
 	}
 
+	csvWriter.Flush()
 	return csvWriter.Error()
 }
