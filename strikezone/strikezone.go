@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -550,10 +551,46 @@ func (sz *Strikezone) scrape(ctx context.Context, mode string) error {
 	if mode == modeRetail {
 		sz.inventoryDate = time.Now()
 	} else if mode == modeBuylist {
+		sz.fillBetterGrades()
 		sz.buylistDate = time.Now()
 	}
 
 	return nil
+}
+
+// fillBetterGrades gives every grade above a buylist offer that offer, unless
+// the grade has its own. A grade on this buylist is the lowest it takes: a
+// Light Play offer buys Near Mint at the same price.
+func (sz *Strikezone) fillBetterGrades() {
+	type fill struct {
+		cardID string
+		entry  mtgban.BuylistEntry
+	}
+	var fills []fill
+	for cardID, entries := range sz.buylist {
+		var offer *mtgban.BuylistEntry
+		for i := len(mtgban.FullGradeTags) - 1; i >= 0; i-- {
+			grade := mtgban.FullGradeTags[i]
+			j := slices.IndexFunc(entries, func(e mtgban.BuylistEntry) bool {
+				return e.Conditions == grade
+			})
+			if j >= 0 {
+				offer = &entries[j]
+				continue
+			}
+			if offer != nil {
+				entry := *offer
+				entry.Conditions = grade
+				fills = append(fills, fill{cardID, entry})
+			}
+		}
+	}
+	for _, f := range fills {
+		err := sz.buylist.Add(f.cardID, &f.entry)
+		if err != nil {
+			sz.printf("%v", err)
+		}
+	}
 }
 
 // SetConfig applies options after the scraper was built. See

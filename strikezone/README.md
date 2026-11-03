@@ -33,6 +33,15 @@ listing is pinned to that drop's number. The names still refused (158 keys in
 the capture) have more than one drop in the finish, which no wording on the
 page tells apart.
 
+## Buylist grades
+
+A buylist row's grade is the lowest Strike Zone takes at that price: a Light
+Play offer also buys Near Mint. `fillBetterGrades` gives each grade above an
+offer that offer's price and cart id, unless the grade has an offer of its
+own. A better grade listed below a worse one's price is left as listed. The
+filled grades share the offer's quantity rather than adding to it: a Light
+Play offer for two copies takes two in all, whatever their grades.
+
 ## Cart ids
 
 Every buylist and store entry's `InstanceID` is the id Strike Zone's CSV cart
