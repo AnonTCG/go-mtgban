@@ -172,6 +172,6 @@ func (mp *Index) Info() (info mtgban.ScraperInfo) {
 	info.MetadataOnly = true
 	info.NoQuantityInventory = true
 	info.Family = "MP"
-	info.Game = matcher.GameMagic
+	info.Game = mp.backend.Game
 	return
 }

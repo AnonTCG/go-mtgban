@@ -233,6 +233,6 @@ func (ck *Graded) Info() (info mtgban.ScraperInfo) {
 	info.Name = "Card Kingdom Graded"
 	info.Shorthand = "CKGraded"
 	info.InventoryTimestamp = &ck.inventoryDate
-	info.Game = matcher.GameMagic
+	info.Game = ck.backend.Game
 	return
 }

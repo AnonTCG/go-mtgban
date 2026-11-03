@@ -565,7 +565,7 @@ func (ml *Manaleak) Buylist() mtgban.BuylistRecord {
 func (ml *Manaleak) Info() (info mtgban.ScraperInfo) {
 	info.Name = "Manaleak"
 	info.Shorthand = "ML"
-	info.Game = matcher.GameMagic
+	info.Game = ml.backend.Game
 	info.CountryFlag = "GB"
 	info.InventoryTimestamp = &ml.inventoryDate
 	info.BuylistTimestamp = &ml.buylistDate

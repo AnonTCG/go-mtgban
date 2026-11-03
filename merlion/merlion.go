@@ -117,7 +117,7 @@ func (mg *Merlion) Buylist() mtgban.BuylistRecord {
 func (mg *Merlion) Info() (info mtgban.ScraperInfo) {
 	info.Name = "Merlion Games"
 	info.Shorthand = "MG"
-	info.Game = matcher.GameRiftbound
+	info.Game = mg.backend.Game
 	info.BuylistTimestamp = &mg.buylistDate
 	return
 }

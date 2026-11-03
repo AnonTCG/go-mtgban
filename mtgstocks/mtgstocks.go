@@ -179,6 +179,6 @@ func (stks *MTGStocks) Info() (info mtgban.ScraperInfo) {
 	info.Shorthand = "STKS"
 	info.InventoryTimestamp = &stks.inventoryDate
 	info.MetadataOnly = true
-	info.Game = matcher.GameMagic
+	info.Game = stks.backend.Game
 	return
 }

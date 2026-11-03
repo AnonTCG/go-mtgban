@@ -192,7 +192,7 @@ func (mp *Manapool) Info() (info mtgban.ScraperInfo) {
 	info.Shorthand = "MP"
 	info.InventoryTimestamp = &mp.inventoryDate
 	info.NoQuantityInventory = true
-	info.Game = matcher.GameMagic
+	info.Game = mp.backend.Game
 	return
 }
 

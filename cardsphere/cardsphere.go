@@ -216,6 +216,6 @@ func (cs *Cardsphere) Info() (info mtgban.ScraperInfo) {
 	// Rebuild the cash out fee
 	info.CreditMultiplier = 1.1
 	info.BuylistTimestamp = &cs.buylistDate
-	info.Game = matcher.GameMagic
+	info.Game = cs.backend.Game
 	return
 }
