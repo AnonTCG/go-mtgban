@@ -53,6 +53,13 @@ what silently never counts toward a total (serialized, cosmic foil,
 unfixed Secret Lair bonuses, anything under the bulk threshold) and why
 that floor is deliberately the same for every source.
 
+`cardkingdom/README.md` covers what a store's feed cannot say: Card Kingdom
+publishes one buy price per card, so every lower grade comes from its schedule.
+Read it before changing `gradedBuyPrices` or `paidAsFoil`, because `is_foil` is
+not what picks the Foils row, and a URL suffix inferred from the data is. It
+also says which rows of the schedule no payout has confirmed, and how to measure
+them.
+
 A third case tempers "fix it in `matcher`" without contradicting it: a
 shared matcher rule reaches every vendor and every printing of its class,
 so size the fix to the evidence behind it. When one vendor's evidence would
