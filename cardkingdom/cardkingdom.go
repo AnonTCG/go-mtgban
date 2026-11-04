@@ -6,6 +6,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math"
 	"net/url"
 	"strconv"
 	"strings"
@@ -135,7 +136,7 @@ func (ck *Cardkingdom) Load(ctx context.Context) error {
 		}
 		// For newly added cards the nmPrice may not be initialized, so we the
 		// root price value that is known to be valid (and skip card if data is
-		// missing, since it gets used in the buylist step).
+		// missing).
 		if retailPrices[0] == 0 {
 			retailPrices[0] = card.PriceRetail
 		}
@@ -209,12 +210,8 @@ func (ck *Cardkingdom) Load(ctx context.Context) error {
 			}
 			u.RawQuery = q.Encode()
 
+			buyPrices := gradedBuyPrices(card)
 			for i, grade := range mtgban.DefaultGradeTags {
-				// Apply the same downgrade present in the retail prices since
-				// there are a class of cards where CK downgrades price differently,
-				// as if they were nonfoil
-				buyPrice := card.PriceBuy * retailPrices[i] / retailPrices[0]
-
 				var priceRatio float64
 
 				if card.PriceRetail > 0 {
@@ -223,7 +220,7 @@ func (ck *Cardkingdom) Load(ctx context.Context) error {
 
 				out := &mtgban.BuylistEntry{
 					Conditions: grade,
-					BuyPrice:   buyPrice,
+					BuyPrice:   buyPrices[i],
 					Quantity:   card.QtyBuying,
 					PriceRatio: priceRatio,
 					URL:        u.String(),
@@ -247,13 +244,12 @@ func (ck *Cardkingdom) Load(ctx context.Context) error {
 				}
 			}
 		} else if ck.preserveOOS {
+			buyPrices := gradedBuyPrices(card)
 			for i, grade := range mtgban.DefaultGradeTags {
-				buyPrice := card.PriceBuy * retailPrices[i] / retailPrices[0]
-
 				// The price CK lists while not buying, and the product it
 				// lists it for
 				out := &mtgban.BuylistEntry{
-					BuyPrice:   buyPrice,
+					BuyPrice:   buyPrices[i],
 					Conditions: grade,
 					VendorName: availableTraderNames[1],
 					OriginalID: strconv.Itoa(card.ID),
@@ -273,6 +269,56 @@ func (ck *Cardkingdom) Load(ctx context.Context) error {
 	ck.buylistDate = time.Now()
 
 	return nil
+}
+
+// paidAsFoil reports whether Card Kingdom pays card on its schedule's Foils row,
+// which covers what its carts and invoices label "<Edition> Foil". The list has
+// no such edition, and IsFoil also marks Promotional, Secret Lair and others,
+// which follow the price rows.
+//
+// The URL tells them apart: the labelled foils get "-foil" after the name and
+// variation, so a variation ending in Foil shows it twice. Retail prices agree:
+// VG sells under 65% of NM on labelled foils, and at 70% or more on the rest.
+func paidAsFoil(card cardkingdom.Product) bool {
+	if !card.IsFoil {
+		return false
+	}
+	if strings.HasSuffix(strings.ToLower(card.Variation), "foil") {
+		return strings.HasSuffix(card.URL, "-foil-foil")
+	}
+	return strings.HasSuffix(card.URL, "-foil")
+}
+
+// gradedBuyPrices returns what Card Kingdom pays for card at each of
+// mtgban.DefaultGradeTags, by its published schedule. Percentages apply to the
+// NM buy price, and the result rounds half up to the cent, as its payouts do.
+//
+// Alpha, Beta and Unlimited have their own row, and so do foils, whatever they
+// are worth. Everything else goes by what Card Kingdom pays for it, not what it
+// sells it for.
+func gradedBuyPrices(card cardkingdom.Product) [4]float64 {
+	var percents [4]float64
+	switch {
+	case card.Edition == "Alpha" || card.Edition == "Beta" || card.Edition == "Unlimited":
+		percents = [4]float64{100, 80, 60, 40}
+	case paidAsFoil(card):
+		percents = [4]float64{100, 75, 50, 30}
+	case card.PriceBuy < 15:
+		percents = [4]float64{100, 80, 70, 50}
+	case card.PriceBuy < 25:
+		percents = [4]float64{100, 85, 70, 50}
+	case card.PriceBuy < 100:
+		percents = [4]float64{100, 85, 75, 65}
+	default:
+		percents = [4]float64{100, 90, 80, 70}
+	}
+
+	cents := math.Round(card.PriceBuy * 100)
+	var prices [4]float64
+	for i, percent := range percents {
+		prices[i] = math.Round(cents*percent/100) / 100
+	}
+	return prices
 }
 
 // Inventory returns what Load collected. See mtgban.Seller.

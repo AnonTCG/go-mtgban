@@ -8,6 +8,8 @@ import (
 	"path/filepath"
 	"slices"
 	"testing"
+
+	"github.com/mtgban/go-cardkingdom"
 )
 
 // loadFixture is rows of Card Kingdom's pricelist of 2026-10-02 as
@@ -23,8 +25,7 @@ const loadFixture = `{"meta": {"created_at": "2026-10-02 05:05:11", "base_url": 
 ]}`
 
 // TestLoadPricesEachGrade pins what a pricelist row becomes: a retail entry
-// per grade in stock, and an offer per grade, the buy price scaled by that
-// grade's retail price the way Card Kingdom scales its own.
+// per grade in stock, and an offer per grade from Card Kingdom's schedule.
 func TestLoadPricesEachGrade(t *testing.T) {
 	b := realDatastore(t)
 	path := filepath.Join(t.TempDir(), "pricelist.json")
@@ -76,12 +77,12 @@ func TestLoadPricesEachGrade(t *testing.T) {
 		"Relic Barrier LEG": {
 			"sells NM 12.99 x12", "sells SP 10.39 x2", "sells MP 9.09 x6",
 			"Card Kingdom (last known) buys NM 5.25", "Card Kingdom (last known) buys SP 4.20",
-			"Card Kingdom (last known) buys MP 3.67", "Card Kingdom (last known) buys HP 2.63",
+			"Card Kingdom (last known) buys MP 3.68", "Card Kingdom (last known) buys HP 2.63",
 		},
 		"Angelic Favor NEM foil": {
 			"sells SP 1.19 x4",
-			"Card Kingdom buys NM 0.45", "Card Kingdom buys SP 0.36",
-			"Card Kingdom buys MP 0.27", "Card Kingdom buys HP 0.18",
+			"Card Kingdom buys NM 0.45", "Card Kingdom buys SP 0.34",
+			"Card Kingdom buys MP 0.23", "Card Kingdom buys HP 0.14",
 		},
 		// The NM price falls back to the retail price
 		"Air Elemental 4ED": {
@@ -130,5 +131,129 @@ func TestLoadPricesEachGrade(t *testing.T) {
 		if query.Get("filter[name]") != "Pang Tong, Young Phoenix" || query.Get("filter[edition]") != "portal-3k" || query.Get("partner") != "ban" {
 			t.Errorf("buylist link %s", offer.URL)
 		}
+	}
+}
+
+// TestGradedBuyPrices pins each row of Card Kingdom's schedule, the prices that
+// open them, and which URLs put a foil on the Foils row.
+func TestGradedBuyPrices(t *testing.T) {
+	tests := []struct {
+		name string
+		card cardkingdom.Product
+		want [4]float64
+	}{
+		{
+			name: "a labelled foil stays on the foil row under the top price row",
+			card: gradedRow("Nemesis", "", "mtg/nemesis/blinding-angel-foil", true, 55),
+			want: [4]float64{55, 41.25, 27.5, 16.5},
+		},
+		{
+			name: "a labelled foil stays on the foil row over the top price row",
+			card: gradedRow("Nemesis", "", "mtg/nemesis/parallax-wave-foil", true, 325),
+			want: [4]float64{325, 243.75, 162.5, 97.5},
+		},
+		{
+			name: "a cheap foil rounds half up",
+			card: gradedRow("Nemesis", "", "mtg/nemesis/cloudskate-foil", true, 0.7),
+			want: [4]float64{0.7, 0.53, 0.35, 0.21},
+		},
+		{
+			name: "a labelled foil whose variation ends in Foil has it twice",
+			card: gradedRow("Universes Beyond: Warhammer 40,000", "004 - Surge Foil", "mtg/universes-beyond-warhammer-40000/the-swarmlord-004-surge-foil-foil", true, 40),
+			want: [4]float64{40, 30, 20, 12},
+		},
+		{
+			name: "a labelled foil whose variation holds Foil elsewhere",
+			card: gradedRow("Universes Beyond: Doctor Who Variants", "0931 - Surge Foil - Extended Art", "mtg/universes-beyond-doctor-who-variants/four-knocks-0931-surge-foil-extended-art-foil", true, 8),
+			want: [4]float64{8, 6, 4, 2.4},
+		},
+		{
+			name: "a Judge foil follows the price rows",
+			card: gradedRow("Promotional", "Judge Foil", "mtg/promotional/balance-judge-foil", true, 11.5),
+			want: [4]float64{11.5, 9.2, 8.05, 5.75},
+		},
+		{
+			name: "a Secret Lair foil follows the price rows",
+			card: gradedRow("Secret Lair", "011 - Foil", "mtg/secret-lair/the-ur-dragon-011-foil", true, 45),
+			want: [4]float64{45, 38.25, 33.75, 29.25},
+		},
+		{
+			name: "a foil with no Foil in its URL follows the price rows",
+			card: gradedRow("From the Vault: Dragons", "", "mtg/from-the-vault-dragons/bladewing-the-risen", true, 20),
+			want: [4]float64{20, 17, 14, 10},
+		},
+		{
+			name: "a foil whose URL holds Foil elsewhere follows the price rows",
+			card: gradedRow("Commander Legends Variants", "Foil Etched", "mtg/commander-legends-variants/prossh-skyraider-of-kher-foil-etched", true, 6),
+			want: [4]float64{6, 4.8, 4.2, 3},
+		},
+		{
+			name: "a labelled Foil Etched is on the foil row",
+			card: gradedRow("March of the Machine: The Aftermath Variants", "Foil Etched", "mtg/march-of-the-machine-the-aftermath-variants/metropolis-reformer-foil-etched-foil", true, 0.9),
+			want: [4]float64{0.9, 0.68, 0.45, 0.27},
+		},
+		{
+			name: "a nonfoil whose URL ends in foil follows the price rows",
+			card: gradedRow("Promotional", "MPS 2007 Non-Foil", "mtg/promotional/plains-mps-2007-non-foil", false, 1),
+			want: [4]float64{1, 0.8, 0.7, 0.5},
+		},
+		{
+			name: "under 15 by the buy price",
+			card: gradedRow("4th Edition", "", "mtg/4th-edition/strip-mine", false, 9),
+			want: [4]float64{9, 7.2, 6.3, 4.5},
+		},
+		{
+			name: "15 opens the second price row",
+			card: gradedRow("4th Edition", "", "mtg/4th-edition/birds-of-paradise", false, 15),
+			want: [4]float64{15, 12.75, 10.5, 7.5},
+		},
+		{
+			name: "25 to 100 by the buy price",
+			card: gradedRow("4th Edition", "", "mtg/4th-edition/mana-vault", false, 65),
+			want: [4]float64{65, 55.25, 48.75, 42.25},
+		},
+		{
+			name: "100 opens the top price row",
+			card: gradedRow("Alliances", "", "mtg/alliances/lake-of-the-dead", false, 100),
+			want: [4]float64{100, 90, 80, 70},
+		},
+		{
+			name: "a cheap card rounds half up",
+			card: gradedRow("5th Edition", "", "mtg/5th-edition/force-spike", false, 0.85),
+			want: [4]float64{0.85, 0.68, 0.6, 0.43},
+		},
+		{
+			name: "Beta has its own row at any price",
+			card: gradedRow("Beta", "", "mtg/beta/animate-dead", false, 275),
+			want: [4]float64{275, 220, 165, 110},
+		},
+		{
+			name: "Alpha has its own row at any price",
+			card: gradedRow("Alpha", "", "mtg/alpha/animate-dead", false, 100),
+			want: [4]float64{100, 80, 60, 40},
+		},
+		{
+			name: "Unlimited has its own row at any price",
+			card: gradedRow("Unlimited", "", "mtg/unlimited/counterspell", false, 42.5),
+			want: [4]float64{42.5, 34, 25.5, 17},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := gradedBuyPrices(tt.card)
+			if got != tt.want {
+				t.Errorf("gradedBuyPrices() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func gradedRow(edition, variation, url string, foil bool, buy float64) cardkingdom.Product {
+	return cardkingdom.Product{
+		Edition:   edition,
+		Variation: variation,
+		URL:       url,
+		IsFoil:    foil,
+		PriceBuy:  buy,
 	}
 }
