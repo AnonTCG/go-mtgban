@@ -79,6 +79,7 @@ var sldJPNLangDupes = []string{
 // holds is foil.
 var productsWithOnlyFoils = []string{
 	"2017 Magic The Gathering Hascon Collection",
+	"Commander's Arsenal",
 	"Commanders Arsenal",
 	"Final Fantasy Box Set Camp Comrades",
 	"Final Fantasy Box Set Children of Fate",
@@ -94,6 +95,7 @@ var productsWithOnlyFoils = []string{
 	"Secret Lair Drop Eldraine Wonderland",
 	"Secret Lair Drop Extra Life 2020",
 	"Secret Lair Drop Here Be Dragons",
+	"Secret Lair Drop International Women's Day 2020",
 	"Secret Lair Drop International Womens Day 2020",
 	"Secret Lair Drop Kaleidoscope Killers",
 	"Secret Lair Drop LOOK AT THE KITTIES",

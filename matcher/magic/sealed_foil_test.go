@@ -46,6 +46,8 @@ func TestSealedHoldsOnlyFoils(t *testing.T) {
 		{"Secret Lair Drop Wild in Bloom", true},
 		{"Secret Lair Drop OMG KITTIES", true},
 		{"Commanders Arsenal", true},
+		{"Commander's Arsenal", true},
+		{"Secret Lair Drop International Women's Day 2020", true},
 		{"Ponies The Galloping", true},
 		// ... and only exactly: this one is a different, mixed product.
 		{"Secret Lair Drop Extra Life 2023 Ponies The Galloping 2", false},
