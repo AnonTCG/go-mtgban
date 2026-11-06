@@ -78,6 +78,7 @@ type SealedProduct struct {
 	Category    string                     `json:"category"`
 	Contents    map[string][]SealedContent `json:"contents"`
 	Identifiers map[string]string          `json:"identifiers"`
+	IsFoilOnly  bool                       `json:"isFoilOnly"`
 	Language    string                     `json:"language"`
 	Name        string                     `json:"name"`
 	SetCode     string                     `json:"setCode"`
@@ -610,7 +611,7 @@ func generateSealedUUIDs(product SealedProduct, uuids map[string]*matcher.CardOb
 	card.Images["crop"] = generateSealedImageURL(card, "normal")
 
 	isEtched := strings.Contains(product.Name, "Etched")
-	isFoil := isEtched || sealedHoldsOnlyFoils(product.Name)
+	isFoil := isEtched || sealedHoldsOnlyFoils(product)
 
 	uuids[product.UUID] = &matcher.CardObject{
 		Card:    toMtgCard(card),
@@ -622,14 +623,17 @@ func generateSealedUUIDs(product SealedProduct, uuids map[string]*matcher.CardOb
 }
 
 // sealedHoldsOnlyFoils reports whether every card a sealed product holds is
-// foil, which the product's own name usually says and sometimes does not.
+// foil, which mtgjson's isFoilOnly records where the product's own name does
+// not say so.
 //
 // Where a whole product line is foil the line is named here rather than each
 // of its products: every From the Vault, every Scene Box, every SDCC
-// planeswalker set. The rest are named
-// one by one in productsWithOnlyFoils, because nothing about the name says it.
-func sealedHoldsOnlyFoils(name string) bool {
+// planeswalker set.
+func sealedHoldsOnlyFoils(product SealedProduct) bool {
+	name := product.Name
 	switch {
+	case product.IsFoilOnly:
+		return true
 	case strings.Contains(name, "Foil") && !strings.Contains(name, "Non"):
 		return true
 	case strings.Contains(name, "Premium"):
@@ -643,8 +647,6 @@ func sealedHoldsOnlyFoils(name string) bool {
 	case strings.Contains(name, "Scene Box"):
 		return true
 	case strings.Contains(name, "SDCC") && strings.Contains(name, "Planeswalker"):
-		return true
-	case slices.Contains(productsWithOnlyFoils, name):
 		return true
 	}
 	return false

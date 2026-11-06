@@ -356,8 +356,7 @@ and `Names` included; `AllPromoTypes` is a field.
 **What the Magic loader does** - data *repair*, not just indexing. This is the
 heavyweight path, and it lives entirely in `matcher/magic/mtgjson.go`
 (`magic.Load`), with its companion tables in `matcher/magic/table.go`
-(the missing PALP/PELP tag lists, `sldJPNLangDupes`, `productsWithOnlyFoils`,
-the Magic color-name map). Core's `matcher/table.go`
+(the missing PALP/PELP tag lists, `sldJPNLangDupes`, the Magic color-name map). Core's `matcher/table.go`
 retains only the language maps (`LanguageCode2LanguageTag` and its inverse).
 
 - `skipSet()` drops online-only / art-series / empty sets. Tokens are filed

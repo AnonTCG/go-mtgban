@@ -71,64 +71,6 @@ var sldJPNLangDupes = []string{
 	"909",
 }
 
-// productsWithOnlyFoils names sealed products whose every card is foil and
-// whose name does not say so. A product belonging to a line that is foil
-// throughout needs no entry: sealedHoldsOnlyFoils names the line instead.
-//
-// Verified against the sealed decklists: every non-token card each of these
-// holds is foil.
-var productsWithOnlyFoils = []string{
-	"2017 Magic The Gathering Hascon Collection",
-	"Commander's Arsenal",
-	"Commanders Arsenal",
-	"Final Fantasy Box Set Camp Comrades",
-	"Final Fantasy Box Set Children of Fate",
-	"Final Fantasy Box Set Garland at the Chaos Shrine",
-	"Final Fantasy Box Set The Siege of Alexandria",
-	"Judge Promo Pack 2014 Full Art Land Set",
-	"Ponies The Galloping",
-	"Secret Lair Bundle Theros Stargazing Vol I-V",
-	"Secret Lair Drop Animar and Friends",
-	"Secret Lair Drop April Fools",
-	"Secret Lair Drop Calling All Hydra Heads",
-	"Secret Lair Drop Can You Feel with a Heart of Steel",
-	"Secret Lair Drop Eldraine Wonderland",
-	"Secret Lair Drop Extra Life 2020",
-	"Secret Lair Drop Here Be Dragons",
-	"Secret Lair Drop International Women's Day 2020",
-	"Secret Lair Drop International Womens Day 2020",
-	"Secret Lair Drop Kaleidoscope Killers",
-	"Secret Lair Drop LOOK AT THE KITTIES",
-	"Secret Lair Drop MagicCon The Gathering",
-	"Secret Lair Drop More Borderless Planeswalkers",
-	"Secret Lair Drop Mountain Go",
-	"Secret Lair Drop OMG KITTIES",
-	"Secret Lair Drop Secret Lair x MSCHF",
-	"Secret Lair Drop Seeing Visions",
-	"Secret Lair Drop Showcase March of the Machine Vol 1",
-	"Secret Lair Drop Showcase March of the Machine Vol 2",
-	"Secret Lair Drop Showcase March of the Machine Vol 3",
-	"Secret Lair Drop Slay the Day",
-	"Secret Lair Drop So Salty",
-	"Secret Lair Drop Thalia Beyond the Helvault",
-	"Secret Lair Drop The Godzilla Lands",
-	"Secret Lair Drop The Path Not Traveled",
-	"Secret Lair Drop The Walking Dead",
-	"Secret Lair Drop Theros Stargazing Vol I Heliod",
-	"Secret Lair Drop Theros Stargazing Vol II Thassa",
-	"Secret Lair Drop Theros Stargazing Vol III Erebos",
-	"Secret Lair Drop Theros Stargazing Vol IV Purphoros",
-	"Secret Lair Drop Theros Stargazing Vol V Nylea",
-	"Secret Lair Drop Viva Las Rakdos",
-	"Secret Lair Drop We Hope You Like Squirrels",
-	"Secret Lair Drop Wild in Bloom",
-	"Secret Lair Drop Year of the Rat",
-	"Secret Lair Festival in a Box Minneapolis 2023 Bundle",
-	"Secret Lair Festival in a Box Philadelphia 2023 Bundle",
-	"Secret Lair Ultimate Edition 2 Box Black",
-	"Secret Lair Ultimate Edition 2 Box Grey",
-}
-
 var mtgColorNameMap = map[string]string{
 	"W": "white",
 	"U": "blue",

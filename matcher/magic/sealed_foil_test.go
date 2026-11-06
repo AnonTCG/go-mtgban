@@ -1,9 +1,6 @@
 package magic
 
-import (
-	"strings"
-	"testing"
-)
+import "testing"
 
 // The rule that decides whether a sealed product's contents are all foil.
 // Each case is a real product name, since the rule is entirely about how the
@@ -42,45 +39,17 @@ func TestSealedHoldsOnlyFoils(t *testing.T) {
 		{"Kaladesh Planeswalker Decks Set of 2", false},
 		{"Core Set 2020 Planeswalker Decks Set of 5", false},
 
-		// Everything else is named.
-		{"Secret Lair Drop Wild in Bloom", true},
-		{"Secret Lair Drop OMG KITTIES", true},
-		{"Commanders Arsenal", true},
-		{"Commander's Arsenal", true},
-		{"Secret Lair Drop International Women's Day 2020", true},
-		{"Ponies The Galloping", true},
-		// ... and only exactly: this one is a different, mixed product.
-		{"Secret Lair Drop Extra Life 2023 Ponies The Galloping 2", false},
-		{"Secret Lair Drop Countless Colors", false},
+		// Nothing about the name says it here.
+		{"Secret Lair Drop Wild in Bloom", false},
 	} {
-		if got := sealedHoldsOnlyFoils(tc.name); got != tc.want {
+		got := sealedHoldsOnlyFoils(SealedProduct{Name: tc.name})
+		if got != tc.want {
 			t.Errorf("sealedHoldsOnlyFoils(%q) = %v, want %v", tc.name, got, tc.want)
 		}
 	}
-}
 
-// Every name in the table is there because no rule covers it. One a rule
-// already catches is dead weight; one duplicated is a merge artifact.
-func TestProductsWithOnlyFoilsHasNoDuplicates(t *testing.T) {
-	seen := map[string]bool{}
-	for _, name := range productsWithOnlyFoils {
-		if seen[name] {
-			t.Errorf("%q is listed twice", name)
-		}
-		seen[name] = true
-	}
-}
-
-// A name a rule already matches does not belong in the table.
-func TestProductsWithOnlyFoilsAreNotRuleCovered(t *testing.T) {
-	for _, name := range productsWithOnlyFoils {
-		for _, rule := range []string{"From the Vault", "Scene Box", "Premium", "VIP Edition"} {
-			if strings.Contains(name, rule) {
-				t.Errorf("%q is already matched by the %q rule", name, rule)
-			}
-		}
-		if strings.Contains(name, "SDCC") && strings.Contains(name, "Planeswalker") {
-			t.Errorf("%q is already matched by the SDCC planeswalker rule", name)
-		}
+	flagged := SealedProduct{Name: "Secret Lair Drop Wild in Bloom", IsFoilOnly: true}
+	if !sealedHoldsOnlyFoils(flagged) {
+		t.Errorf("sealedHoldsOnlyFoils(%q) with IsFoilOnly = true: got false, want true", flagged.Name)
 	}
 }
