@@ -189,7 +189,7 @@ func TestPreprocessPromoShelves(t *testing.T) {
 			"Secret Lair Commander Deck: Odds and Ends", "Doom Whisperer", "", "128", "", 721409, "PLST", "MKC-128"},
 		{"a Secret Lair Commander Deck card with an unresolved id and no List printing is not guessed by number", 415484, CategoryMagicSingles,
 			"Secret Lair Commander Deck: Odds and Ends", "Evolving Wilds", "", "329", "", 999999999, "", ""},
-		{"a Secret Lair Commander Deck card with an unresolved id is not an older List printing", 415424, CategoryMagicSingles,
+		{"a Secret Lair Commander Deck card sent with a sealed product id is not an older List printing", 415424, CategoryMagicSingles,
 			"Secret Lair Commander Deck: Odds and Ends", "Fatespinner", "", "036", "", 721391, "", ""},
 		{"an overridden TCGplayer id outranks a Scryfall id naming another card", 155490, CategoryMagicSingles,
 			"Strixhaven: School of Mages Promos", "Nicol Bolas, God-Pharaoh", "", "140", "256ff8d2-0f0d-4717-a58f-ce3be1d6340c", 0, "PHOU", "140p"},

@@ -306,6 +306,13 @@ func Preprocess(b *matcher.Backend, bp *Blueprint) (*matcher.InputCard, error) {
 	// blueprint says which space each one lives in
 	uuidFromScryfall := b.ConvertID(matcher.IDSpaceScryfall, bp.ScryfallID)
 	uuidFromTCG := b.ConvertID(matcher.IDSpaceTCGplayer, fmt.Sprintf("%d", bp.TCGplayerProductID()))
+	// A single sent with a sealed product's id is not that product.
+	if bp.CategoryID == CategoryMagicSingles {
+		co, err := b.GetUUID(uuidFromTCG)
+		if err == nil && co.Sealed {
+			uuidFromTCG = ""
+		}
+	}
 	id := namedID(b, bp, uuidFromScryfall, uuidFromTCG)
 	if id != "" {
 		idEdition, idVariation := edition, bp.Version
@@ -470,7 +477,7 @@ func Preprocess(b *matcher.Backend, bp *Blueprint) (*matcher.InputCard, error) {
 		}
 	default:
 		if strings.HasPrefix(edition, "Secret Lair Commander Deck") {
-			// An id that got this far resolved nowhere: find the List printing
+			// An id that got this far named no card: find the List printing
 			// by name and number, else refuse, since the number alone would
 			// guess at another card. Only an id-less card may be an SLD print.
 			hasID := bp.ScryfallID != "" || bp.TCGplayerProductID() != 0
