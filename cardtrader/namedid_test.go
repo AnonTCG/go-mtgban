@@ -30,10 +30,10 @@ func TestNamedID(t *testing.T) {
 	plainTCGplayer := uuid(matcher.IDSpaceTCGplayer, "237341")
 
 	for _, tt := range []struct {
-		desc                    string
-		scryfallID, tcgplayerID string
-		cardName                string
-		want                    string
+		desc                          string
+		uuidFromScryfall, uuidFromTCG string
+		cardName                      string
+		want                          string
 	}{
 		{"neither id says anything", "", "", "Exponential Growth", ""},
 		{"only the scryfall id", shifted, "", "Exponential Growth", shifted},
@@ -41,32 +41,32 @@ func TestNamedID(t *testing.T) {
 		{
 			// Both name Verdant Mastery, so the order stands and the
 			// preferred id answers as it always has.
-			desc:       "ids agreeing on the card leave the order alone",
-			scryfallID: plainScryfall, tcgplayerID: plainTCGplayer,
+			desc:             "ids agreeing on the card leave the order alone",
+			uuidFromScryfall: plainScryfall, uuidFromTCG: plainTCGplayer,
 			cardName: "Verdant Mastery", want: plainScryfall,
 		},
 		{
 			// The wording is the third thing the blueprint says, and it is
 			// what breaks a tie the ids cannot.
-			desc:       "the name picks the id that names its card",
-			scryfallID: shifted, tcgplayerID: itsOwn,
+			desc:             "the name picks the id that names its card",
+			uuidFromScryfall: shifted, uuidFromTCG: itsOwn,
 			cardName: "Exponential Growth", want: itsOwn,
 		},
 		{
-			desc:       "and leaves the preferred id where the name agrees with it",
-			scryfallID: shifted, tcgplayerID: itsOwn,
+			desc:             "and leaves the preferred id where the name agrees with it",
+			uuidFromScryfall: shifted, uuidFromTCG: itsOwn,
 			cardName: "Ecological Appreciation", want: shifted,
 		},
 		{
 			// A pair of tokens sold under one blueprint names neither, and
 			// guessing between them would be worse than keeping the order.
-			desc:       "a name settling nothing changes nothing",
-			scryfallID: shifted, tcgplayerID: itsOwn,
+			desc:             "a name settling nothing changes nothing",
+			uuidFromScryfall: shifted, uuidFromTCG: itsOwn,
 			cardName: "Soldier // Spirit", want: shifted,
 		},
 	} {
 		t.Run(tt.desc, func(t *testing.T) {
-			got := namedID(b, &Blueprint{Name: tt.cardName}, tt.scryfallID, tt.tcgplayerID)
+			got := namedID(b, &Blueprint{Name: tt.cardName}, tt.uuidFromScryfall, tt.uuidFromTCG)
 			if got != tt.want {
 				t.Errorf("namedID = %q, want %q", got, tt.want)
 			}

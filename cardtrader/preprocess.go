@@ -32,9 +32,9 @@ var tcgplayerIDWins = map[int]bool{
 	416464: true, // Aerid Konstrari, Reality Fracture Promos, carries the base FRA 121's id
 }
 
-// namedID picks between the two ids a blueprint carries, preferring the
-// scryfall one as before and only weighing the blueprint's own wording where
-// the vendor's ids contradict each other.
+// namedID picks between the uuids a blueprint's two ids convert to,
+// preferring the scryfall one as before and only weighing the blueprint's own
+// wording where the vendor's ids contradict each other.
 //
 // An id is the surest thing a storefront publishes, but the two are not
 // checked against each other on the way in and a shelf can be filed a card
@@ -49,38 +49,38 @@ var tcgplayerIDWins = map[int]bool{
 // one, and failing that the English printing beats a foreign one. Where the
 // wording settles nothing, which is what a pair of tokens sold under one
 // blueprint looks like, the order stands and nothing changes.
-func namedID(b *matcher.Backend, bp *Blueprint, scryfallID, tcgplayerID string) string {
-	if scryfallID == "" {
-		return tcgplayerID
+func namedID(b *matcher.Backend, bp *Blueprint, uuidFromScryfall, uuidFromTCG string) string {
+	if uuidFromScryfall == "" {
+		return uuidFromTCG
 	}
-	if tcgplayerID == "" || scryfallID == tcgplayerID {
-		return scryfallID
+	if uuidFromTCG == "" || uuidFromScryfall == uuidFromTCG {
+		return uuidFromScryfall
 	}
 	if tcgplayerIDWins[bp.ID] {
-		return tcgplayerID
+		return uuidFromTCG
 	}
 
-	scryfallCard, err := b.GetUUID(scryfallID)
+	scryfallCard, err := b.GetUUID(uuidFromScryfall)
 	if err != nil {
-		return scryfallID
+		return uuidFromScryfall
 	}
-	tcgplayerCard, err := b.GetUUID(tcgplayerID)
+	tcgplayerCard, err := b.GetUUID(uuidFromTCG)
 	if err != nil {
-		return scryfallID
+		return uuidFromScryfall
 	}
 	if matcher.Equals(scryfallCard.Name, tcgplayerCard.Name) {
 		if preferTCGplayerPrinting(scryfallCard, tcgplayerCard, bp.Properties.Number) {
-			return tcgplayerID
+			return uuidFromTCG
 		}
-		return scryfallID
+		return uuidFromScryfall
 	}
 
 	namesScryfall := idNamesCard(scryfallCard, bp.Name)
 	namesTCGplayer := idNamesCard(tcgplayerCard, bp.Name)
 	if namesTCGplayer && !namesScryfall {
-		return tcgplayerID
+		return uuidFromTCG
 	}
-	return scryfallID
+	return uuidFromScryfall
 }
 
 // preferTCGplayerPrinting reports whether, of two printings of one card, the
@@ -218,7 +218,7 @@ func Preprocess(b *matcher.Backend, bp *Blueprint) (*matcher.InputCard, error) {
 	// directly, not one face's - magic.VerifyTokenPairingFinish checks
 	// that case explicitly rather than relying on namedID's fallthrough to
 	// stumble onto it by accident, which it otherwise would for a
-	// scryfallID-less blueprint (measured: true for most, not all).
+	// blueprint with no scryfall id (measured: true for most, not all).
 	// Foil is always false here: a blueprint has no finish of its own,
 	// multiple products of different finishes share one, so it is
 	// resolved per-product in cardtrader.go instead (see foilPrintingID's
@@ -304,9 +304,9 @@ func Preprocess(b *matcher.Backend, bp *Blueprint) (*matcher.InputCard, error) {
 
 	// Some, but not all, have a proper id we can reuse right away, and the
 	// blueprint says which space each one lives in
-	scryfallID := b.ConvertID(matcher.IDSpaceScryfall, bp.ScryfallID)
-	tcgplayerID := b.ConvertID(matcher.IDSpaceTCGplayer, fmt.Sprintf("%d", bp.TCGplayerProductID()))
-	id := namedID(b, bp, scryfallID, tcgplayerID)
+	uuidFromScryfall := b.ConvertID(matcher.IDSpaceScryfall, bp.ScryfallID)
+	uuidFromTCG := b.ConvertID(matcher.IDSpaceTCGplayer, fmt.Sprintf("%d", bp.TCGplayerProductID()))
+	id := namedID(b, bp, uuidFromScryfall, uuidFromTCG)
 	if id != "" {
 		idEdition, idVariation := edition, bp.Version
 
@@ -314,7 +314,7 @@ func Preprocess(b *matcher.Backend, bp *Blueprint) (*matcher.InputCard, error) {
 		// vendor ids name the same plain card, so Match's promo-tag check on
 		// the answer doesn't veto it.
 		co, err := b.GetUUID(id)
-		idsAgree := scryfallID != "" && scryfallID == tcgplayerID && err == nil
+		idsAgree := uuidFromScryfall != "" && uuidFromScryfall == uuidFromTCG && err == nil
 		if err == nil && (len(co.PromoTypes) > 0 || idsAgree) {
 			probe := matcher.InputCard{Edition: idEdition, Variation: idVariation}
 			vetoed := (magic.IsPrerelease(&probe) && !co.HasPromoType(magic.PromoTypePrerelease)) ||
