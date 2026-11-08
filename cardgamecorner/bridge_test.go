@@ -104,3 +104,89 @@ func TestMatchByProductImagePokemon(t *testing.T) {
 		})
 	}
 }
+
+// A Yu-Gi-Oh number field states a printing's code by its end or by its
+// digits, and a numberless One Piece DON!! is stated by its name alone.
+func TestStatesNumber(t *testing.T) {
+	tests := []struct {
+		desc   string
+		game   matcher.Game
+		name   string
+		listed string
+		number string
+		want   bool
+	}{
+		{"the end of the code", matcher.GameYuGiOh, "", "b00", "YGLD-ENB00", true},
+		{"the same digits", matcher.GameYuGiOh, "", "X003", "STAX-EN003", true},
+		{"another card", matcher.GameYuGiOh, "", "X004", "STAX-EN003", false},
+		{"no number listed", matcher.GameYuGiOh, "", "", "STAX-EN003", false},
+		{"digits that only end the code", matcher.GameYuGiOh, "", "1", "LOB-EN011", false},
+		{"zeros ending the code", matcher.GameYuGiOh, "", "000", "ABPF-EN000", true},
+		{"a DON!! has no number", matcher.GameOnePiece, "Don!! (PRB Rebecca) (V.3)", "", "", true},
+		{"a card without a number is not a DON!!", matcher.GameOnePiece, "Sabo (OP01-001)", "", "", false},
+		{"a DON!! with a number is read as a card", matcher.GameOnePiece, "DON!! (OP09)", "", "OP09-001", false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.desc, func(t *testing.T) {
+			cgc := &Cardgamecorner{backend: &matcher.Backend{Game: tt.game}}
+			got := cgc.statesNumber(&Card{Name: tt.name, Number: tt.listed}, tt.number)
+			if got != tt.want {
+				t.Errorf("statesNumber() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+// A Yu-Gi-Oh image refines the wording's answer within its set and rarity, and
+// places what the wording refuses, for the card and print run listed. An EN
+// copy on an old shelf keeps its wording.
+func TestMatchYuGiOh(t *testing.T) {
+	b := yugiohDatastore(t)
+	cgc := &Cardgamecorner{backend: b, bridge: map[int]int{881339: 687251, 797782: 593867, 109543: 58482, 102098: 21771, 573505: 245779}}
+
+	tests := []struct {
+		desc  string
+		card  Card
+		print string
+		want  string
+	}{
+		{
+			"the image names the stamped version",
+			Card{Name: "Raigeki (V.2 - Ultra Rare)V1", Edition: "Rarity Collection 5", Rarity: "Ultra Rare", Number: "110", SKU: "RA05V2110V1", Extra: "/prodotti/singles/ygo/ra05/raigeki-v2-ultra-rare-v2_881339.jpg"},
+			"First Edition", "ra05-en110_687251_1stedition",
+		},
+		{
+			"the image places what the wording refuses",
+			Card{Name: "Polymerization (V.3 - Secret Rare)", Edition: "Quarter Century Bonanza", Rarity: "Secret Rare", Number: "051", SKU: "RA03V3051V1", Extra: "/prodotti/singles/ygo/ra03/polymerization-v3-secret-rare_797782.jpg"},
+			"First Edition", "ra03-en051_593867_1stedition",
+		},
+		{
+			"an image of another rarity",
+			Card{Name: "Flamvell Commando (V.1 - Ultra Rare)", Edition: "Ancient Prophecy", Rarity: "Ultra Rare", Number: "086", SKU: "ANPR0086V1", Extra: "/products/ygo/fla/flamvell-commando-v1-ultra-rare/ancient-prophecy-flamvell-commando-v1-ultra-rare-109543.jpg"},
+			"Unl.", "anpr-en086_33209_unlimited",
+		},
+		{
+			"an EN copy on an old shelf",
+			Card{Name: "Basic Insect", Edition: "Legend of Blue Eyes White Dragon ENG (LOB)", Rarity: "Common", Number: "008", SKU: "LOB0008", Extra: "/products/ygo/bas/basic-insect/legend-of-blue-eyes-white-dragon-basic-insect-102098.jpg"},
+			"Unl.", "lob-e006_unlimited",
+		},
+		{
+			"an image of another print run",
+			Card{Name: "Protecting Spirit Loagaeth", Edition: "Dawn of Majesty", Rarity: "Super Rare", Number: "025", SKU: "DAMA0025", Extra: "/products/ygo/pro/protecting-spirit-loagaeth/dawn-of-majesty-protecting-spirit-loagaeth-573505.jpg"},
+			"Unl.", "",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.desc, func(t *testing.T) {
+			tt.card.Variants = []Variant{{Print: tt.print, Foil: "Non Foil", Language: "EN"}}
+			input, err := preprocess(b, &tt.card, 0)
+			if err != nil {
+				t.Fatal(err)
+			}
+			id, err := matchYuGiOh(cgc, &tt.card, 0, input)
+			if (err == nil) != (tt.want != "") || id != tt.want {
+				t.Errorf("matchYuGiOh() = %q, %v, want %q", id, err, tt.want)
+			}
+		})
+	}
+}
