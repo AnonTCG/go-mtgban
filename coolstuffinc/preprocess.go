@@ -35,6 +35,7 @@ var numFixes = map[string]string{
 	"ThoughtseizeSLDJPNFEa":           "SLD1117jpn",
 	"TDM0300a":                        "TDM300",
 	"LTR0425":                         "LTR425",
+	"LTR0400PrereleaseNoStamp":        "LTR400",
 	"LeylineoftheVoidv2":              "PM20107p",
 	"386443":                          "POTJ149p",
 	"Ugin001":                         "M211",
@@ -1104,6 +1105,14 @@ func card2promo(cardName, variant string) (string, string) {
 	case "Highly Illogical":
 		if strings.Contains(variant, "Play Promo") {
 			return "PW26", "17"
+		}
+	case "Wood Elves":
+		if strings.Contains(variant, "Standard Showdown") {
+			return "PW26", "16"
+		}
+	case "Tragic Trajectory":
+		if strings.Contains(variant, "Standard Showdown") {
+			return "PW26", "22"
 		}
 	case "Gandalf, Friend of the Shire":
 		if strings.Contains(variant, "Play Promo") {
