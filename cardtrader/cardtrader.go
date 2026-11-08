@@ -174,15 +174,29 @@ var tcgIDOverrides = map[int]int{
 	406255: 715682, // Double Pack Set Vol. 12 Rocks.D.Xebec
 	294212: 600706, // Garp and Luffy, Saikyo Jump Promo, 2nd Anniversary Tournament
 	358981: 710745, // EB-03, Heroines Special Set
+	408729: 710245, // Shachi & Penguin, Championship 26-27 Celebration Pack, ST10-008
+	358980: 710746, // EB-03, Heroines Special Set, Gold Foil
+	419003: 727951, // Nami, Participation, Heroines Battle Vol.2
 	// One Piece: the id names another event's print of the card.
 	326797: 712033, // O-Nami, Dash Pack 2025, sent the Illustration Box's 623070
 	// Riftbound: the T1 2025 Worlds Signature Edition Bundle, T1S002.
 	400778: 716016, // Xin Zhao, Vigilant, 002 Showcase
 	400783: 716018, // Xin Zhao, Vigilant, 002s Showcase, Signed Serialized
+	400777: 716012, // Ambessa, 001 Showcase
+	400779: 716021, // Galio, 003 Showcase
+	400780: 716026, // Miss Fortune, 004 Showcase
+	400781: 716035, // Seraphine, 005 Showcase
+	400782: 716013, // Ambessa, 001s Showcase, Signed Serialized
+	400784: 716022, // Galio, 003s Showcase, Signed Serialized
+	400785: 716028, // Miss Fortune, 004s Showcase, Signed Serialized
+	400786: 716036, // Seraphine, 005s Showcase, Signed Serialized
+	// Riftbound Radiance: the signed card is sent the unsigned Overnumbered id.
+	417936: 724638, // Ekko, Boy Who Shattered Time, 168s Showcase, Signed
 	// Riftbound Radiance: the id names the neighbouring or the plain card.
 	415816: 723434, // The Exile, 149, sent Blade of the Exile's 722279
 	417516: 723429, // Seraphine, Inspiring, 065a Alternate Art, sent the plain 723430
 	// Pokemon: none sent either.
+	302130: 180717, // Zoroark, BW19 Jumbo Oversized
 	285780: 658742, // Professor Turo's Scenario, Professor Program Stamp | 171/182
 	340672: 211449, // Palkia & Dialga LEGEND, Jumbo Oversized
 	242584: 250252, // Mewtwo V-UNION, Jumbo Oversized
@@ -301,6 +315,17 @@ var tcgIDOverrides = map[int]int{
 	155490: 237359, // Nicol Bolas, God-Pharaoh, PHOU 140p
 	// Magic: the id sent is a sealed product; Cardmarket 914142 names the card.
 	415429: 721395, // Aeon Engine, PLST C19-52
+	// Magic: the id sent is a sealed product or Aeon Engine's; the Odds and Ends
+	// decklist names the List copies.
+	415424: 210392, // Fatespinner, PLST MRD-36
+	415428: 492689, // Shared Fate, PLST MRD-49
+	// Magic: the scryfall id sent is a retired one; Cardmarket's V.1 names the
+	// dagger printing.
+	33476: 720,   // Monstrous Growth, POR 173
+	33487: 21583, // Elite Cat Warrior, POR 163
+	33507: 21598, // Raging Goblin, POR 145
+	33534: 21582, // Blaze, POR 118
+	33558: 690,   // Hand of Death, POR 96
 }
 
 // copyWords are the description words saying a listing's copy is not the one
