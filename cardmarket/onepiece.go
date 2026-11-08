@@ -3,6 +3,7 @@ package cardmarket
 import (
 	"cmp"
 	"fmt"
+	"maps"
 	"strings"
 
 	cm "github.com/mtgban/go-cardmarket"
@@ -109,6 +110,13 @@ func (r *resolver) tcgLink(productID int) (int, bool) {
 	}
 	tcgID, found = onePieceEventLinks[productID]
 	return tcgID, found
+}
+
+// OnePieceEventLinks returns, by Cardmarket product id, the TCGplayer
+// product of the One Piece event promos CardTrader links with an id of 0.
+// It is a copy, so a caller may merge it into a bridge of its own.
+func OnePieceEventLinks() map[int]int {
+	return maps.Clone(onePieceEventLinks)
 }
 
 // onePieceByID answers a One Piece product from the TCGplayer id tcgLink
