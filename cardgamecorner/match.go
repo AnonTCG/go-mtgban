@@ -48,15 +48,27 @@ func matchPokemon(cgc *Cardgamecorner, card *Card, _ int, input *matcher.InputCa
 	return cardID, err
 }
 
-// matchYuGiOh retries with the SKU's number a listing whose number field is
-// wrong, as it is on a few, while the SKU still ends in the card's own; what
-// the wording still refuses is placed by its product image.
+// matchYuGiOh answers a listing on its wording, then looks for the version
+// the product image names: it refines the answer to a printing of the same
+// set and rarity, the alt art or colour the store copied from Cardmarket,
+// and places what the wording refuses. The image of a European copy on an
+// old shelf names the North American print, so it only places what the
+// wording refuses. A listing whose number field is wrong, as it is on a few,
+// is retried with the SKU's number while the SKU still ends in the card's
+// own.
 func matchYuGiOh(cgc *Cardgamecorner, card *Card, index int, input *matcher.InputCard) (string, error) {
 	retry := *input
 	cardID, err := cgc.backend.Match(input)
 	if errors.Is(err, matcher.ErrCardWrongVariant) {
 		id, found := matchBySKUNumber(cgc.backend, card, index)
 		if found {
+			return id, nil
+		}
+	}
+	europeanCopy := oldShelfRe.MatchString(card.Edition) && card.Variants[index].Language == "EN"
+	if err == nil && !europeanCopy {
+		id, found := cgc.matchYuGiOhImage(card, index, &retry)
+		if found && cgc.sameSetAndRarity(id, cardID) {
 			return id, nil
 		}
 	}
@@ -67,6 +79,17 @@ func matchYuGiOh(cgc *Cardgamecorner, card *Card, index int, input *matcher.Inpu
 		}
 	}
 	return cardID, err
+}
+
+// sameSetAndRarity reports whether two printings sit in one set with one
+// rarity.
+func (cgc *Cardgamecorner) sameSetAndRarity(a, b string) bool {
+	first, err := cgc.backend.GetUUID(a)
+	if err != nil {
+		return false
+	}
+	second, err := cgc.backend.GetUUID(b)
+	return err == nil && first.SetCode == second.SetCode && first.Rarity == second.Rarity
 }
 
 // matchYuGiOhImage answers from the product image, accepting the printing
