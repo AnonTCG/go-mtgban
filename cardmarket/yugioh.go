@@ -320,9 +320,11 @@ var yugiohPromoLinks = map[int]int{
 // yugiohNoRow lists the products of a printing the datastore does not carry,
 // which the bridge or the name would land on a sibling's row.
 var yugiohNoRow = map[int]bool{
-	// Effect Veiler, 25YC-EN002 World Championship Qualifier: TCGplayer's
-	// one product is the YCS Stamp, the row cardtrader.tcgIDOverrides gives it.
-	829741: true,
+	// 25YC World Championship Qualifier copies: TCGplayer's one product per
+	// number is the YCS Stamp, and only Blue-Eyes has a Qualifier product.
+	829741: true, 829742: true, 829744: true, 829745: true, 829746: true,
+	829747: true, 829748: true, 829750: true, 829751: true, 829752: true,
+	829753: true,
 }
 
 // yugiohByID answers a Yu-Gi-Oh product yugiohPromoLinks names; an empty id
