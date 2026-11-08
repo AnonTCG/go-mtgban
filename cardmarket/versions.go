@@ -374,12 +374,14 @@ var etchedPrintings = map[int]struct{ set, number string }{
 	674280: {"SLD", "46"},   // Plains
 }
 
-// unplacedProducts are Magic products no evidence places on a printing, or
+// unplacedProducts are products no evidence places on a printing, or
 // that name a printing never made: the V.2 to V.4 of an October Superdrop 2022
 // card, whose Japanese printings sit beside the English one; the Modern
 // Horizons 3 and March of the Machine promo products for cards that have no
-// promo; and duplicates of a product on a shelf that never held the card. The
-// name route would file them on another printing, so they are skipped.
+// promo; and duplicates of a product on a shelf that never held the card, or
+// of one that lands already. The name route would file them on another
+// printing or twin them, so they are skipped. The ids are global, one table
+// serves every game.
 var unplacedProducts = map[int]bool{
 	680717: true, 680718: true, 680719: true, // Tezzeret the Seeker
 	680721: true, 680722: true, 680723: true, // Phyrexian Metamorph
@@ -409,6 +411,13 @@ var unplacedProducts = map[int]bool{
 	893849: true, // Quicksilver, Brash Blur, Marvel Super Heroes: Promos
 	791815: true, // Iymrith, Desert Doom, Mystery Booster 2
 	791938: true, // Call to the Feast, Mystery Booster 2
+
+	// Duplicates of products that land
+	790994: true, // Flesh and Blood Heatbeat of Candlehold, misspelt copy of 794820
+	747346: true, // Flesh and Blood Popped Collar Pollo, number-less copy of 747347-747349
+	244609: true, // Yu-Gi-Oh Perfectly Ultimate Great Moth, The Sacred Cards copy of 104966
+	244610: true, // Yu-Gi-Oh Riryoku, The Sacred Cards copy of 105273
+	244611: true, // Yu-Gi-Oh Negate Attack, The Sacred Cards copy of 104770
 }
 
 // versionPrinting answers the nonfoil and foil printings versionPrintings and

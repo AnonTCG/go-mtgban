@@ -593,6 +593,9 @@ func (r *resolver) resolveProduct(product *cm.Product) (string, string, bool, er
 	if !found {
 		return "", "", false, errors.New("unsupported game")
 	}
+	if unplacedProducts[product.IDProduct] {
+		return "", "", false, nil
+	}
 	cardID, cardIDFoil, byName, err := resolve(r, product)
 	if err != nil || cardID == "" {
 		return "", "", false, err
