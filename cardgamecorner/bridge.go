@@ -59,11 +59,17 @@ func (cgc *Cardgamecorner) matchByProductImage(card *Card, input *matcher.InputC
 // statesNumber reports whether the listing states the collector number a
 // printing carries. A One Piece name states its code, which the store cuts
 // short or gets wrong on a few, where the number field still holds the right
-// card's; a Pokemon listing states a number, or has none and its SKU ends in
-// the card's.
+// card's; a Yu-Gi-Oh number field states the end of the code or its digits;
+// a Pokemon listing states a number, or has none and its SKU ends in the
+// card's.
 func (cgc *Cardgamecorner) statesNumber(card *Card, number string) bool {
 	switch cgc.backend.Game {
 	case matcher.GameOnePiece:
+		// A DON!! printing has no number to state; its image is the only
+		// witness it has
+		if number == "" && strings.HasPrefix(strings.ToUpper(card.Name), "DON!!") {
+			return true
+		}
 		code := listedCodeRe.FindStringSubmatch(card.Name)
 		if code != nil && sameCode(number, code[1]) {
 			return true
@@ -74,6 +80,18 @@ func (cgc *Cardgamecorner) statesNumber(card *Card, number string) bool {
 		}
 		// A bare "057" is the part of "OP06-057" after the set
 		return sameCode(number, field) || strings.HasSuffix(number, "-"+field)
+	case matcher.GameYuGiOh:
+		listed := strings.ToUpper(strings.TrimSpace(card.Number))
+		if listed == "" {
+			return false
+		}
+		digits := trailingNumber(listed)
+		if digits != "" && trailingNumber(number) == digits {
+			return true
+		}
+		// The end of the code starts at a boundary: "1" is not the end of EN011
+		head, found := strings.CutSuffix(strings.ToUpper(number), listed)
+		return found && (head == "" || !isDigit(listed[0]) || !isDigit(head[len(head)-1]))
 	case matcher.GamePokemon:
 		listed := trailingNumber(card.Number)
 		if card.Number == "" {
@@ -93,8 +111,12 @@ func sameCode(a, b string) bool {
 // their leading zeros: "SWSH144" and "BS 58" are 144 and 58, "058" is 58.
 func trailingNumber(number string) string {
 	i := len(number)
-	for i > 0 && number[i-1] >= '0' && number[i-1] <= '9' {
+	for i > 0 && isDigit(number[i-1]) {
 		i--
 	}
 	return strings.TrimLeft(number[i:], "0")
+}
+
+func isDigit(c byte) bool {
+	return c >= '0' && c <= '9'
 }
