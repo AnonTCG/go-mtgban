@@ -230,6 +230,11 @@ func (ha *Hareruya) processBuylistPage(ctx context.Context, channel chan<- respo
 			!reThick.MatchString(strings.TrimPrefix(title, "【EN】")) {
 			return true
 		}
+		// The converse: a foil listing on a printing with no foil is priced
+		// off the plain copy beside it.
+		if cerr == nil && theCard.Foil && !co.Foil && !co.Etched {
+			return true
+		}
 
 		var priceRatio, sellPrice float64
 
