@@ -113,6 +113,13 @@ func TestPromoShelf(t *testing.T) {
 			card: "Lightning Bolt", foil: "0",
 			wantSet: "PF19", wantNumber: "1",
 		},
+		{
+			desc: "a WPN promo filed under the set the card was drawn from",
+			jp:   "【Foil】《メリー・ジェーン・ワトソン/Mary Jane Watson》(マジック・アカデミープロモ)[流星マーク] 白",
+			en:   "【Foil】《Mary Jane Watson》[Magic Academy Promo]",
+			card: "Mary Jane Watson", foil: "1",
+			wantSet: "PW25", wantNumber: "11",
+		},
 	} {
 		t.Run(tt.desc, func(t *testing.T) {
 			b := withMagic(t)
@@ -272,6 +279,34 @@ func TestRetailEnglishLineWording(t *testing.T) {
 			en:   "(EvK/DDO-020)《Mother of Runes》[MB1]",
 			card: "Mother of Runes", foil: "0",
 			wantSet: "PLST", wantNumber: "DDO-20",
+		},
+		{
+			desc: "a foil basic whose number opens the English line",
+			jp:   "【Foil】■フルアート■《平地/Plains》[UND] 土地",
+			en:   "【Foil】(088)■Full-Art■《Plains》[UND]",
+			card: "Plains", foil: "1",
+			wantSet: "UND", wantNumber: "88",
+		},
+		{
+			desc: "a Normal Border basic is the set's non-full-art printing",
+			jp:   "(237)《島/Island》(Normal Border)[ZEN] 土地",
+			en:   "《Island》(237)Normal Border[ZEN]",
+			card: "Island", foil: "0",
+			wantSet: "ZEN", wantNumber: "237a",
+		},
+		{
+			desc: "a Portal starter without flavor text",
+			jp:   "《アナコンダ/Anaconda》(FT無し)[POR-P] 緑U",
+			en:   "《Anaconda》[Basic Set Promos](POR) Starter Ver.",
+			card: "Anaconda", foil: "0",
+			wantSet: "POR", wantNumber: "158†",
+		},
+		{
+			desc: "a series group that names a plane, not the set",
+			jp:   "《Amateur Auteur》(THEROS)[UST] 白C",
+			en:   "《Amateur Auteur》(THEROS) [UST]",
+			card: "Amateur Auteur", foil: "0",
+			wantSet: "UST", wantNumber: "3c",
 		},
 	} {
 		t.Run(tt.desc, func(t *testing.T) {
