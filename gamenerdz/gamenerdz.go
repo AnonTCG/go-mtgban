@@ -274,11 +274,26 @@ var unmadeProducts = map[string]bool{
 // storefrontTCGIDs are the TCGplayer ids of buylist products whose retail
 // twin is out of stock, so the in-stock crawl never reads the id it carries: a
 // Store Championship Maleficent, The List's Aerial Responder written over
-// E01's 106 cards and a Foundations Burrog Befuddler whose tag names no set.
+// E01's 106 cards, a Foundations Burrog Befuddler whose tag names no set and
+// any other listing whose wording alone names several printings.
 var storefrontTCGIDs = map[string]int64{
 	"S22bO11LL8": 650187,
 	"zlv5Rh5Yws": 581243,
 	"wIm3oGGMHt": 591659,
+	"G5ap3pIVrK": 247301,
+	"HO9Xn43HeR": 189781,
+	"hNQaDKddqn": 91249,
+	"6c6LaIao3V": 91249,
+	"zu7Dg2Deih": 87590,
+	"DnJRugUEU6": 86653,
+	"9HraCFVdWW": 86667,
+	"X5CdJBQR8P": 198228,
+	"PMcVxol2If": 205307,
+	"gLKNEdqR68": 556978,
+	"quATEEJYGt": 710859,
+	"JPn2ndPXVl": 692132,
+	"ElKieZ4NDA": 681871,
+	"KIK5JFzleS": 482237,
 }
 
 // resolveProduct names the printing a product is, by the way its game reads
