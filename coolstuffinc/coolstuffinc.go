@@ -1107,6 +1107,7 @@ var csiUnknownPrintings = map[string]bool{
 	"Exodia the Forbidden One (Secret Rare)|Limited Pack World Championship 2025": true,
 	"Exodia the Forbidden One (Ultra Rare)|Limited Pack World Championship 2025":  true,
 	"Gladiator Beast Octavius (Super Rare)|Gladiators Assault":                    true,
+	"Monkey.D.Luffy - 001 (Grevin Museum Promo)|OP13 - Carrying On His Will":      true,
 }
 
 // unknownPrinting reports a listing that names a printing the catalog does

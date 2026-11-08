@@ -109,6 +109,11 @@ var onePiecePIDs = map[string]string{
 	"447218": "712119", // Shanks OP13-028 SP = OP17 SP: the feed's Number says OP13-029
 	"377222": "527620", // Roronoa Zoro OP01-025 (Starter Deck 10) = Ultra Deck: The Three Captains
 	"433349": "675746", // Koala OP05-006 (Dash Pack) = EB03 reprint, the one sibling without a Dash Pack label
+	"408681": "617176", // Edward.Newgate ST15-002 (SP): the feed's Number says OP07-015
+	"377982": "527035", // Nami OP05-016 (SP) = OP05 SP, beside the EB05 one it cannot be told from
+	"443666": "706347", // Sabo (Starter Deck 35) = ST-35, a foil-only leader
+	"447163": "712114", // Monkey.D.Luffy OP17-079 (Super Alternate Art) = Super Leader Alternate Art
+	"434530": "681613", // Nami P-112 (Heroines Battle Pack - Winner) = Winner Pack
 }
 
 // onePieceStarterDeck matches the starter deck a name states in brackets.
@@ -391,15 +396,63 @@ func onePieceDonRenamed(description string) string {
 	return renamed
 }
 
+// onePieceBareDon reports the generic DON!! card, listed with no description
+// and no notes. The catalog has only the Manga and Film RED DON!! cards at
+// OP01 and no plain one, so the listing names a card it does not carry.
+func onePieceBareDon(name, notes string) bool {
+	return name == "DON!!" && strings.TrimSpace(notes) == ""
+}
+
+// onePieceSplitShelf answers the printing a refused listing means when its
+// shelf is only the code a pair of sets share, as the EB04 cards of OP14-EB04
+// and OP15-EB04, or "" when the shelf is not one or no single set holds it.
+// The listing is asked again on each such set's own name and must land in it.
+func onePieceSplitShelf(b *matcher.Backend, theCard *matcher.InputCard, match func(*matcher.InputCard) (string, error)) string {
+	if theCard.ID != "" || strings.ContainsAny(theCard.Edition, " -") {
+		return ""
+	}
+	var found string
+	for _, code := range b.GetAllSets() {
+		if !strings.HasSuffix(code, "-"+theCard.Edition) {
+			continue
+		}
+		set, err := b.GetSet(code)
+		if err != nil {
+			continue
+		}
+		probe := *theCard
+		probe.Edition = set.Name
+		id, err := match(&probe)
+		if err != nil {
+			continue
+		}
+		co, err := b.GetUUID(id)
+		if err != nil || co.SetCode != code {
+			continue
+		}
+		if found != "" {
+			return ""
+		}
+		found = id
+	}
+	return found
+}
+
 // retailOnePiece answers an offer by its product id where the wording cannot
 // reach it, reads the promos and DON!! cards apart, and refines the printing
 // the wording lands on.
 func retailOnePiece(csi *Coolstuffinc, l sellListing) (*matcher.InputCard, string, error) {
 	b := csi.backend
+	if unknownPrinting(l.name, l.edition) || onePieceBareDon(l.name, l.notes) {
+		return nil, "", matcher.ErrUnsupported
+	}
 	theCard := onePieceRetailCard(b, l)
 	cardID, err := l.match(b, theCard)
 	if err != nil {
-		return theCard, "", err
+		cardID = onePieceSplitShelf(b, theCard, func(probe *matcher.InputCard) (string, error) { return l.match(b, probe) })
+		if cardID == "" {
+			return theCard, "", err
+		}
 	}
 	cardID = onePieceRefined(b, cardID, theCard.Edition, l.name, l.notes)
 	// A slab's finish, or a named printing's, is not told by the
@@ -440,10 +493,16 @@ func onePieceRetailCard(b *matcher.Backend, l sellListing) *matcher.InputCard {
 // buylistOnePiece reads a buylist row the way retailOnePiece reads an offer.
 func buylistOnePiece(csi *Coolstuffinc, p CSIPriceEntry) (*matcher.InputCard, string, error) {
 	b := csi.backend
+	if unknownPrinting(p.Name, p.ItemSet) || onePieceBareDon(p.Name, p.Notes) {
+		return nil, "", matcher.ErrUnsupported
+	}
 	theCard := onePieceBuylistCard(b, p)
 	cardID, err := b.Match(theCard)
 	if err != nil {
-		return theCard, "", err
+		cardID = onePieceSplitShelf(b, theCard, b.Match)
+		if cardID == "" {
+			return theCard, "", err
+		}
 	}
 	cardID = onePieceRefined(b, cardID, theCard.Edition, p.Name, p.Notes)
 	if p.IsFoil == 0 && theCard.ID == "" {

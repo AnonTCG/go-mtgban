@@ -36,6 +36,11 @@ func TestUnknownPrinting(t *testing.T) {
 			edition: "Gladiators Assault", want: true,
 		},
 		{
+			desc:    "a Paris museum giveaway the catalog has no product for",
+			name:    "Monkey.D.Luffy - 001 (Grevin Museum Promo)",
+			edition: "OP13 - Carrying On His Will", want: true,
+		},
+		{
 			desc:    "the printing each of them was landing on is kept",
 			name:    "Gladiator Beast Octavius (Secret Rare)",
 			edition: "Gladiators Assault", want: false,
