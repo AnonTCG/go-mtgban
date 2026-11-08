@@ -18,9 +18,10 @@ import (
 // printed. Only the promo set named here says which cards the shelf really
 // holds.
 var reprintedPrereleaseShelves = map[string]string{
-	"Modern Horizons 2 Prerelease":    "PMH2",
-	"Modern Horizons 3 Prerelease":    "PMH3",
-	"March of the Machine Prerelease": "PMOM",
+	"Modern Horizons 2 Prerelease":          "PMH2",
+	"Modern Horizons 3 Prerelease":          "PMH3",
+	"March of the Machine Prerelease":       "PMOM",
+	"The Lost Caverns of Ixalan Prerelease": "PLCI",
 }
 
 // tcgplayerIDWins lists the blueprints whose scryfall id Card Trader copied

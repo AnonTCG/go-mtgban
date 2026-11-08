@@ -251,6 +251,14 @@ func TestPreprocessReprintedPrereleaseShelf(t *testing.T) {
 		t.Error("Preprocess kept a prerelease blueprint no prerelease printing exists for")
 	}
 
+	treasure := &Blueprint{ID: 268034, Name: "Treasure Map // Treasure Cove", CategoryID: CategoryMagicSingles, TCGplayerID: 526736}
+	treasure.Expansion.Name = "The Lost Caverns of Ixalan Prerelease"
+	treasure.Properties.Number = "267"
+	_, err = Preprocess(b, treasure)
+	if err == nil {
+		t.Error("Preprocess kept a prerelease blueprint no prerelease printing exists for")
+	}
+
 	devourer := &Blueprint{ID: 290392, Name: "Devourer of Destiny", CategoryID: CategoryMagicSingles}
 	devourer.Expansion.Name = "Modern Horizons 3 Prerelease"
 	devourer.Properties.Number = "002"
