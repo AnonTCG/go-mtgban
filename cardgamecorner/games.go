@@ -372,6 +372,11 @@ func gameInput(game matcher.Game, card *Card, index int) *matcher.InputCard {
 		// The store spells Cardmarket's "Promos: <set>" shelf as
 		// "<code> - <set>: Promo"
 		edition = onePiecePromoShelfRe.ReplaceAllString(edition, "Promos: $1")
+		// A rarity naming the treatment places the card where its image
+		// carries no Cardmarket product id to do it
+		if !mcmImageIDRe.MatchString(card.Extra) {
+			number = strings.TrimSpace(number + " " + card.Rarity)
+		}
 	case matcher.GameFleshAndBlood:
 		// Every name ends in its finish, which hides the pitch before it
 		// from the rules, and is the only place a rainbow foil says so

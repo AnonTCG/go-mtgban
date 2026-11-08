@@ -71,6 +71,12 @@ func TestGameInput(t *testing.T) {
 			want:    matcher.InputCard{Name: "White Snake (OP06-059)", Edition: "Promos: Wings of the Captain", Variation: "059"},
 		},
 		{
+			game:    matcher.GameOnePiece,
+			card:    Card{Name: "Jewelry Bonney (OP12-118) (V.2)", Edition: "OP12 - Legacy of the Master", Number: "118", Rarity: "Alternate Art", Extra: "/prodotti/one_piece/132.jpg"},
+			variant: Variant{Foil: "Non Foil"},
+			want:    matcher.InputCard{Name: "Jewelry Bonney (OP12-118) (V.2)", Edition: "OP12 - Legacy of the Master", Variation: "118 Alternate Art"},
+		},
+		{
 			game:    matcher.GameYuGiOh,
 			card:    Card{Name: "Wake Up Your Elemental HERO V.8 - Ultra Rare Overframe )", Edition: "Rarity Collection 5", Number: "142", Rarity: "Overframe"},
 			variant: Variant{Print: "First Edition", Foil: "Non Foil"},
