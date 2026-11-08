@@ -257,6 +257,9 @@ var shelfPrintings = map[[3]string][2]string{
 
 	{"Secret Lair", "Counterspell", "0002"}: {"PURL", "2"},
 
+	{"Promos: Unique and Miscellaneous", "Jace Beleren", ""}:                  {"PSPL", "13"},
+	{"Promos: Unique and Miscellaneous", "Lightning Bolt", "0002 Borderless"}: {"PW26", "5"},
+
 	{"Universes Beyond: The Lord of the Rings: Tales of Middle-earth", "Sauron, the Dark Lord", ""}:  {"LTR", "224"},
 	{"Universes Beyond: The Lord of the Rings: Tales of Middle-earth", "The One Ring", "Borderless"}: {"LTR", "451"},
 }

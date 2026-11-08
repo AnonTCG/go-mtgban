@@ -69,6 +69,8 @@ func TestShelfCards(t *testing.T) {
 		{"Lightning Bolt", "Promos: Magicfest", "Near Mint Foil English", "PF19", "1"},
 		{"Counterspell (0002)", "Secret Lair", "Near Mint Foil English", "PURL", "2"},
 		{"Flooded Strand (001)", "Promos: Unique and Miscellaneous", "Near Mint Foil English", "PNAT", "2018"},
+		{"Jace Beleren", "Promos: Unique and Miscellaneous", "Near Mint Foil English", "PSPL", "13"},
+		{"Lightning Bolt (0002 Borderless)", "Promos: Unique and Miscellaneous", "Near Mint Foil English", "PW26", "5"},
 	} {
 		card, err := preprocess(b, tt.name, tt.edition, tt.notes)
 		if err != nil {
