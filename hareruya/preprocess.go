@@ -28,6 +28,10 @@ var rePLSTCode = regexp.MustCompile(`^[A-Z0-9]{2,5}-\d+$`)
 // alone, right after the bracketed set tag.
 var reTrailingNumber = regexp.MustCompile(`\]\((\d+)\)`)
 
+// reLeadingNumber reads a collector number the English product line opens
+// with, ahead of any finish group.
+var reLeadingNumber = regexp.MustCompile(`^(?:【[^】]*】)*\((\d+)\)`)
+
 // reSDCC matches the convention tag, which the storefront writes against the
 // year it names, while the catalog reads the year as a word of its own.
 var reSDCC = regexp.MustCompile(`SDCC ?`)
@@ -370,13 +374,22 @@ func Preprocess(b *matcher.Backend, product Product) (*matcher.InputCard, error)
 	// The number is only found in the JPN line, which may name the series too
 	number, series, _ := splitParens(b, product.ProductName)
 	if series != "" {
-		edition = series
+		// A set that holds the card is where the listing is; the group is
+		// then a variation of it, like Amateur Auteur's plane.
+		if len(b.MatchInSet(cardName, edition)) == 0 {
+			edition = series
+		} else {
+			variant = strings.TrimSpace(variant + " " + series)
+		}
 	}
-	// Fires on any retail listing splitParens found no number for; today's
-	// capture only exercises it on Guild Kit basics, whose own number is
-	// stated in the English line, right after the bracketed set tag.
+	// Fires on any retail listing splitParens found no number for; the
+	// English line states it right after the bracketed set tag, as Guild Kit
+	// basics do, or ahead of the name, as the Unsanctioned foil basics do.
 	if number == "" {
-		m := reTrailingNumber.FindStringSubmatch(product.ProductNameEN)
+		m := reLeadingNumber.FindStringSubmatch(product.ProductNameEN)
+		if m == nil {
+			m = reTrailingNumber.FindStringSubmatch(product.ProductNameEN)
+		}
 		if m != nil {
 			number = m[1]
 		}
@@ -484,6 +497,10 @@ func Preprocess(b *matcher.Backend, product Product) (*matcher.InputCard, error)
 	if strings.Contains(product.ProductName, "シリアル入り") {
 		variant += " Serialized"
 	}
+	if strings.Contains(product.ProductNameEN, "Normal Border") {
+		variant += " non-full art"
+	}
+	variant = strings.Replace(variant, "FT無し", "No Flavor Text", 1)
 	// The tag names the set the card was drawn from, not the convention
 	// promo set that holds it.
 	if strings.Contains(product.ProductName, "SDCC") {
