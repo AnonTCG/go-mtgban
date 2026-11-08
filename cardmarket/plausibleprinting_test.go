@@ -82,7 +82,9 @@ func TestResolveUUIDsDefersOnImplausibleOversized(t *testing.T) {
 // TestResolveUUIDsFollowsTheProductNumber pins numberedPrinting: mtgjson
 // links Double Masters 2022's Consecrated Sphinx #345 and #427 each to the
 // other's Cardmarket product, and the product's own number, which CardTrader
-// agrees with, names the printing. The ids and entries are the map's own.
+// agrees with, names the printing. The ids and entries are the map's own,
+// but for the last row, which lists Legions' Deftblade Elite beside its List
+// twin to pin that the original keeps its number.
 func TestResolveUUIDsFollowsTheProductNumber(t *testing.T) {
 	b := realDatastore(t)
 	r := &resolver{backend: b, gameID: cm.GameMagic}
@@ -101,6 +103,16 @@ func TestResolveUUIDsFollowsTheProductNumber(t *testing.T) {
 			cm.Product{IDProduct: 664250, Name: "Consecrated Sphinx (V.2)", Number: "427", ExpansionName: "Double Masters 2022: Extras"},
 			[]string{"106eb1f8-1452-55cd-8bfb-7db43bc5a3ce"},
 			"bf3e52bb-4017-5760-8db6-838ee858421d", "bf3e52bb-4017-5760-8db6-838ee858421d",
+		},
+		{
+			cm.Product{IDProduct: 901974, Name: "Storm Herd", Number: "33", ExpansionName: "Secret Lair Commander Deck: Hatsune Miku"},
+			[]string{"56b79d54-af4c-5151-850f-0b1e07aac546", "b33a6875-f8a5-5757-a3b3-8fe7171d331d"},
+			"b33a6875-f8a5-5757-a3b3-8fe7171d331d", "b33a6875-f8a5-5757-a3b3-8fe7171d331d",
+		},
+		{
+			cm.Product{IDProduct: 1993, Name: "Deftblade Elite", Number: "12", ExpansionName: "Legions"},
+			[]string{"a8b3fc41-5f35-5fe2-bc74-7e015a836fd3", "9d950aec-8dab-5ef3-9265-464123dfdc47"},
+			"9d950aec-8dab-5ef3-9265-464123dfdc47", "9d950aec-8dab-5ef3-9265-464123dfdc47_f",
 		},
 	} {
 		cardID, cardIDFoil := r.resolveUUIDs(&tt.product, tt.uuids)

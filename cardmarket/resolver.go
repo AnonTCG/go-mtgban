@@ -737,6 +737,12 @@ func (r *resolver) resolveUUIDs(product *cm.Product, uuids []string) (string, st
 	}
 
 	if len(plain) > 1 && !plainMatched {
+		plain, plainMatched = r.listed(plain, product.Number)
+	}
+	if len(foil) > 1 && !foilMatched {
+		foil, foilMatched = r.listed(foil, product.Number)
+	}
+	if len(plain) > 1 && !plainMatched {
 		plain, plainMatched = r.undecorated(plain)
 	}
 	if len(foil) > 1 && !foilMatched {
@@ -781,6 +787,26 @@ func (r *resolver) resolveUUIDs(product *cm.Product, uuids []string) (string, st
 		cardIDFoil = cardID
 	}
 	return cardID, cardIDFoil
+}
+
+// listed puts first the List printing of uuids numbered number in its
+// original set, the 167 of M19-167, as a reprint shelf numbers it. It runs
+// after the exact match, so an original keeps its number over its List twin.
+func (r *resolver) listed(uuids []string, number string) ([]string, bool) {
+	if number == "" {
+		return uuids, false
+	}
+	for i, uuid := range uuids {
+		co, err := r.backend.GetUUID(uuid)
+		if err != nil || co.SetCode != "PLST" {
+			continue
+		}
+		_, original, _ := strings.Cut(co.PlainNumber, "-")
+		if original == number {
+			return slices.Concat([]string{uuid}, uuids[:i], uuids[i+1:]), true
+		}
+	}
+	return uuids, false
 }
 
 // undecorated puts first the one printing of uuids whose number is its own
