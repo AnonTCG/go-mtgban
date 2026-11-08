@@ -15,6 +15,8 @@ import (
 // reprint made of it later. The product id is the storefront's own and both
 // feeds share it.
 var yugiohPIDs = map[string]string{
+	"412931": "626821", // RA04-EN026 Sky Striker Ace - Raye (Quarter Century Secret Rare) Standing = the original art
+	"412932": "626822", // RA04-EN026 (Quarter Century Secret Rare) Fire Attack = New Art
 	"255629": "162087", // LCKC-EN001 Blue-Eyes White Dragon (Blue Ripple Background) = Version 2
 	"255628": "161927", // LCKC-EN001 (Red Sparks Background) = Version 1
 	"255630": "162088", // LCKC-EN001 (Space and Earth Background) = Version 3
@@ -120,6 +122,8 @@ var yugiohNumbers = map[string]string{
 	"Ten Thousand Dragon|BLAR-EN093":     "BLAR-EN10K",
 	"Gladiator Beast Secutor|LCGX-EN040": "LCGX-EN240",
 	"Nordic Relic Laevateinn|BPW2-EN088": "BPW2-EN089",
+	"Necro Gardna|LCGX-EN022":            "LCGX-EN027",
+	"Diffusion Wave-Motion|RDS-EN050":    "RDS-ENSE1",
 }
 
 // yugiohAlternateArts lists the Gold Letter alternate arts of Battles of

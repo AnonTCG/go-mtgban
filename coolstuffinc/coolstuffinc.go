@@ -1107,6 +1107,8 @@ var csiUnknownPrintings = map[string]bool{
 	"Exodia the Forbidden One (Secret Rare)|Limited Pack World Championship 2025": true,
 	"Exodia the Forbidden One (Ultra Rare)|Limited Pack World Championship 2025":  true,
 	"Gladiator Beast Octavius (Super Rare)|Gladiators Assault":                    true,
+	"Dark Magician Knight|Promo":                                                  true,
+	"Antimagischer Duft|Turbo Pack 2":                                             true,
 	"Monkey.D.Luffy - 001 (Grevin Museum Promo)|OP13 - Carrying On His Will":      true,
 }
 
@@ -1154,6 +1156,7 @@ func catalogColor(name string) string {
 var csiSpellings = map[string]string{
 	"Belial - Marqis of Darkness":   "Belial - Marquis of Darkness",
 	"Compulsory Evactuation Device": "Compulsory Evacuation Device",
+	"Dark Magician (Purple Armor)":  "Dark Magician (A)",
 	"Doube-Edged Sword Technique":   "Double-Edged Sword Technique",
 	"Fearl Imp":                     "Feral Imp",
 	"Fiendish Engine Ω":             "Fiendish Engine Omega",
