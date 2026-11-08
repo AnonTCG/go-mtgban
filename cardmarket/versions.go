@@ -325,6 +325,11 @@ var versionPrintings = map[int]struct{ set, number string }{
 	// The List
 	826306: {"PLST", "MUL-12"}, // Tetsuko Umezawa, Fugitive, CardTrader
 
+	// Mystery Booster 2: Reprints from Across Magic's History
+	791813: {"PLST", "LGN-12"},  // Deftblade Elite, CardTrader
+	791814: {"PLST", "MOR-118"}, // Deglamer, CardTrader
+	792883: {"PLST", "NPH-23"},  // Shattered Angel, CardTrader
+
 	// Secret Lair Drop Series: Secretversary 2021
 	687581: {"PLST", "CMR-395"}, // Counterspell (V.2), Scryfall
 
