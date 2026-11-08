@@ -1,5 +1,5 @@
 {
- "_comment": "AnonTCG override for MTGJSON mis-published TCGplayer identifiers. 'primary' -> tcgplayerProductId. 'alt_foil' -> tcgplayerAlternativeFoilProductId; an EMPTY alt_foil DELETES that field, suppressing the alt-foil split so the card resolves both finishes from one product. needsNewTCGSKUs is always forced because MTGJSON's cached TcgplayerSkus.json holds the wrong SKUs for these uuids. All ids verified against AnonTCG's tcgplayer_catalog (TCGplayer catalog API, independent of MTGJSON). HOB entries added 2026-08-06: #239 Borderless and #275 Surge Foil were published sharing ONE identifier pair (primary 709068 + altFoil 709470) plus one merged SKU list, so #239's foil priced from the $1,499.93 Surge Foil product while #275 got no rows at all. Correct: 709068 = #239 (Normal + Foil SKUs), 709470 = #275 (Foil only). NOTE: entries are applied UNCONDITIONALLY - they overwrite upstream even after MTGJSON corrects it. Re-check upstream periodically and DELETE an entry once its ids match; delete this file + its loader when empty. (The 43 MSC entries lived here from 2026-07-01 until 2026-08-06, removed after MTGJSON published correct ids - 43/43 verified in both AllPrintings and TcgplayerSkus.json.) Each entry records the BROKEN upstream state it was written against ('upstream_primary'/'upstream_alt_foil'). On load the override compares live MTGJSON against both that broken state and its own corrected values, and logs to stderr when an entry has become redundant (upstream fixed -> delete it) or when upstream has moved to an unrecognised state (-> re-verify before trusting the forced ids). TRC entries added 2026-11-08: Sunpetal Grove #565 and Temple of Enlightenment #566 were published with the TRK 'Mountain (0565)/(0566) (Surge Foil)' products (726437/726438) as primary and no altFoil, so their foil priced from a $94.99 Mountain and their nonfoil was never scraped. Correct, verified in tcgplayer_catalog: 727702 = Sunpetal Grove (Normal), 727719 = Sunpetal Grove (Surge Foil); 727703 = Temple of Enlightenment (Normal), 727720 = Temple of Enlightenment (Surge Foil) - the same Normal + Surge Foil split every other TRC card carries.",
+ "_comment": "AnonTCG override for MTGJSON mis-published TCGplayer identifiers. 'primary' -> tcgplayerProductId. 'alt_foil' -> tcgplayerAlternativeFoilProductId; an EMPTY alt_foil DELETES that field, suppressing the alt-foil split so the card resolves both finishes from one product. needsNewTCGSKUs is always forced because MTGJSON's cached TcgplayerSkus.json holds the wrong SKUs for these uuids. All ids verified against AnonTCG's tcgplayer_catalog (TCGplayer catalog API, independent of MTGJSON). HOB entries added 2026-08-06: #239 Borderless and #275 Surge Foil were published sharing ONE identifier pair (primary 709068 + altFoil 709470) plus one merged SKU list, so #239's foil priced from the $1,499.93 Surge Foil product while #275 got no rows at all. Correct: 709068 = #239 (Normal + Foil SKUs), 709470 = #275 (Foil only). NOTE: entries are applied UNCONDITIONALLY - they overwrite upstream even after MTGJSON corrects it. Re-check upstream periodically and DELETE an entry once its ids match; delete this file + its loader when empty. (The 43 MSC entries lived here from 2026-07-01 until 2026-08-06, removed after MTGJSON published correct ids - 43/43 verified in both AllPrintings and TcgplayerSkus.json.) Each entry records the BROKEN upstream state it was written against ('upstream_primary'/'upstream_alt_foil'). On load the override compares live MTGJSON against both that broken state and its own corrected values, and logs to stderr when an entry has become redundant (upstream fixed -> delete it) or when upstream has moved to an unrecognised state (-> re-verify before trusting the forced ids). TRC entries added 2026-11-08: Sunpetal Grove #565 and Temple of Enlightenment #566 were published with the TRK 'Mountain (0565)/(0566) (Surge Foil)' products (726437/726438) as primary and no altFoil, so their foil priced from a $94.99 Mountain and their nonfoil was never scraped. Correct, verified in tcgplayer_catalog: 727702 = Sunpetal Grove (Normal), 727719 = Sunpetal Grove (Surge Foil); 727703 = Temple of Enlightenment (Normal), 727720 = Temple of Enlightenment (Surge Foil) - the same Normal + Surge Foil split every other TRC card carries. PFRA entries added 2026-11-08: Promo Pack: Reality Fracture #52p Dark Matter Manipulator and #53p Darklight Phoenix were published with each other's product (52p -> 719581, 53p -> 719580). Correct, verified in tcgplayer_catalog: 719580 = Dark Matter Manipulator #52, 719581 = Darklight Phoenix #53, each Normal + Foil on one product.",
  "cards": {
   "b44d95e0-9dc3-59d2-b309-454e35d6f35c": {
    "set": "HOB",
@@ -35,6 +35,24 @@
    "primary": "727703",
    "alt_foil": "727720",
    "upstream_primary": "726438",
+   "upstream_alt_foil": ""
+  },
+  "9f07beea-043a-5461-827a-650c78714c71": {
+   "set": "PFRA",
+   "name": "Dark Matter Manipulator",
+   "number": "52p",
+   "primary": "719580",
+   "alt_foil": "",
+   "upstream_primary": "719581",
+   "upstream_alt_foil": ""
+  },
+  "ae1ce4ff-96db-5d69-9b93-c1037efb0061": {
+   "set": "PFRA",
+   "name": "Darklight Phoenix",
+   "number": "53p",
+   "primary": "719581",
+   "alt_foil": "",
+   "upstream_primary": "719580",
    "upstream_alt_foil": ""
   }
  }
