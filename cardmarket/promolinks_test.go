@@ -104,6 +104,7 @@ func TestPokemonStampLinks(t *testing.T) {
 		{295325, "Shiinotic", "17", "Sun & Moon", "PR-1840", "017", ""},
 		{295411, "Kangaskhan", "99", "Sun & Moon", "PR-1840", "099", ""},
 		{295426, "Oranguru", "113", "Sun & Moon", "PR-1840", "113", ""},
+		{275578, "Rainbow Energy", "", "Promos", "PR-1539", "", ""},
 		{319255, "Alolan Vulpix", "21", "Guardians Rising", "MCAP", "021", ""},
 		{359292, "Great Ball", "SUM 119", "SM Trainer Kit: Alolan Sandslash & Alolan Ninetales", "SMK2", "21", ""},
 		{359295, "Great Ball", "SUM 119", "SM Trainer Kit: Alolan Sandslash & Alolan Ninetales", "SMK2", "119", ""},
