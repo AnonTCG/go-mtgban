@@ -124,6 +124,11 @@ func TestForeignListing(t *testing.T) {
 			Number: "83", Title: "Non-English - Japanese", Language: []string{"Japanese"},
 			ScryfallIDs: []string{"9df19f7c-2922-4d71-999a-818ae69045c3"}, TCGplayerIDs: []int64{690170}}, nil,
 			"96d8a2e9-2bde-55ec-9487-2f218779b589"},
+		{"a flavor name is validated by the oracle half of the title", ABUCard{
+			DisplayTitle: "Witch's Prophecy | Force of Negation (Buy-A-Box)", Edition: "Promo", Number: "1",
+			Title: "Non-English - Japanese", Language: []string{"Japanese"},
+			ScryfallIDs: []string{"bc5376cb-82f6-43c7-bf8b-43515791e082"}, TCGplayerIDs: []int64{637609}}, nil,
+			"64d30071-456d-582c-9fcc-68d21f238ca6"},
 		{"the same ids on a finish that printing was never sold in stay foreign", ABUCard{
 			DisplayTitle: "Flusterstorm (JP Alternate Art 73) - FOIL", Edition: "Secrets of Strixhaven Mystical Archive",
 			Number: "83", Title: "Non-English - Japanese", Language: []string{"Japanese"},

@@ -527,8 +527,11 @@ func preprocess(b *matcher.Backend, card *ABUCard) (*matcher.InputCard, error) {
 	}
 
 	// Separate flavor names
+	oracleName := ""
 	if strings.Contains(cardName, " | ") {
-		cardName = strings.Split(cardName, " | ")[0]
+		parts := strings.Split(cardName, " | ")
+		cardName = parts[0]
+		oracleName = parts[len(parts)-1]
 	}
 
 	// Cleanup variation as necessary
@@ -1058,7 +1061,11 @@ func preprocess(b *matcher.Backend, card *ABUCard) (*matcher.InputCard, error) {
 	if lang != "" && lang != "English" {
 		printing := resolved(b, cardName, edition, variation, lang, isFoil)
 		if printing == nil || printing.Language != lang {
-			identified := foreignIdentified(b, card, cardName, lang, isFoil)
+			idName := cardName
+			if oracleName != "" {
+				idName = oracleName
+			}
+			identified := foreignIdentified(b, card, idName, lang, isFoil)
 			if identified == nil {
 				return nil, errForeignListing
 			}
