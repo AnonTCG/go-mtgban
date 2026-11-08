@@ -2,6 +2,7 @@ package cardgamecorner
 
 import (
 	"errors"
+	"strings"
 
 	"github.com/mtgban/go-mtgban/matcher"
 	"github.com/mtgban/go-mtgban/matcher/magic"
@@ -48,8 +49,10 @@ func matchPokemon(cgc *Cardgamecorner, card *Card, _ int, input *matcher.InputCa
 }
 
 // matchYuGiOh retries with the SKU's number a listing whose number field is
-// wrong, as it is on a few, while the SKU still ends in the card's own.
+// wrong, as it is on a few, while the SKU still ends in the card's own; what
+// the wording still refuses is placed by its product image.
 func matchYuGiOh(cgc *Cardgamecorner, card *Card, index int, input *matcher.InputCard) (string, error) {
+	retry := *input
 	cardID, err := cgc.backend.Match(input)
 	if errors.Is(err, matcher.ErrCardWrongVariant) {
 		id, found := matchBySKUNumber(cgc.backend, card, index)
@@ -57,7 +60,32 @@ func matchYuGiOh(cgc *Cardgamecorner, card *Card, index int, input *matcher.Inpu
 			return id, nil
 		}
 	}
+	if err != nil && !errors.Is(err, matcher.ErrUnsupported) {
+		id, found := cgc.matchYuGiOhImage(card, index, &retry)
+		if found {
+			return id, nil
+		}
+	}
 	return cardID, err
+}
+
+// matchYuGiOhImage answers from the product image, accepting the printing
+// only when it is the card the listing names, in the print run it lists. The
+// store's version tail is not part of the name.
+func (cgc *Cardgamecorner) matchYuGiOhImage(card *Card, index int, input *matcher.InputCard) (string, bool) {
+	name, _, _ := strings.Cut(input.Name, " (")
+	id, found := cgc.matchByProductImage(card, input)
+	if !found {
+		return "", false
+	}
+	co, err := cgc.backend.GetUUID(id)
+	if err != nil || !matcher.Equals(co.Name, name) {
+		return "", false
+	}
+	if (card.Variants[index].Print == "First Edition") != (co.Finish == "1stedition") {
+		return "", false
+	}
+	return id, true
 }
 
 // matchMagic retries what the wording cannot place with the number the
