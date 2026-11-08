@@ -170,7 +170,8 @@ func frontFace(name string) string {
 // under. Some promo packs keep the main set's own number instead of a
 // separate promo-only set - AFR sends Power Word Kill's promo pack to #400,
 // not the plain card's #114 - so a listing wearing that number and edition
-// already names the exact printing.
+// already names the exact printing. A promo-only set files its pack numbers
+// with a "p" suffix (PECL 265p), which the shelf writes without it.
 func namesPromopack(b *matcher.Backend, name, edition, number string) bool {
 	set, err := b.GetSetByName(edition)
 	if err != nil {
@@ -179,7 +180,7 @@ func namesPromopack(b *matcher.Backend, name, edition, number string) bool {
 	name = frontFace(name)
 	for i := range set.Cards {
 		card := &set.Cards[i]
-		if card.Name == name && card.Number == number && slices.Contains(card.PromoTypes, magic.PromoTypePromoPack) {
+		if card.Name == name && (card.Number == number || card.Number == number+"p") && slices.Contains(card.PromoTypes, magic.PromoTypePromoPack) {
 			return true
 		}
 	}

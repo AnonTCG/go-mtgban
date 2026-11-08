@@ -2,6 +2,7 @@ package abugames
 
 import (
 	"errors"
+	"strings"
 	"testing"
 
 	"github.com/mtgban/go-mtgban/matcher"
@@ -74,6 +75,7 @@ func TestFNMPromoPackNamedEdition(t *testing.T) {
 		{"AFR's own promo pack number", "Power Word Kill (FNM Promo Pack)",
 			"Adventures in the Forgotten Realms", "400", "AFR"},
 		{"and KHM's", "Usher of the Fallen (FNM Promo Pack)", "Kaldheim", "401", "KHM"},
+		{"a shelf whose pack numbers carry a p", "Hallowed Fountain (Promo Pack)", "Lorwyn Eclipsed Promos", "265", "PECL"},
 	} {
 		t.Run(test.desc, func(t *testing.T) {
 			card := ABUCard{DisplayTitle: test.title, Edition: test.edition, Number: test.number}
@@ -89,7 +91,7 @@ func TestFNMPromoPackNamedEdition(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			if co.SetCode != test.wantSet || co.Number != test.number || !co.HasPromoType("promopack") {
+			if co.SetCode != test.wantSet || strings.TrimSuffix(co.Number, "p") != test.number || !co.HasPromoType("promopack") {
 				t.Errorf("Match(%q) = %s|%s, want a %s|%s promopack printing", in, co.SetCode, co.Number, test.wantSet, test.number)
 			}
 		})
