@@ -116,6 +116,9 @@ var productLinks = map[int]int{
 	915839: 721876, // Lorcana Q3 Christopher Robin - Hunny Sage
 	915840: 721878, // Lorcana Q3 Violet Parr - Super Resilient
 	917633: 726179, // Riftbound Clanging Sentry, Radiance Nexus Night promo numbered 0545
+	910869: 729853, // Lorcana Hades - Dark Usurper, Challenge Top 8 serialized
+	910870: 729854, // Lorcana Hades - Dark Usurper, Challenge Winner serialized
+	608027: 729995, // Flesh and Blood Arcane Lantern, Everfest Extended Art Cold Foil
 }
 
 // errNoPrinting marks a product no route named a printing of ours for. It
@@ -233,7 +236,7 @@ func (r *resolver) notPreErrata(product *cm.Product, cardID string) bool {
 // on and the finish the one disagreement.
 func resolveFab(r *resolver, product *cm.Product) (string, string, bool, error) {
 	var cardID, loose string
-	tcgID, found := r.tcgBridge[product.IDProduct]
+	tcgID, found := r.tcgProduct(product)
 	if found {
 		cardID, _ = r.backend.MatchID(fmt.Sprint(tcgID), false)
 		finish := fabFinish(product.ExpansionName, product.Name)
@@ -608,13 +611,21 @@ func (r *resolver) withFoil(cardID string) (string, string, bool, error) {
 	return cardID, cardIDFoil, false, nil
 }
 
+// tcgProduct names the TCGplayer product the bridge links a product to, where
+// a row of productLinks does not link it instead.
+func (r *resolver) tcgProduct(product *cm.Product) (int, bool) {
+	crossed, linked := productLinks[product.IDProduct]
+	if linked {
+		return crossed, true
+	}
+	tcgID, found := r.tcgBridge[product.IDProduct]
+	return tcgID, found
+}
+
 // bridged names the printing the bridge links a product to, where a row of
 // productLinks does not link it instead.
 func (r *resolver) bridged(product *cm.Product) (string, bool) {
-	tcgID, found := r.tcgBridge[product.IDProduct]
-	if crossed, linked := productLinks[product.IDProduct]; linked {
-		tcgID, found = crossed, true
-	}
+	tcgID, found := r.tcgProduct(product)
 	if !found {
 		return "", false
 	}

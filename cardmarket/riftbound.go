@@ -19,15 +19,19 @@ func bridgeNamesCard(b *matcher.Backend, product *cm.Product, cardID string) boo
 		return false
 	}
 	name, _, _ := strings.Cut(product.Name, " (V.")
-	if matcher.CloseName(co.Name, name) {
-		return true
-	}
 	// A promo's name carries what sets it apart, "(JP Exclusive)" and the like.
-	bare, decorated := strings.CutSuffix(co.Name, ")")
-	if i := strings.LastIndex(bare, " ("); decorated && i > 0 {
-		return matcher.CloseName(bare[:i], name)
+	cardName := co.Name
+	for {
+		if matcher.CloseName(cardName, name) {
+			return true
+		}
+		bare, decorated := strings.CutSuffix(cardName, ")")
+		i := strings.LastIndex(bare, " (")
+		if !decorated || i <= 0 {
+			return false
+		}
+		cardName = bare[:i]
 	}
-	return false
 }
 
 // riftboundChineseShelf is the code of Project K Promos, Riftbound's Chinese
