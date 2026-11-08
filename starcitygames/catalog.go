@@ -1270,6 +1270,13 @@ var promoShelfPrintings = map[string]struct{ set, number string }{
 	// the MagicCon Tifa has none and reads as the Final Fantasy prerelease.
 	"GAME_2025_001": {"PMEI", "2025-21"},
 	"PTQ_2025_002":  {"PF25", "9"},
+
+	// Japanese promos with no identifier at all, each the only printing of
+	// its name in that language: Final Fantasy's buy-a-box pair and the
+	// Pro Tour Eternal Wanderer.
+	"BAB_FIN_001a":  {"RFIN", "J2"},
+	"BAB_FIN_001b":  {"RFIN", "J1"},
+	"FOUR_2025_001": {"PW26", "4"},
 }
 
 // matchVendorID resolves a vendor id to the printing sold in the finish the
