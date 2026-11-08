@@ -7,6 +7,12 @@ import (
 	"github.com/mtgban/go-mtgban/matcher"
 )
 
+// numberedSKUPrefixes open the SKUs of the shelves whose version tag counts
+// the store's own index, where the number the listing states names the
+// printing: the Lord of the Rings Holiday Release and the Secret Lair
+// Promos.
+var numberedSKUPrefixes = []string{"LTRH", "SLP"}
+
 // skuNumberRe matches the three digits a SKU ends with, ahead of the version
 // the store appends to a card it lists more than once.
 var skuNumberRe = regexp.MustCompile(`([0-9]{3})(?:V[0-9]+)?$`)

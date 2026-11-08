@@ -246,6 +246,12 @@ func preprocess(b *matcher.Backend, card *Card, index int) (*matcher.InputCard, 
 
 	variation = basicSKUNumber(cardName, edition, variation, extra, card.SKU)
 
+	if card.Number != "" && slices.ContainsFunc(numberedSKUPrefixes, func(prefix string) bool {
+		return strings.HasPrefix(card.SKU, prefix)
+	}) {
+		variation = card.Number
+	}
+
 	if id == "" {
 		id = imageProductID(b, card.Edition, card.Extra, cardName, edition, variation, isFoil)
 	}

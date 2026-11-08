@@ -535,6 +535,32 @@ func TestMatchBasicByImage(t *testing.T) {
 	}
 }
 
+// A Holiday Release or Secret Lair Promo SKU counts the store's own index, so
+// the number the listing states names the printing over its version tag.
+func TestNumberedSKUPrefix(t *testing.T) {
+	b := realDatastore(t)
+	for _, tt := range []struct {
+		name, edition, number, sku, want string
+	}{
+		{"Goldberry, River-Daughter (V.1)", "The Lord of The Rings: Tales of Middle-earth Holiday Release", "503", "LTRH0503A", "LTR 503"},
+		{"Innkeeper's Talent", "DCI Promo", "45", "SLP0040", "SLP 45"},
+	} {
+		card := Card{Name: tt.name, Edition: tt.edition, Number: tt.number, SKU: tt.sku, Variants: []Variant{{Foil: "Non Foil", Language: "EN"}}}
+		input, err := preprocess(b, &card, 0)
+		if err != nil {
+			t.Fatal(err)
+		}
+		id, err := b.Match(input)
+		if err != nil {
+			t.Fatal(err)
+		}
+		co, err := b.GetUUID(id)
+		if err != nil || co.SetCode+" "+co.Number != tt.want {
+			t.Errorf("%s (%s) = %v, want %s", tt.name, tt.sku, co, tt.want)
+		}
+	}
+}
+
 // A card the store's version tag cannot place is retried with the number the
 // listing states, and answered only where the landed printing carries it.
 func TestMatchByListedNumber(t *testing.T) {
