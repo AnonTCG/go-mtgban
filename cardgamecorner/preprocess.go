@@ -898,6 +898,25 @@ func matchNumbered(b *matcher.Backend, input *matcher.InputCard, number string) 
 	return "", false
 }
 
+// foilStarTwin answers a foil listing that landed on a printing sold only
+// nonfoil with the foil-only printing the set numbers with a star beside it,
+// which the matcher drops while the listing names no treatment.
+func foilStarTwin(b *matcher.Backend, cardID string) string {
+	co, err := b.GetUUID(cardID)
+	if err != nil || co.Foil || co.Etched {
+		return cardID
+	}
+	twinID, err := b.MatchID(cardID, true)
+	if err != nil {
+		return cardID
+	}
+	twin, err := b.GetUUID(twinID)
+	if err != nil || !twin.Foil || twin.SetCode != co.SetCode || twin.Number != co.Number+"★" {
+		return cardID
+	}
+	return twinID
+}
+
 // matchByListedNumber retries a card the wording could not place with the
 // number the listing states, where the store's version tag counts its own
 // index and the number names the printing. input is a copy taken before the

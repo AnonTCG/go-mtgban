@@ -603,3 +603,27 @@ func TestMatchByListedNumber(t *testing.T) {
 		})
 	}
 }
+
+// A foil listing that landed on the nonfoil printing of a card the set also
+// prints as a foil-only star twin is answered with the twin.
+func TestFoilStarTwin(t *testing.T) {
+	b := realDatastore(t)
+	for _, tt := range []struct {
+		name    string
+		edition string
+		wantNum string
+	}{
+		{"Professional Face-Breaker", "Commander: Modern Horizons 3", "216★"},
+		{"Hourglass of the Lost", "Commander: Modern Horizons 3", "92"},
+	} {
+		input := matcher.InputCard{Name: tt.name, Edition: tt.edition, Foil: true}
+		id, err := b.Match(&input)
+		if err != nil {
+			t.Fatal(err)
+		}
+		co, err := b.GetUUID(foilStarTwin(b, id))
+		if err != nil || co.Number != tt.wantNum {
+			t.Errorf("foilStarTwin(%s) = %v, want %s", tt.name, co, tt.wantNum)
+		}
+	}
+}

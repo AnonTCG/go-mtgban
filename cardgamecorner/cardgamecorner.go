@@ -181,6 +181,10 @@ func (cgc *Cardgamecorner) processEntry(channel chan<- resultChan, cards []listi
 				continue
 			}
 
+			if cgc.backend.Game == matcher.GameMagic && v.Foil == "Foil" {
+				cardID = foilStarTwin(cgc.backend, cardID)
+			}
+
 			channel <- resultChan{
 				cardID: cardID,
 				invEntry: &mtgban.InventoryEntry{
