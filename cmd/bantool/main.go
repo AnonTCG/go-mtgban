@@ -13,6 +13,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"maps"
 	"net/http"
 	"net/url"
 	"os"
@@ -320,7 +321,7 @@ func scraperResources(b *matcher.Backend, key string) ([]mtgban.Option, error) {
 		opts = append(opts, cardmarket.WithBridge(bridge))
 
 	case "cardgamecorner":
-		if game != matcher.GameOnePiece && game != matcher.GamePokemon {
+		if game != matcher.GameOnePiece && game != matcher.GamePokemon && game != matcher.GameYuGiOh {
 			break
 		}
 		// The bridge only settles what the wording cannot, so a cardtrader
@@ -328,7 +329,16 @@ func scraperResources(b *matcher.Backend, key string) ([]mtgban.Option, error) {
 		bridge, err := cardtraderBridge(game)
 		if err != nil {
 			log.Printf("bridge unavailable, naming what the wording can on its own: %v", err)
-		} else {
+			bridge = map[int]int{}
+		}
+		if game == matcher.GameOnePiece {
+			// CardTrader links the event promos with no TCGplayer id, and
+			// its own link wins where both name one.
+			links := cardmarket.OnePieceEventLinks()
+			maps.Copy(links, bridge)
+			bridge = links
+		}
+		if len(bridge) != 0 {
 			opts = append(opts, cardgamecorner.WithBridge(bridge))
 		}
 
