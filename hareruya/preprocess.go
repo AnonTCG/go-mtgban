@@ -1122,6 +1122,7 @@ var promoMap = map[string]map[string]map[string]struct {
 		},
 	},
 	"Other Event Promo": {
+		"Arcbound Ravager": {"卯年プロモ": {Edition: "PL23", Variant: "6"}},
 		"Ephemerate": {
 			"夏休み": {
 				Edition: "PSVC",
@@ -1296,10 +1297,11 @@ var promoMap = map[string]map[string]map[string]struct {
 	// or Standard Showdown printing, filed by year, the Spotlight Series
 	// set, and the Final Fantasy Standard Showdown set.
 	"Showdown Promo": {
-		"Plains":   {"Full-Art Illus.Lucas Graciano": {Edition: "PSS4", Variant: "1"}},
-		"Island":   {"Full-Art Illus.Piotr Dura": {Edition: "PSS4", Variant: "2"}},
-		"Swamp":    {"Full-Art Illus.Alexander Forssberg": {Edition: "PSS4", Variant: "3"}},
-		"Mountain": {"Full-Art 2024年版 Illus.Alayna Danner": {Edition: "PSS4", Variant: "4"}, "2018年版 Illus.Alayna Danner": {Edition: "PSS3", Variant: "4"}},
+		"Go for the Throat": {"Borderless スタンダード・ショーダウン": {Edition: "PCBB", Variant: "3"}},
+		"Plains":            {"Full-Art Illus.Lucas Graciano": {Edition: "PSS4", Variant: "1"}},
+		"Island":            {"Full-Art Illus.Piotr Dura": {Edition: "PSS4", Variant: "2"}},
+		"Swamp":             {"Full-Art Illus.Alexander Forssberg": {Edition: "PSS4", Variant: "3"}},
+		"Mountain":          {"Full-Art 2024年版 Illus.Alayna Danner": {Edition: "PSS4", Variant: "4"}, "2018年版 Illus.Alayna Danner": {Edition: "PSS3", Variant: "4"}},
 		"Wood Elves": {
 			"Extended Art スタンダード・ショーダウン": {
 				Edition: "PW26",
@@ -1356,6 +1358,8 @@ var promoMap = map[string]map[string]map[string]struct {
 		},
 	},
 	"Commander Event Promo": {
+		"Gran-Gran":                {"コマンダーイベントプロモ": {Edition: "PW25", Variant: "14"}},
+		"Spider-Ham, Peter Porker": {"コマンダーイベントプロモ": {Edition: "PW25", Variant: "10"}},
 		"Echo, Perceptive Prodigy": {
 			"コマンダーイベントプロモ": {
 				Edition: "PW26",
@@ -1388,6 +1392,7 @@ var promoMap = map[string]map[string]map[string]struct {
 		},
 	},
 	"Magic Presents Promo": {
+		"Ultimate Green Goblin": {"マジック・プレゼンツプロモ": {Edition: "PW25", Variant: "12"}},
 		"Hellcat, Undying Vigilante": {
 			"マジック・プレゼンツプロモ": {
 				Edition: "PW26",
@@ -1652,6 +1657,24 @@ var promoMap = map[string]map[string]map[string]struct {
 			},
 		},
 	},
+	"Magic Academy Promo": {
+		"Mary Jane Watson": {"マジック・アカデミープロモ": {Edition: "PW25", Variant: "11"}},
+	},
+	"6ED": {
+		"Balduvian Horde": {"世界選手権99プロモ": {Edition: "PWOR", Variant: "1"}},
+	},
+	"DOM": {
+		"Zahid, Djinn of the Lamp": {"Draft Weekend": {Edition: "PDOM", Variant: "76"}},
+	},
+	"GRN": {
+		"Firemind's Research": {"Draft Weekend": {Edition: "PGRN", Variant: "171"}},
+	},
+	"XLN": {
+		"Deeproot Champion": {"Convention": {Edition: "PXLN", Variant: "185"}},
+	},
+	"CHK": {
+		"Brothers Yamazaki": {"160": {Edition: "CHK", Variant: "160b"}},
+	},
 	"Magic Academy": {
 		"Trinket Mage": {
 			"Retro Frame Magic Academy": {
@@ -1684,7 +1707,8 @@ var promoMap = map[string]map[string]map[string]struct {
 				Edition: "PF24",
 				Variant: "1",
 			},
-			"Full-Art 2": {Edition: "PURL", Variant: "2"},
+			"Full-Art 2":              {Edition: "PURL", Variant: "2"},
+			"Retro Frame MagicConプロモ": {Edition: "PF26", Variant: "5"},
 		},
 	},
 	"MagicFest": {
@@ -1850,6 +1874,10 @@ var promoMap = map[string]map[string]map[string]struct {
 		},
 	},
 	"The List": {
+		"Lightning Bolt":    {"Textless Magic Fest": {Edition: "PLST", Variant: "PF19-1"}},
+		"Imperious Perfect": {"ゲームデー": {Edition: "PLST", Variant: "PCMP-9"}},
+		"Abrade":            {"ゲームデー": {Edition: "PLST", Variant: "HOU-83"}},
+		"Stasis Snare":      {"BFZ-P": {Edition: "PLST", Variant: "PBFZ-50"}},
 		"Negate": {
 			"褒賞プログラム": {Edition: "PLST", Variant: "P09-8"},
 		},
