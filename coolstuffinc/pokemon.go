@@ -35,7 +35,7 @@ var pokemonNonHoloNote = regexp.MustCompile(`(?i)\*Non-?\s?Holo Version\b`)
 // printing a "(Non-Holo)" bracket asks for, each with the set code the probe
 // has to land on to be trusted.
 var pokemonNonHoloShelves = []struct{ edition, set string }{
-	{"Deck Exclusives", "PR-1840"},
+	{"Deck Exclusives", pokemonDeckSet},
 	{"Miscellaneous Cards & Products", "MCAP"},
 }
 
@@ -65,7 +65,7 @@ var pokemonHolo = regexp.MustCompile(`(?i)\s*\((?:Alt Art )?Holo(?: Promo)?\)`)
 // a card, each with the set code the probe has to land on to be trusted.
 var pokemonHoloShelves = []struct{ edition, set string }{
 	{"Alternate Art Promos", "PR-1938"},
-	{"Deck Exclusives", "PR-1840"},
+	{"Deck Exclusives", pokemonDeckSet},
 	{"League & Championship Cards", "PR-1539"},
 }
 
@@ -195,6 +195,16 @@ var pokemonListingIDs = map[string]string{
 	"Pikachu (Pokemon Day Stamp) - 9/17|POP Series 6":              "276377",
 	"Pikachu (Pokemon Day Stamp) - 15/17|POP Series 9":             "701479",
 	"Professor's Research (Holo) - 060/072|SWSH Shining Fates":     "239642",
+
+	"Delphox - 013/086 (30th Reverse Foil)|ME Chaos Rising":                 "729910",
+	"Moltres - 014/094 (30th Reverse Foil)|ME Phantasmal Flames":            "729915",
+	"Zacian - 045/094 (30th Reverse Foil)|ME Phantasmal Flames":             "729914",
+	"Voltaic Lightning Energy - 084/084 (30th Reverse Foil)|ME Pitch Black": "729904",
+
+	"Fire Energy - MEE002 (30th Reverse Foil)|ME Ascended Heroes":      "729817",
+	"Lightning Energy - MEE004 (30th Reverse Foil)|ME Ascended Heroes": "729816",
+	"Psychic Energy - MEE005 (30th Reverse Foil)|ME Ascended Heroes":   "729818",
+	"Darkness Energy - MEE007 (30th Reverse Foil)|ME Ascended Heroes":  "729815",
 }
 
 // pokemonListing reads a Pokemon listing the way the catalog names it. The
@@ -283,12 +293,16 @@ func pokemonListing(b *matcher.Backend, name, edition, variation string, foil bo
 	if nonHolo {
 		probe, probeFoil = "Non-Holo", false
 	}
-	redirected := pokemonDeckHoloRedirect(b, strings.TrimSpace(pokemonNonHolo.ReplaceAllString(name, "")), strings.TrimSpace(pokemonNonHolo.ReplaceAllString(numbered, "")), variation, probe, probeFoil)
+	redirected, finish := pokemonDeckHoloRedirect(b, strings.TrimSpace(pokemonNonHolo.ReplaceAllString(name, "")), strings.TrimSpace(pokemonNonHolo.ReplaceAllString(numbered, "")), variation, probe, probeFoil)
 	if redirected != "" {
 		card.Name = strings.TrimSpace(pokemonNonHolo.ReplaceAllString(card.Name, ""))
 		card.Edition = redirected
 		card.Variation = probe
 		card.Foil = probeFoil
+		if finish != "" {
+			card.Variation, card.Finish, card.Foil = "", finish, true
+			numbered = strings.TrimSpace(pokemon30thReverse.ReplaceAllString(numbered, ""))
+		}
 	}
 	m = goldStar.FindStringSubmatch(name)
 	if m != nil {
@@ -587,23 +601,36 @@ func pokemonNoteShelf(b *matcher.Backend, numbered string, card *matcher.InputCa
 }
 
 // pokemonDeckHoloNotes names the edition a print-run note belongs to, and
-// the set code the redirect has to land on to be trusted.
+// the set code the redirect has to land on to be trusted. A row with a finish
+// asks the catalog for that finish instead of a label, and is trusted only
+// where the landing has it.
 var pokemonDeckHoloNotes = []struct {
-	marker, edition, wantSet string
+	marker, edition, wantSet, finish string
 }{
-	{"Theme Deck", "Deck Exclusives", "PR-1840"},
-	{"EX Battle Stadium", "EX Battle Stadium", "BST"},
-	{"Prism Holo", "Miscellaneous Cards & Products", "MCAP"},
-	{"Shattered Holo", "Miscellaneous Cards & Products", "MCAP"},
+	{"Theme Deck", "Deck Exclusives", pokemonDeckSet, ""},
+	{pokemon30thBattleDeck, "Deck Exclusives", pokemonDeckSet, "Reverse Holofoil"},
+	{"EX Battle Stadium", "EX Battle Stadium", "BST", ""},
+	{"Prism Holo", "Miscellaneous Cards & Products", "MCAP", ""},
+	{"Shattered Holo", "Miscellaneous Cards & Products", "MCAP", ""},
 }
+
+// pokemon30thBattleDeck is the note of the 30th Celebration Battle Deck
+// reverse foils, which the catalog files under Deck Exclusives, and
+// pokemon30thReverse the bracket their number carries.
+const pokemon30thBattleDeck = "30th Celebration Battle Deck"
+
+// pokemonDeckSet is the catalog's Deck Exclusives set code.
+const pokemonDeckSet = "PR-1840"
+
+var pokemon30thReverse = regexp.MustCompile(`\(30th Reverse Foil\)`)
 
 // pokemonDeckHoloRedirect answers the edition for a pokemonDeckHoloNotes
 // marker whose probe lands on that marker's own set code at the listing's own
-// number, or "" otherwise.
+// number, or "" otherwise, with the finish the row asked for.
 // The probe asks for the "Cracked Ice Holo" label and the foil finish so a
 // cracked-ice twin outranks the plain printing of the same number, or for
 // "Non-Holo" and the plain finish where the listing is the plain copy.
-func pokemonDeckHoloRedirect(b *matcher.Backend, name, numbered, notes, variation string, foil bool) string {
+func pokemonDeckHoloRedirect(b *matcher.Backend, name, numbered, notes, variation string, foil bool) (string, string) {
 	for _, r := range pokemonDeckHoloNotes {
 		if !strings.Contains(notes, r.marker) && !strings.Contains(numbered, r.marker) {
 			continue
@@ -615,11 +642,17 @@ func pokemonDeckHoloRedirect(b *matcher.Backend, name, numbered, notes, variatio
 			continue
 		}
 		probe := matcher.InputCard{Name: name + " - " + tail, Edition: r.edition, Variation: variation, Foil: foil}
-		if pokemonLandsAt(b, probe, r.wantSet, num) != nil {
-			return r.edition
+		if r.finish != "" {
+			tail = strings.TrimSpace(pokemon30thReverse.ReplaceAllString(tail, ""))
+			probe = matcher.InputCard{Name: name + " - " + tail, Edition: r.edition, Finish: r.finish, Foil: true}
 		}
+		co := pokemonLandsAt(b, probe, r.wantSet, num)
+		if co == nil || r.finish != "" && co.Finish != matcher.FinishSlug(r.finish) {
+			continue
+		}
+		return r.edition, r.finish
 	}
-	return ""
+	return "", ""
 }
 
 // basicEnergyName matches this storefront's "<Type> Energy" and a treatment
@@ -734,7 +767,7 @@ var pokemonCosmosHedge = regexp.MustCompile(`(?i)\bor Cosmos Holo\b`)
 var pokemonCosmosShelves = []struct{ edition, set string }{
 	{"Miscellaneous Cards & Products", "MCAP"},
 	{"Blister Exclusives", "BLE"},
-	{"Deck Exclusives", "PR-1840"},
+	{"Deck Exclusives", pokemonDeckSet},
 }
 
 // pokemonCosmosHolo answers a listing sold under a main set with one of those
@@ -830,7 +863,22 @@ func retailPokemon(csi *Coolstuffinc, l sellListing) (*matcher.InputCard, string
 	shelf = pokemonPromoShelf(b, l.name, shelf, l.rarity, l.foil, variation)
 	theCard := pokemonHoloShelf(b, pokemonCosmosHolo(b, pokemonListing(b, l.name, shelf, variation, l.foil), l.rarity))
 	cardID, err := l.match(b, theCard)
+	if err == nil && theCard.ID == "" && pokemonUnlisted30th(b, cardID, l.notes) {
+		return theCard, "", matcher.ErrUnsupported
+	}
 	return theCard, cardID, err
+}
+
+// pokemonUnlisted30th reports a 30th Celebration Battle Deck reverse foil
+// that landed outside the catalog's Deck Exclusives by its wording: the
+// catalog does not list that card's deck copy yet, and the set's own printing
+// is another price. A listing named by pokemonListingIDs is exempt.
+func pokemonUnlisted30th(b *matcher.Backend, cardID, notes string) bool {
+	if !strings.Contains(notes, pokemon30thBattleDeck) {
+		return false
+	}
+	co, err := b.GetUUID(cardID)
+	return err == nil && co.SetCode != pokemonDeckSet
 }
 
 // buylistPokemon reads a buylist row, and drops a non-holo row that landed
@@ -847,6 +895,9 @@ func buylistPokemon(csi *Coolstuffinc, p CSIPriceEntry) (*matcher.InputCard, str
 	}
 	if err != nil {
 		return theCard, "", err
+	}
+	if theCard.ID == "" && pokemonUnlisted30th(b, cardID, p.Notes) {
+		return theCard, "", matcher.ErrUnsupported
 	}
 	if pokemonNonHolo.MatchString(p.Name) {
 		co, cerr := b.GetUUID(cardID)

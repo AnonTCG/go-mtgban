@@ -1,7 +1,11 @@
 package coolstuffinc
 
 import (
+	"errors"
+	"strings"
 	"testing"
+
+	"github.com/mtgban/go-mtgban/matcher"
 
 	_ "github.com/mtgban/go-mtgban/matcher/games"
 )
@@ -26,6 +30,9 @@ func TestPokemonDeckHoloRedirectPrefersSetCode(t *testing.T) {
 		// A number the redirect's own set prints only once is unaffected
 		// by the label: there is no plain twin to prefer over it.
 		{CSIPriceEntry{Name: "Charizard - 14/181", ItemSet: "SM Team Up", Notes: "Shattered Holo Theme Deck Version", Number: "14/181", RarityName: "Rare Holo"}, "014-181_184217_holofoil"},
+		// The 30th Celebration Battle Deck copy is its own reverse holo
+		// product in Deck Exclusives, not the set's reverse holo.
+		{CSIPriceEntry{Name: "Night Stretcher - 196/217 (30th Reverse Foil)", ItemSet: "ME Ascended Heroes", Notes: "30th Celebration Battle Deck Reverse Foil", Number: "196/217", RarityName: "Uncommon"}, "196-217_729932_reverseholofoil"},
 	} {
 		t.Run(tt.row.Name, func(t *testing.T) {
 			card, run := pokemonBuylistCard(b, tt.row)
@@ -92,13 +99,41 @@ func TestPokemonDeckHoloRedirectAsksForThePlainCopy(t *testing.T) {
 func TestPokemonDeckHoloRedirectNeedsTheListingsNumber(t *testing.T) {
 	b := readGameDatastore(t, "pokemon", "POKEMON_PATH")
 	for _, name := range []string{"Charizard", "Espeon"} {
-		redirected := pokemonDeckHoloRedirect(b, name, "", "Shattered Holo from Theme Deck", "Cracked Ice Holo", true)
+		redirected, _ := pokemonDeckHoloRedirect(b, name, "", "Shattered Holo from Theme Deck", "Cracked Ice Holo", true)
 		if redirected != "" {
 			t.Errorf("%s without a number redirected to %q", name, redirected)
 		}
-		redirected = pokemonDeckHoloRedirect(b, name, "Shattered Holo", "", "Cracked Ice Holo", true)
+		redirected, _ = pokemonDeckHoloRedirect(b, name, "Shattered Holo", "", "Cracked Ice Holo", true)
 		if redirected != "" {
 			t.Errorf("%s with only the marker redirected to %q", name, redirected)
 		}
+	}
+}
+
+// TestPokemonUnlisted30thSkipsOffTheDeckSet pins the skip of a 30th
+// Celebration Battle Deck copy that lands outside Deck Exclusives, on the
+// buylist and in retail alike, and that a listing named by its product id
+// is exempt from it.
+func TestPokemonUnlisted30thSkipsOffTheDeckSet(t *testing.T) {
+	b := readGameDatastore(t, "pokemon", "POKEMON_PATH")
+	csi := &Coolstuffinc{backend: b}
+	toxtricity := CSIPriceEntry{Name: "Toxtricity - 068/094 (30th Reverse Foil)", ItemSet: "ME Phantasmal Flames", Notes: "30th Celebration Battle Deck Reverse Foil", Number: "068/094", RarityName: "Holo Rare"}
+	_, id, err := buylistPokemon(csi, toxtricity)
+	if !errors.Is(err, matcher.ErrUnsupported) {
+		t.Errorf("buylist %q = %q, %v, want ErrUnsupported", toxtricity.Name, id, err)
+	}
+	_, id, err = retailPokemon(csi, sellListing{name: toxtricity.Name, edition: toxtricity.ItemSet, notes: toxtricity.Notes, rarity: toxtricity.RarityName})
+	if !errors.Is(err, matcher.ErrUnsupported) {
+		t.Errorf("retail %q = %q, %v, want ErrUnsupported", toxtricity.Name, id, err)
+	}
+
+	energy := sellListing{name: "Fire Energy - MEE002 (30th Reverse Foil)", edition: "ME Ascended Heroes", notes: "30th Celebration Battle Deck Reverse Foil", rarity: "Fixed"}
+	_, id, err = retailPokemon(csi, energy)
+	if err != nil {
+		t.Fatalf("retail %q = %v, want product 729817", energy.name, err)
+	}
+	co, err := b.GetUUID(id)
+	if err != nil || co.SetCode == pokemonDeckSet || !strings.Contains(id, "_729817") {
+		t.Errorf("retail %q = %q, %v, want product 729817 outside %s", energy.name, id, err, pokemonDeckSet)
 	}
 }
