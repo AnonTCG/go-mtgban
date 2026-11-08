@@ -390,6 +390,8 @@ func (ha *Hareruya) walkSet(ctx context.Context, channel chan<- responseChan, ca
 					strings.Contains(theCard.Edition, "The List") || // lots at set 280
 					strings.Contains(theCard.Edition, "Mystery Booster") || // lots at set 280
 					strings.Contains(product.ProductName, "Token") ||
+					strings.Contains(product.ProductName, "トークン") ||
+					strings.Contains(product.ProductName, "エンブレム") ||
 					strings.Contains(product.ProductName, "紋章(") ||
 					strings.Contains(product.ProductName, "紋章（") ||
 					strings.Contains(product.ProductName, "補助カード") {
