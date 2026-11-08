@@ -70,6 +70,13 @@ var riftboundShelves = map[string]struct{ edition, label, starLabel string }{
 	},
 }
 
+// riftboundUnpricedShelves are the shelves whose printings no catalog row
+// carries: Plated Legends' metal cards name no set, so their wording reaches
+// the base sets' own printings, which other products already price.
+var riftboundUnpricedShelves = map[string]bool{
+	"Plated Legends - Metal Cards": true,
+}
+
 // otherSetPromo reports whether a product on a "<Set>: Promos" shelf landed
 // on a printing promoted for another set of the datastore. The matcher folds
 // every such shelf into one "Promos" heading, so a set's promo runes reach the
@@ -123,6 +130,9 @@ func resolveRiftbound(r *resolver, product *cm.Product) (string, string, bool, e
 			return "", "", false, errNoPrinting
 		}
 		return r.withFoil(id)
+	}
+	if riftboundUnpricedShelves[product.ExpansionName] {
+		return "", "", false, nil
 	}
 
 	fields := strings.SplitN(product.Name, " (V.", 2)
