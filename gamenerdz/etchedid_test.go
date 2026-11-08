@@ -11,7 +11,8 @@ import (
 // retail feed carries the catalog's own TCGplayer id for nearly every
 // product, and an etched product carries the etched printing's; asked for
 // with the foil flag alone, the matcher hands back the foil sibling. The id
-// path answers before the wording path, so it asks for etched as well.
+// path answers before the wording path, so it asks for etched as well, and
+// does so whenever the id names an etched printing, whatever the display says.
 func TestResolveProductEtchedByID(t *testing.T) {
 	b := realDatastore(t)
 	// An etched printing filed beside its foil on one card is the shape
@@ -47,6 +48,16 @@ func TestResolveProductEtchedByID(t *testing.T) {
 		ProductData:    GNProductData{TCGProductID: id},
 	}
 	got, err := gn.resolveProduct(modeRetail, product)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got != etchedUUID {
+		t.Errorf("resolveProduct(%q, tcg %s) = %s, want the etched printing %s", product.DisplayName, tcgID, got, etchedUUID)
+	}
+
+	// A shelf that does not say etched is still told by the id's own printing.
+	product.DisplayName = co.Name
+	got, err = gn.resolveProduct(modeRetail, product)
 	if err != nil {
 		t.Fatal(err)
 	}

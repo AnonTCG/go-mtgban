@@ -294,6 +294,14 @@ var storefrontTCGIDs = map[string]int64{
 	"JPn2ndPXVl": 692132,
 	"ElKieZ4NDA": 681871,
 	"KIK5JFzleS": 482237,
+	"Yxip46Aenk": 239567,
+	"EnAPlNWevX": 239569,
+	"5ZJp5cHqMD": 240847,
+	"fR0Rn37y2C": 240455,
+	"Ipk8vt4j5H": 239833,
+	"VQcUB8jU1z": 240856,
+	"fG8dlI2BUC": 239581,
+	"55m80nLGsB": 243684,
 }
 
 // resolveProduct names the printing a product is, by the way its game reads
@@ -379,7 +387,12 @@ func resolveMagic(gn *Gamenerdz, mode string, product GNProduct, tcgID int64) (s
 	etched := saysEtched(product)
 	if tcgID != 0 {
 		foil := strings.EqualFold(product.SelectedFinish, "foil") || nameSaysFoil(product.DisplayName)
-		cardID, err := gn.backend.MatchID(strconv.FormatInt(tcgID, 10), foil, etched)
+		idStr := strconv.FormatInt(tcgID, 10)
+		idCard, idErr := gn.backend.GetUUID(gn.backend.ConvertID(matcher.IDSpaceTCGplayer, idStr))
+		if idErr == nil && idCard.Etched {
+			etched = true
+		}
+		cardID, err := gn.backend.MatchID(idStr, foil, etched)
 		named := err == nil && gn.namesCard(cardID, product.DisplayName, magicName(gn.backend, product.DisplayName))
 		if mode == modeRetail && err == nil && !named && gn.skuConflicts(cardID, product) {
 			gn.printf("%s %q: dropped, its catalog link names another card", product.ID, product.DisplayName)
