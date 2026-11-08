@@ -71,6 +71,11 @@ func TestUnnamedTextured(t *testing.T) {
 			name: "Solitude (Borderless) (Textured Foil)", edition: "Special Guests",
 			notes: "Near Mint Foil English", wantNumber: "49",
 		},
+		{
+			desc: "a serialized retro printing wears the claim in frame 2003",
+			name: "Emeritus of Ideation (Retro Frame) (Serial Numbered) (Double Rainbow Foil)", edition: "Secrets of Strixhaven",
+			notes: "Near Mint Foil English", wantNumber: "306",
+		},
 	} {
 		t.Run(tt.desc, func(t *testing.T) {
 			card, err := preprocess(b, tt.name, tt.edition, tt.notes)

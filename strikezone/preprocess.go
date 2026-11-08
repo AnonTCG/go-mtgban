@@ -587,8 +587,10 @@ var treatmentClaims = []struct {
 	tag   string
 	wears func(co *matcher.CardObject) bool
 }{
+	// The serialized printings carry the retro look in frame 2003.
 	{"Retro Frame", func(co *matcher.CardObject) bool {
-		return co.FrameVersion == retroFrameVersion
+		return co.FrameVersion == retroFrameVersion ||
+			(co.FrameVersion == "2003" && co.HasPromoType(magic.PromoTypeSerialized))
 	}},
 	{"Textured", func(co *matcher.CardObject) bool {
 		return co.HasPromoType(magic.PromoTypeTextured)
