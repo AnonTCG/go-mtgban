@@ -25,7 +25,10 @@ var riftboundNotes = strings.NewReplacer("Worlds Bundle 2025 Promo", "Worlds Bun
 // misspells, spelled out rather than found by nearest match, for the reason
 // csiSpellings gives. A replacer because the name reaches here decorated
 // with the event that handed the promo out.
-var riftboundSpellings = strings.NewReplacer("Lux - Iluminated", "Lux - Illuminated")
+var riftboundSpellings = strings.NewReplacer(
+	"Lux - Iluminated", "Lux - Illuminated",
+	"Guardian Angel (Organized Play Promo)", "Guardian Angel (Top 8)",
+)
 
 // riftboundShelf answers the set a Riftbound listing belongs to, which is the
 // shelf it arrived on except where that shelf says only "Promo".

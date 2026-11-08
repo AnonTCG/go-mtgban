@@ -21,6 +21,7 @@ func TestRiftboundShelfFollowsTheEventBracket(t *testing.T) {
 		{"Riven - Shattered (Prerelease)", "", "OPP"},
 		{"Jinx - Rebel - (Origins Stamp)", "OGN-202", "OPP"},
 		{"Lux - Iluminated (Organized Play Promo)", "006 - Organized Play Promo", "OPP"},
+		{"Guardian Angel (Organized Play Promo)", "051 - Organized Play Promo", "OPP"},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			name := riftboundSpellings.Replace(tt.name)
