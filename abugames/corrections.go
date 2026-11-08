@@ -68,6 +68,15 @@ var listingCorrections = map[string]struct {
 	"8134488": {title: "Angel's Grace (Japanese Alternate Art 132)", edition: "Secrets of Strixhaven Mystical Archive", number: "132", correctedTitle: "Angel's Grace (Japanese Alternate Art 132) - FOIL"},
 	"8163734": {title: "Angel's Grace (Japanese Alternate Art 132)", edition: "Secrets of Strixhaven Mystical Archive", number: "132", correctedTitle: "Angel's Grace (Japanese Alternate Art 132) - FOIL"},
 	"8149603": {title: "Angel's Grace (Japanese Alternate Art 132)", edition: "Secrets of Strixhaven Mystical Archive", number: "132", correctedTitle: "Angel's Grace (Japanese Alternate Art 132) - FOIL"},
+	// The ids and card_number name a printing the wording cannot reach.
+	"8169031": {title: "Cloud, Midgar Mercenary (Game Edition) - FOIL", edition: "Media Inserts", number: "1", correctedNumber: "2025-21"},
+	"7759001": {title: "Vito, Thorn of the Dusk Rose (Resale Promo) - FOIL", edition: "Resale Promos", number: "127", correctedTitle: "Vito, Thorn of the Dusk Rose - FOIL", correctedEdition: "Core Set 2021 Promos", correctedNumber: "127★"},
+	"226811":  {title: "Pristine Talisman (Game Day Mirrodin Pure Preview)", edition: "New Phyrexia Promos", number: "151", correctedTitle: "Pristine Talisman (Game Day)"},
+	"8127183": {title: "Shredder, Shadow Master (Surge 202) - FOIL", edition: "Teenage Mutant Ninja Turtles Eternal", number: "20", correctedTitle: "Shredder, Shadow Master (Surge 20) - FOIL"},
+	"8118922": {title: "Spider-Ham, Peter Porker (Commander Play)", edition: "Promo", number: "02", correctedTitle: "Spider-Ham, Peter Porker"},
+	"8118924": {title: "Spider-Ham, Peter Porker (Commander Play) - FOIL", edition: "Promo", number: "02", correctedTitle: "Spider-Ham, Peter Porker - FOIL"},
+	"8100302": {title: "Nexus of Fate (Buy-a-Box Promo) - (The List)", edition: "Core Set 2019 / M19", number: "306", correctedTitle: "Nexus of Fate (The List)"},
+	"8102253": {title: "The Haunt of Hightower (Buy-a-Box Promo) - (The List)", edition: "Ravnica Allegiance", number: "273", correctedTitle: "The Haunt of Hightower (The List)"},
 }
 
 func correctListing(card ABUCard) ABUCard {
