@@ -1032,7 +1032,7 @@ func fabNumbers(b *matcher.Backend) map[string][]*matcher.CardObject {
 		if err != nil {
 			continue
 		}
-		for _, part := range strings.Split(strings.ToLower(co.Number), "//") {
+		for _, part := range fabNumberKeys(co) {
 			index[part] = append(index[part], co)
 		}
 	}
@@ -1045,7 +1045,7 @@ func fabNumbers(b *matcher.Backend) map[string][]*matcher.CardObject {
 // blueprint's own product is the only candidate.
 func fabTreatmentAtNumber(siblings map[string][]*matcher.CardObject, co *matcher.CardObject, want string) []*matcher.CardObject {
 	var found []*matcher.CardObject
-	for _, part := range strings.Split(strings.ToLower(co.Number), "//") {
+	for _, part := range fabNumberKeys(co) {
 		for _, other := range siblings[part] {
 			f, ok := matcher.FinishOf(matcher.FinishSlug(other.Finish))
 			if ok && f.Treatment == want && carriesPromoTypes(other, co.PromoTypes) && !slices.Contains(found, other) {
@@ -1054,6 +1054,15 @@ func fabTreatmentAtNumber(siblings map[string][]*matcher.CardObject, co *matcher
 		}
 	}
 	return found
+}
+
+// fabNumberKeys are the keys fabNumbers files co under: each part of its
+// lowercased collector number, or its name where it carries no number.
+func fabNumberKeys(co *matcher.CardObject) []string {
+	if co.Number == "" {
+		return []string{"name:" + strings.ToLower(co.Name)}
+	}
+	return strings.Split(strings.ToLower(co.Number), "//")
 }
 
 // carriesPromoTypes reports whether co carries every one of promoTypes.

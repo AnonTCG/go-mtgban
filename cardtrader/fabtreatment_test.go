@@ -27,8 +27,10 @@ func TestFabListingID(t *testing.T) {
 		"iar004_706647":             {Card: matcher.Card{Finish: "Normal", Number: "IAR004", Identifiers: map[string]string{"tcgplayerProductId": "706647"}}},
 		"iar004_724676_coldfoil":    {Card: matcher.Card{UUID: "iar004_724676_coldfoil", Finish: "Cold Foil", Number: "IAR004", PromoTypes: []string{"extendedart"}, Identifiers: map[string]string{"tcgplayerProductId": "724676"}}, Foil: true},
 		"sea245_rainbowfoil":        {Card: matcher.Card{Finish: "Rainbow Foil", Number: "SEA245", PromoTypes: []string{"treasure"}, Identifiers: map[string]string{"tcgplayerProductId": "633612"}}, Foil: true},
+		"puzzle_rainbowfoil":        {Card: matcher.Card{Name: "Macro Puzzle Card", Finish: "Rainbow Foil", Identifiers: map[string]string{"tcgplayerProductId": "688781"}}, Foil: true},
+		"artcard_normal":            {Card: matcher.Card{Name: "Art Card", Finish: "Normal", Identifiers: map[string]string{"tcgplayerProductId": "618220"}}},
 	}}
-	b.AllUUIDs = []string{"ros021_coldfoil", "ros009_584673_coldfoil", "ros009_ros021_normal", "her009_1steditioncoldfoil", "wtr001_normal", "wtr001_unlimitednormal", "iar004_706647", "iar004_724676_coldfoil", "sea245_rainbowfoil"}
+	b.AllUUIDs = []string{"ros021_coldfoil", "ros009_584673_coldfoil", "ros009_ros021_normal", "her009_1steditioncoldfoil", "wtr001_normal", "wtr001_unlimitednormal", "iar004_706647", "iar004_724676_coldfoil", "sea245_rainbowfoil", "puzzle_rainbowfoil", "artcard_normal"}
 	siblings := fabNumbers(b)
 	for _, tc := range []struct {
 		cardID, treatment string
@@ -49,6 +51,8 @@ func TestFabListingID(t *testing.T) {
 		{"iar004_706647", "Cold Foil", 706647, nil, "iar004_724676_coldfoil"},
 		{"iar004_706647", "Cold Foil", 706647, map[string]bool{"724676": true}, ""},
 		{"ros009_ros021_normal", "Cold Foil", 0, nil, ""},
+		{"puzzle_rainbowfoil", "Regular", 688781, nil, "puzzle_rainbowfoil"},
+		{"artcard_normal", "Regular", 0, nil, "artcard_normal"},
 		{"unknown", "Regular", 0, nil, ""},
 	} {
 		var p Product
