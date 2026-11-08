@@ -175,8 +175,9 @@ func TestPokemonStampLinks(t *testing.T) {
 }
 
 // TestYugiohPromoLinks pins every yugiohPromoLinks entry to the Reshef of
-// Destruction promo its Cardmarket product sells. The id skips the number
-// and other-card checks, so the rarity is held too.
+// Destruction promo or Hidden Arsenal Duel Terminal copy its Cardmarket
+// product sells. The id skips the number and other-card checks, so the rarity
+// is held too.
 func TestYugiohPromoLinks(t *testing.T) {
 	b := loadYugiohBackend(t)
 	checkPromoLinks(t, b, yugiohPromoLinks, []promoLink{
@@ -184,5 +185,8 @@ func TestYugiohPromoLinks(t *testing.T) {
 		{244607, "Knight's Title (V.1 - Secret Rare)", "EN1", "Reshef of Destruction Promos", "VDP", "ROD-EN002", "Secret Rare"},
 		{363275, "Knight's Title (V.2 - Super Rare)", "001", "Reshef of Destruction Promos", "VDP", "ROD-EN002", "Super Rare"},
 		{363276, "Dark Magician Knight (V.2 - Super Rare)", "001", "Reshef of Destruction Promos", "VDP", "ROD-EN001", "Super Rare"},
+		{611464, "Ally of Justice Searcher (V.2 - Parallel Rare)", "081", "Hidden Arsenal: Chapter 1", "HAC1", "HAC1-EN081", "Duel Terminal Technology Common"},
+		{611467, "Ally of Justice Reverse Break (V.2 - Parallel Rare)", "085", "Hidden Arsenal: Chapter 1", "HAC1", "HAC1-EN085", "Duel Terminal Technology Common"},
+		{611468, "Ally of Justice Unlimiter (V.2 - Parallel Rare)", "086", "Hidden Arsenal: Chapter 1", "HAC1", "HAC1-EN086", "Duel Terminal Technology Common"},
 	})
 }

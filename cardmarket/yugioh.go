@@ -308,11 +308,13 @@ func yugiohPrintNumber(product *cm.Product) (*cm.Product, error) {
 }
 
 // yugiohPromoLinks names, by Cardmarket product id, the TCGplayer product of
-// the Reshef of Destruction promos, which the datastore files in the video
-// game promos as ROD-EN001 and ROD-EN002. Cardmarket numbers them EN1 and 001
-// and CardTrader links neither.
+// the products CardTrader links no TCGplayer id for: the Reshef of Destruction
+// promos, which the datastore files in the video game promos as ROD-EN001 and
+// ROD-EN002 (Cardmarket numbers them EN1 and 001), and three Hidden Arsenal 1
+// Parallel Rares, which TCGplayer calls Duel Terminal.
 var yugiohPromoLinks = map[int]int{
 	244606: 23322, 244607: 23323, 363275: 130171, 363276: 130170,
+	611464: 265618, 611467: 265616, 611468: 265620,
 }
 
 // yugiohNoRow lists the products of a printing the datastore does not carry,
