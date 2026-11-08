@@ -80,3 +80,25 @@ func TestAddCheapestOfferAcrossBlueprints(t *testing.T) {
 		}
 	}
 }
+
+func TestNotTheListedCopy(t *testing.T) {
+	tests := []struct {
+		description string
+		want        bool
+	}{
+		{"New Professional Store in Italy", false},
+		{"Dienstags und Freitags", false},
+		{"more foil from IXALAN", false},
+		{"Warning: Mixed Languages", true},
+		{"TSP ITA", true},
+		{"MIX3", true},
+		{"bymix", false},
+		{"", false},
+	}
+	for _, tt := range tests {
+		got := notTheListedCopy(tt.description)
+		if got != tt.want {
+			t.Errorf("notTheListedCopy(%q) = %t, want %t", tt.description, got, tt.want)
+		}
+	}
+}

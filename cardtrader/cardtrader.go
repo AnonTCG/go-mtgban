@@ -11,6 +11,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode"
 
 	"github.com/mtgban/go-mtgban/matcher"
 	"github.com/mtgban/go-mtgban/mtgban"
@@ -302,6 +303,27 @@ var tcgIDOverrides = map[int]int{
 	415429: 721395, // Aeon Engine, PLST C19-52
 }
 
+// copyWords are the description words saying a listing's copy is not the one
+// its properties describe: an Italian copy, or a lot of mixed languages.
+var copyWords = map[string]bool{
+	"ita": true, "italian": true, "italiano": true, "italiana": true, "italiani": true,
+	"mix": true, "mixed": true,
+}
+
+// notTheListedCopy reads whole words only: a substring test fires inside
+// "Italy" and across "from IXALAN" once spaces are stripped.
+func notTheListedCopy(description string) bool {
+	words := strings.FieldsFunc(strings.ToLower(description), func(r rune) bool {
+		return !unicode.IsLetter(r)
+	})
+	for _, word := range words {
+		if copyWords[word] {
+			return true
+		}
+	}
+	return false
+}
+
 // TCGplayerProductID answers the TCGplayer id a blueprint's listings resolve
 // against: its own TCGplayerID, or tcgIDOverrides' correction where Card
 // Trader's is wrong or missing.
@@ -343,8 +365,7 @@ func (ct *Market) processProducts(channel chan<- resultChan, bpID int, products 
 			product.Properties.Altered,
 			product.Graded:
 			continue
-		case matcher.Contains(product.Description, "ita"),
-			matcher.Contains(product.Description, "mix"):
+		case notTheListedCopy(product.Description):
 			continue
 		}
 
