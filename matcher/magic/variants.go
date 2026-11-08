@@ -3872,6 +3872,9 @@ var ulstVariants = map[string]map[string]string{
 
 		"a 'move counter'": "55",
 		"f 'scry'":         "56",
+
+		"2.3.4": "55",
+		"1.1.7": "56",
 	},
 	"Ineffable Blessing": {
 		"a":           "38",
@@ -3891,6 +3894,9 @@ var ulstVariants = map[string]map[string]string{
 
 		"a 'flavorful or bland'":       "38",
 		"c 'white or silver-bordered'": "37",
+
+		"flavorful or bland": "38",
+		"silver-bordered":    "37",
 	},
 }
 
