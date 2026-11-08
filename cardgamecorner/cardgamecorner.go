@@ -9,6 +9,7 @@ import (
 	"maps"
 	"net/url"
 	"slices"
+	"strconv"
 	"sync/atomic"
 	"time"
 
@@ -430,10 +431,17 @@ func (cgc *Cardgamecorner) parseBL(ctx context.Context, channel chan<- resultCha
 				continue
 			}
 
+			retry := *theCard
 			cardID, err := cgc.backend.Match(theCard)
 			if errors.Is(err, matcher.ErrUnsupported) {
 				continue
 			} else if err != nil {
+				id, found := matchByRefusalClues(cgc.backend, edition, product.ID, strconv.Itoa(product.SerialNumber), retry)
+				if found {
+					cardID, err = id, nil
+				}
+			}
+			if err != nil {
 				var alias *matcher.AliasingError
 				aliased := errors.As(err, &alias)
 				if aliased && blindAttraction(cgc.backend, alias.Probe()) {

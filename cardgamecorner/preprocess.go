@@ -13,6 +13,7 @@ import (
 
 	"github.com/mtgban/go-mtgban/matcher"
 	"github.com/mtgban/go-mtgban/matcher/magic"
+	"github.com/mtgban/go-mtgban/matcher/sealed"
 )
 
 var cardTable = map[string]string{
@@ -60,6 +61,7 @@ var cardTable = map[string]string{
 	"Ambitions's Cost":                  "Ambition's Cost",
 	"Inscriptiom of Abundance":          "Inscription of Abundance",
 	"Ral, Caller of Storm":              "Ral, Caller of Storms",
+	"Tradewind Rider - DCI":             "Tradewind Rider (Judge)",
 }
 
 var editionTable = map[string]string{
@@ -898,6 +900,44 @@ func matchNumbered(b *matcher.Backend, input *matcher.InputCard, number string) 
 	return "", false
 }
 
+// matchByListedNumber retries a card the wording could not place with the
+// number the listing states, where the store's version tag counts its own
+// index and the number names the printing; then with the one its SKU ends
+// in, where the number field is empty or wrong; then as The List's reprint
+// on the shelves selling those. input is a copy taken before the first
+// Match, which mutates it.
+func matchByListedNumber(b *matcher.Backend, card *Card, input matcher.InputCard) (string, bool) {
+	number := strings.TrimLeft(card.Number, "0")
+	if number != "" {
+		attempt := input
+		attempt.Variation = number
+		cardID, found := matchNumbered(b, &attempt, number)
+		if found {
+			return cardID, true
+		}
+	}
+	return matchByRefusalClues(b, card.Edition, card.SKU, card.Number, input)
+}
+
+// matchByRefusalClues retries a card the wording and the number its listing
+// states could not place, with what the rest of the listing says.
+func matchByRefusalClues(b *matcher.Backend, shelf, sku, number string, input matcher.InputCard) (string, bool) {
+	digits := strings.TrimLeft(skuDigits(sku), "0")
+	if digits != "" {
+		// The wording's own tag, a prerelease stamp say, may be what
+		// tells the printings of that number apart
+		for _, variation := range []string{digits, strings.TrimSpace(input.Variation + " " + digits)} {
+			attempt := input
+			attempt.Variation = variation
+			cardID, found := matchNumbered(b, &attempt, digits)
+			if found && namesTheShelf(b, cardID, input.Edition) {
+				return cardID, true
+			}
+		}
+	}
+	return matchListReprint(b, shelf, number, input)
+}
+
 // foilStarTwin answers a foil listing that landed on a printing sold only
 // nonfoil with the foil-only printing the set numbers with a star beside it,
 // which the matcher drops while the listing names no treatment.
@@ -917,17 +957,65 @@ func foilStarTwin(b *matcher.Backend, cardID string) string {
 	return twinID
 }
 
-// matchByListedNumber retries a card the wording could not place with the
-// number the listing states, where the store's version tag counts its own
-// index and the number names the printing. input is a copy taken before the
-// first Match, which mutates it.
-func matchByListedNumber(b *matcher.Backend, card *Card, input matcher.InputCard) (string, bool) {
-	number := strings.TrimLeft(card.Number, "0")
+// namesTheShelf reports whether a printing is in the set the shelf names, or
+// in a promo set, where a shelf names no set of its own.
+func namesTheShelf(b *matcher.Backend, cardID, shelf string) bool {
+	co, err := b.GetUUID(cardID)
+	if err != nil {
+		return false
+	}
+	set, err := b.GetSet(co.SetCode)
+	return err == nil && (matcher.Equals(set.Name, shelf) || set.Type == "promo")
+}
+
+// listShelves names, for each shelf selling The List's reprints, the word
+// the Secret Lair products carrying them share.
+var listShelves = []struct{ shelf, product string }{
+	{"Secret Lair Commander Deck:", "Commander Deck"},
+	{"Secretversary", "Secretversary"},
+}
+
+// matchListReprint retries a card from a Secret Lair deck or Secretversary
+// shelf as The List's printing of that number, which the shelf sells under
+// no set of its own. The printing is answered only where one of those
+// products' decklists holds it.
+func matchListReprint(b *matcher.Backend, shelf, number string, input matcher.InputCard) (string, bool) {
+	number = strings.TrimLeft(number, "0")
 	if number == "" {
 		return "", false
 	}
-	input.Variation = number
-	return matchNumbered(b, &input, number)
+	for _, list := range listShelves {
+		if !strings.Contains(shelf, list.shelf) {
+			continue
+		}
+		input.Edition = "The List"
+		input.Variation = number
+		cardID, found := matchNumbered(b, &input, number)
+		if !found {
+			return "", false
+		}
+		return cardID, inDecklists(b, "SLD", list.product, cardID)
+	}
+	return "", false
+}
+
+// inDecklists reports whether a printing is in the decklist of a sealed
+// product of the set whose name holds the word.
+func inDecklists(b *matcher.Backend, setCode, word, cardID string) bool {
+	set, err := b.GetSet(setCode)
+	if err != nil {
+		return false
+	}
+	for _, product := range set.SealedProduct {
+		if !strings.Contains(product.Name, word) {
+			continue
+		}
+		picks, err := sealed.ProductDecklist(b, setCode, product.UUID)
+		if err == nil && slices.Contains(picks, cardID) {
+			return true
+		}
+	}
+	return false
 }
 
 // genericVersionRe matches the store's bare "Version N" tag, which names no
