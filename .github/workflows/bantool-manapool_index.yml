@@ -1,0 +1,34 @@
+name: magic / manapool_index
+
+on:
+  workflow_dispatch: {}
+  repository_dispatch:
+    types: [manapool_index]
+  # AnonTCG: keep unscheduled — new upstream target (Mana Pool market-price
+  # index), carried dispatch-only until we decide to consume it (its source
+  # is not in price_sources; enabling is a deliberate ops decision).
+  # schedule:
+  #   - cron: "20 * * * *"
+
+permissions:
+  contents: read
+
+jobs:
+  cache-datastore:
+    uses: ./.github/workflows/cache-file.yml
+    with:
+      url: ${{ vars.DATASTORE_MAGIC }}
+      path: "datastore/"
+      game: "magic"
+    secrets: inherit
+
+  deploy:
+    name: ${{ github.workflow }}
+    needs: [cache-datastore]
+    uses: ./.github/workflows/run-bantool.yml
+    with:
+      target: manapool_index
+      game: "magic"
+      datastore-filepath: ${{ needs.cache-datastore.outputs.filepath }}
+      datastore-cache-key: ${{ needs.cache-datastore.outputs.key }}
+    secrets: inherit

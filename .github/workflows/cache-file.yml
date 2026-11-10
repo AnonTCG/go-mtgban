@@ -1,5 +1,11 @@
 name: Download and cache a file
 
+# AnonTCG fork: this workflow downloads + caches a file (typically the
+# MTGJSON AllPrintings.json datastore). Upstream's "Upload to B2" and "Ping
+# mtgban server" steps were removed — we don't push to mtgban's Backblaze
+# datastore and don't ping mtgban.com endpoints. The downstream `run-bantool`
+# job consumes the cached file directly.
+
 on:
   workflow_dispatch:
     inputs:
@@ -13,7 +19,7 @@ on:
         type: string
         default: "datastore/"
       game:
-        description: "If set, where to save the result and ping to"
+        description: "Logical game label (kept for parity with upstream callers)"
         type: string
 
   workflow_call:
@@ -47,11 +53,7 @@ jobs:
       - name: Fetch file checksum
         id: get_etag
         run: |
-          etag=$(curl -sIL "${{ inputs.url }}" | grep -i etag | tail -n 1 | tr -d '\r"' | cut -f 2 -d " ")
-          if [ -z "$etag" ]; then
-            echo "no ETag served for ${{ inputs.url }}: the cache key could never change"
-            exit 1
-          fi
+          etag=$(curl -sI "${{ inputs.url }}" | grep -i etag | tr -d '\r"' | cut -f 2 -d " ")
           base=$(basename "${{ inputs.url }}" | cut -d? -f1)
           key=$base-$etag
           filepath=${{ inputs.path }}$base
@@ -60,7 +62,7 @@ jobs:
 
       - name: Cache path
         id: cache_file
-        uses: actions/cache@v6
+        uses: actions/cache@v5
         with:
           path: ${{ inputs.path }}
           key: ${{ steps.get_etag.outputs.key }}
@@ -70,69 +72,3 @@ jobs:
         run: |
           mkdir -p "${{ inputs.path }}"
           curl -L "${{ inputs.url }}" -o "${{ steps.get_etag.outputs.filepath }}"
-
-      - if: steps.cache_file.outputs.cache-hit != 'true' && inputs.game != ''
-        name: Upload to B2
-        env:
-          B2KEY: "${{ secrets.B2_APPLICATION_KEY_ID_DATASTORE }}"
-          B2SECRET: "${{ secrets.B2_APPLICATION_KEY_DATASTORE }}"
-        run: |
-          pipx install b2
-          b2 account authorize $B2KEY $B2SECRET
-          b2 sync --skip-newer "${{ inputs.path }}" "b2://mtgban-datastore/${{ inputs.game }}"
-          b2 account clear
-
-      # A pull request must not tell the live site to reload: the reload is a
-      # production side effect, and answering it takes the site long enough
-      # that a proposed change would be failing on the server's health rather
-      # than on its own. Master still pings on the very same cache miss - a
-      # cache written on a pull request is scoped to that pull request, so the
-      # push and the nightly schedule both miss again and ping for real.
-      - if: steps.cache_file.outputs.cache-hit != 'true' && inputs.game != '' && github.event_name != 'pull_request'
-        name: Ping server
-        env:
-          BAN_SECRET: "${{ secrets.BAN_SECRET }}"
-          GAME: "${{ inputs.game }}"
-        run: |
-          # Each attempt signs a timestamp of its own. The signature covers
-          # the timestamp, so a retry that reused the first one would be
-          # refused as a replay rather than served.
-          for attempt in 1 2 3; do
-            rm -f ping-response
-            ts=$(date -u +%s)
-            body=$(jq -n --arg ts "$ts" '{ts:($ts|tonumber)}')
-            sig=$(printf '%s' "$body" | openssl dgst -sha256 -hmac "$BAN_SECRET" -binary | base64)
-
-            code=$(curl -sS -L -X POST \
-                -H 'Content-Type: application/json' \
-                -H "X-Signature: $sig" \
-                -H "X-Timestamp: $ts" \
-                --data-raw "$body" \
-                --connect-timeout 30 --max-time 900 \
-                -o ping-response -w '%{http_code}' \
-                "https://$GAME.mtgban.com/api/load/datastore") || code=000
-
-            echo "attempt $attempt: HTTP $code"
-            head -c 2000 ping-response 2>/dev/null || true; echo
-
-            # Any 2xx is the request being taken. The reload runs on the
-            # server's own time and answers 202 the moment it starts, so
-            # waiting for a 200 here waits for something that never comes.
-            case "$code" in
-            2*)
-              if jq -e 'select(.status=="ok")' ping-response > /dev/null 2>&1; then
-                exit 0
-              fi
-              ;;
-            esac
-
-            if [ "$attempt" != "3" ]; then
-              sleep 60
-            fi
-          done
-
-          # Say what the server answered. Handing an HTML error page to jq
-          # reports a parse error, which reads like a broken build rather
-          # than the outage it is.
-          echo "::error::$GAME.mtgban.com did not take the reload request after 3 attempts (last status ${code:-none}); the upload to B2 succeeded, so re-run this job once the site is answering. Whether a reload the site accepted then finished is on its admin page, not here."
-          exit 1

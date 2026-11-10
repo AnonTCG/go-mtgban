@@ -1,0 +1,77 @@
+name: magic / tcgplayer catalog dump
+
+# AnonTCG fork — TCGplayer catalog dump.
+#
+# Since the upstream catalog rewrite, tcg_index, tcg_market, tcg_sealed,
+# tcg_syplist and mintcard no longer read MTGJSON's TcgplayerSkus file:
+# they price the products and skus listed in a catalog dump written by
+# go-tcgplayer's tcgdumper. Upstream publishes that dump to its private B2
+# bucket, so we build our own and put it where run-bantool.yml reads it:
+#
+#   ${ANONTCG_OUTPUT_BASE}/datastore/magic/tcgplayer-catalog.json.xz
+#
+# (outside the `magic/` prefix AnonTCG-ETL lists, so the ETL never sees it).
+#
+# DISPATCH-ONLY for now. The TCGplayer scrapers need a fresh dump to price
+# newly listed products, so going live means giving this an off-`:00`
+# nightly cron — a deliberate step, not something a rebase should enable.
+#
+# A full Magic dump took ~5 minutes locally on 2026-11-10 (1,224 pages,
+# 121,497 products, 560 MB uncompressed).
+
+on:
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: tcgplayer-catalog
+  cancel-in-progress: false
+
+jobs:
+  dump:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Install golang
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+
+      # Built at the go-tcgplayer version go.mod pins, so the dump always
+      # has the shape this tree's scrapers decode.
+      - name: Build tcgdumper
+        run: go build -o tcgdumper github.com/mtgban/go-tcgplayer/cmd/tcgdumper
+
+      - name: Dump the Magic catalog
+        env:
+          TCGPLAYER_PRIVATE_KEY: "${{ secrets.TCGPLAYER_PRIVATE_KEY }}"
+          TCGPLAYER_PUBLIC_KEY: "${{ secrets.TCGPLAYER_PUBLIC_KEY }}"
+        run: |
+          ./tcgdumper -category 1 > tcgplayer-catalog.json
+          PRODUCTS=$(jq '.products | length' tcgplayer-catalog.json)
+          echo "products: $PRODUCTS"
+          # Refuse to publish a short dump: every TCGplayer scraper would
+          # silently price a fraction of the catalog from it.
+          if [[ "$PRODUCTS" -lt 100000 ]]; then
+              echo "::error::catalog dump has only $PRODUCTS products"
+              exit 1
+          fi
+          xz -T0 tcgplayer-catalog.json
+          echo "- products: \`$PRODUCTS\`" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload to R2
+        env:
+          ANONTCG_OUTPUT_BASE: "${{ vars.ANONTCG_OUTPUT_BASE }}"
+          AWS_ACCESS_KEY_ID: "${{ secrets.ANONTCG_R2_KEY_ID }}"
+          AWS_SECRET_ACCESS_KEY: "${{ secrets.ANONTCG_R2_SECRET }}"
+          AWS_ENDPOINT_URL: "${{ vars.ANONTCG_R2_ENDPOINT }}"
+          AWS_DEFAULT_REGION: auto
+        run: |
+          aws s3 cp tcgplayer-catalog.json.xz \
+              "${ANONTCG_OUTPUT_BASE}/datastore/magic/tcgplayer-catalog.json.xz"
