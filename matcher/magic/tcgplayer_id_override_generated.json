@@ -181,15 +181,6 @@
       "upstream_primary": "",
       "upstream_alt_foil": ""
     },
-    "12e86060-2e4f-5cbb-ac32-04d513041c35": {
-      "set": "PMEI",
-      "name": "Disenchant",
-      "number": "2025-17",
-      "primary": "261820",
-      "alt_foil": "",
-      "upstream_primary": "",
-      "upstream_alt_foil": ""
-    },
     "13f1cc58-c7ed-5816-a182-4150942056f6": {
       "set": "FRC",
       "name": "Ob Nixilis, the Ascended",
@@ -240,15 +231,6 @@
       "name": "The Ur-Sphinx",
       "number": "97",
       "primary": "717919",
-      "alt_foil": "",
-      "upstream_primary": "",
-      "upstream_alt_foil": ""
-    },
-    "1831a433-324d-5eef-8b45-9f6c92954e11": {
-      "set": "SLD",
-      "name": "Imperial Recruiter",
-      "number": "2244",
-      "primary": "714969",
       "alt_foil": "",
       "upstream_primary": "",
       "upstream_alt_foil": ""
@@ -622,15 +604,6 @@
       "upstream_primary": "",
       "upstream_alt_foil": ""
     },
-    "6491ea6a-f9bd-5c04-8fd3-d1c59f3b9a21": {
-      "set": "PSUS",
-      "name": "Sakura-Tribe Elder",
-      "number": "12",
-      "primary": "38221",
-      "alt_foil": "",
-      "upstream_primary": "662553",
-      "upstream_alt_foil": ""
-    },
     "672623a9-68a6-5cb8-924b-ddfe9fde9580": {
       "set": "FRC",
       "name": "Ob Nixilis, the Ascended",
@@ -834,15 +807,6 @@
       "name": "Idol of Oblivion",
       "number": "M3C-297",
       "primary": "710576",
-      "alt_foil": "",
-      "upstream_primary": "",
-      "upstream_alt_foil": ""
-    },
-    "77eae4f7-a996-5abe-9908-2ab5811c3b8e": {
-      "set": "PMEI",
-      "name": "Wild Growth",
-      "number": "2026-2",
-      "primary": "276109",
       "alt_foil": "",
       "upstream_primary": "",
       "upstream_alt_foil": ""
@@ -1221,15 +1185,6 @@
       "name": "Selesnya Signet",
       "number": "RVR-267",
       "primary": "710608",
-      "alt_foil": "",
-      "upstream_primary": "",
-      "upstream_alt_foil": ""
-    },
-    "a94a3252-8e40-50cf-bfa9-4523f8fd9ade": {
-      "set": "PMEI",
-      "name": "Frantic Search",
-      "number": "2026-20",
-      "primary": "451148",
       "alt_foil": "",
       "upstream_primary": "",
       "upstream_alt_foil": ""
