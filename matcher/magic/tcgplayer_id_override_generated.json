@@ -343,15 +343,6 @@
       "upstream_primary": "",
       "upstream_alt_foil": ""
     },
-    "235f3c62-d6f1-5ad2-a4be-1a63ddd6ac1d": {
-      "set": "PMEI",
-      "name": "Worn Powerstone",
-      "number": "2026-21",
-      "primary": "490302",
-      "alt_foil": "",
-      "upstream_primary": "",
-      "upstream_alt_foil": ""
-    },
     "26f573d8-637f-5e67-a499-6430842f35e6": {
       "set": "FRC",
       "name": "Fellwar Stone",
@@ -1853,15 +1844,6 @@
       "primary": "717931",
       "alt_foil": "",
       "upstream_primary": "",
-      "upstream_alt_foil": ""
-    },
-    "ff22cfae-5b51-53a9-8475-29a1c55f176d": {
-      "set": "PMEI",
-      "name": "Bone Shredder",
-      "number": "2025-16",
-      "primary": "256133",
-      "alt_foil": "",
-      "upstream_primary": "709984",
       "upstream_alt_foil": ""
     },
     "ff8abdf1-4c47-550a-bc1b-3e8cd2d75e00": {
