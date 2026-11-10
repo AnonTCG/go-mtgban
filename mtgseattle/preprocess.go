@@ -3,6 +3,7 @@ package mtgseattle
 import (
 	"cmp"
 	"errors"
+	"regexp"
 	"slices"
 	"strconv"
 	"strings"
@@ -18,9 +19,22 @@ var cardTable = map[string]string{
 	"B.F.M. 2 (Big Furry Monster)": "B.F.M. (Big Furry Monster Right)",
 	"B.F.M. 1 (Big Furry Monster)": "B.F.M. (Big Furry Monster Left)",
 	"Selesnya Guildate":            "Selesnya Guildgate",
+	"Daretti Emblem":               "Daretti, Scrap Savant Emblem",
 
 	"_________": "_____",
 }
+
+// tokenLetters numbers, by edition, the tokens this store tells apart with a
+// letter of its own; each was read off the product's photo.
+var tokenLetters = map[string]map[string]string{
+	"Scars of Mirrodin":             {"Wurm Token B": "8"},
+	"Duel Decks: Anthology":         {"Beast Token A": "8"},
+	"Duel Decks: Garruk vs Liliana": {"Beast Token B": "T2"},
+}
+
+// tokenLetter reads a token title closed by such a letter, "Wurm Token (B)"
+// or "Beast Token A".
+var tokenLetter = regexp.MustCompile(`^(.+ Token) \(?([A-Z])\)?$`)
 
 var promoTags = []string{
 	"2012 Holiday Promo",
@@ -32,6 +46,14 @@ var promoTags = []string{
 }
 
 func preprocess(b *matcher.Backend, cardName, edition, variant string) (*matcher.InputCard, error) {
+	m := tokenLetter.FindStringSubmatch(cardName)
+	if m != nil {
+		number, found := tokenLetters[edition][m[1]+" "+m[2]]
+		if found {
+			cardName, variant = m[1], strings.TrimSpace(number+" "+variant)
+		}
+	}
+
 	s := matcher.SplitVariants(cardName)
 	cardName = s[0]
 	if len(s) > 1 {
@@ -52,6 +74,12 @@ func preprocess(b *matcher.Backend, cardName, edition, variant string) (*matcher
 		variant = strings.Replace(variant, "Foil", "", 1)
 	}
 	variant = strings.TrimSpace(variant)
+
+	// The store files an emblem as "Emblem - <planeswalker>", which the
+	// datastore names "<planeswalker> Emblem".
+	if cardName == "Emblem" && variant != "" {
+		cardName, variant = variant+" Emblem", ""
+	}
 
 	switch edition {
 	case "French Revised FBB",

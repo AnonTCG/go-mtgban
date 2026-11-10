@@ -88,8 +88,9 @@ func TestMysteryBoosterCardsResolvesToPLSTNumber(t *testing.T) {
 	}
 }
 
-// TestShelfWordingResolvesToItsPrinting pins listings whose bracketed wording
-// is read as an art index or a release event, not a collector number.
+// TestShelfWordingResolvesToItsPrinting pins listings whose wording is read
+// as an art index, a release event, an emblem's planeswalker or a token's
+// letter, not a collector number.
 func TestShelfWordingResolvesToItsPrinting(t *testing.T) {
 	b := realDatastore(t)
 
@@ -105,6 +106,11 @@ func TestShelfWordingResolvesToItsPrinting(t *testing.T) {
 		{"Aliban's Tower", "Homelands", "2", "HML", "61b"},
 		{"Azorius Guildmage", "Pre-Release Promos", "Foil Launch Promo", "PDIS", "141★"},
 		{"Blight Herder", "Pre-Release Promos", "Foil Launch Promo", "PBFZ", "2"},
+		{"Emblem", "Modern Masters", "Elspeth, Knight-Errant", "TMMA", "16"},
+		{"Emblem", "Commander Anthology Vol. II", "Daretti", "TCM2", "18"},
+		{"Wurm Token (B)", "Scars of Mirrodin", "", "TSOM", "8"},
+		{"Beast Token A", "Duel Decks: Anthology", "", "TGVL", "8"},
+		{"Beast Token B", "Duel Decks: Garruk vs Liliana", "", "TDDD", "T2"},
 	}
 	for _, test := range tests {
 		theCard, err := preprocess(b, test.cardName, test.edition, test.variant)
