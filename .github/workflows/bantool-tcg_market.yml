@@ -1,22 +1,54 @@
 name: magic / tcg_market
 
+# SCRATCH BRANCH ONLY — never merge. One-off old-vs-new tcg_market output
+# diff for the 2026-11 upstream realign. It reuses this file name because
+# workflow_dispatch only reaches workflows that exist on the default branch.
+#
+# Nothing here writes under production's `magic/` prefix: the catalog dump
+# and the new binary's output go to ${ANONTCG_OUTPUT_BASE}/scratch/realign-2026-11/,
+# and master's binary writes to the runner's disk only.
+
 on:
-  workflow_dispatch: {}
-  repository_dispatch:
-    types: [tcg_market]
-  schedule:
-    - cron: "*/30 * * * *"
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "diff = run the comparison; cleanup = delete the scratch prefix"
+        type: choice
+        options: [diff, cleanup]
+        default: diff
 
 permissions:
   contents: read
 
+# Same group as production's TCGplayer scrapers, so this never runs alongside
+# one of them on the shared API key.
 concurrency:
   group: bantool-tcgplayer
   cancel-in-progress: false
   queue: max
 
+env:
+  SCRATCH: "${{ vars.ANONTCG_OUTPUT_BASE }}/scratch/realign-2026-11"
+  AWS_ACCESS_KEY_ID: "${{ secrets.ANONTCG_R2_KEY_ID }}"
+  AWS_SECRET_ACCESS_KEY: "${{ secrets.ANONTCG_R2_SECRET }}"
+  AWS_ENDPOINT: "${{ vars.ANONTCG_R2_ENDPOINT }}"
+  AWS_ENDPOINT_URL: "${{ vars.ANONTCG_R2_ENDPOINT }}"
+  AWS_DEFAULT_REGION: auto
+  AWS_REQUEST_CHECKSUM_CALCULATION: when_required
+  AWS_RESPONSE_CHECKSUM_VALIDATION: when_required
+
 jobs:
+  cleanup:
+    if: ${{ inputs.mode == 'cleanup' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Delete the scratch prefix
+        run: |
+          aws s3 rm --recursive "${SCRATCH}/"
+          aws s3 ls --recursive "${SCRATCH}/" | wc -l
+
   cache-datastore:
+    if: ${{ inputs.mode == 'diff' }}
     uses: ./.github/workflows/cache-file.yml
     with:
       url: ${{ vars.DATASTORE_MAGIC }}
@@ -24,13 +56,118 @@ jobs:
       game: "magic"
     secrets: inherit
 
-  deploy:
-    name: ${{ github.workflow }}
-    needs: [cache-datastore]
-    uses: ./.github/workflows/run-bantool.yml
+  cache-skus:
+    if: ${{ inputs.mode == 'diff' }}
+    uses: ./.github/workflows/cache-file.yml
     with:
-      target: tcg_market
-      game: "magic"
-      datastore-filepath: ${{ needs.cache-datastore.outputs.filepath }}
-      datastore-cache-key: ${{ needs.cache-datastore.outputs.key }}
+      url: ${{ vars.SKUS_MAGIC }}
+      path: "datastore/"
     secrets: inherit
+
+  diff:
+    needs: [cache-datastore, cache-skus]
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    env:
+      TCGPLAYER_PRIVATE_KEY: "${{ secrets.TCGPLAYER_PRIVATE_KEY }}"
+      TCGPLAYER_PUBLIC_KEY: "${{ secrets.TCGPLAYER_PUBLIC_KEY }}"
+      TCGPLAYER_AUTH: "${{ secrets.TCGPLAYER_AUTH }}"
+      TCG_PARTNER: "${{ vars.TCG_PARTNER }}"
+      MAX_CONCURRENCY: "${{ vars.MAX_CONCURRENCY }}"
+      DS: "${{ needs.cache-datastore.outputs.filepath }}"
+
+    steps:
+      - name: Checkout the realign branch
+        uses: actions/checkout@v6
+
+      - name: Checkout master (old binary)
+        uses: actions/checkout@v6
+        with:
+          ref: master
+          path: old
+
+      - name: Install golang
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+
+      - name: Cache Datastore
+        uses: actions/cache/restore@v5
+        with:
+          path: "datastore/"
+          key: ${{ needs.cache-datastore.outputs.key }}
+          fail-on-cache-miss: true
+
+      - name: Cache Skus
+        uses: actions/cache/restore@v5
+        with:
+          path: "datastore/"
+          key: ${{ needs.cache-skus.outputs.key }}
+          fail-on-cache-miss: true
+
+      - name: Build both bantools and tcgdumper
+        run: |
+          git rev-parse HEAD
+          git -C old rev-parse HEAD
+          go build -o "$RUNNER_TEMP/bantool-new" ./cmd/bantool
+          go build -o "$RUNNER_TEMP/tcgdumper" github.com/mtgban/go-tcgplayer/cmd/tcgdumper
+          (cd old && go build -o "$RUNNER_TEMP/bantool-old" ./cmd/bantool)
+
+      - name: Dump the Magic catalog to the scratch prefix
+        run: |
+          "$RUNNER_TEMP/tcgdumper" -category 1 > tcgplayer-catalog.json
+          PRODUCTS=$(jq '.products | length' tcgplayer-catalog.json)
+          echo "products: $PRODUCTS"
+          if [[ "$PRODUCTS" -lt 100000 ]]; then
+              echo "::error::catalog dump has only $PRODUCTS products"
+              exit 1
+          fi
+          xz -T0 tcgplayer-catalog.json
+          ls -la tcgplayer-catalog.json.xz
+          aws s3 cp tcgplayer-catalog.json.xz \
+              "${SCRATCH}/datastore/magic/tcgplayer-catalog.json.xz"
+
+      - name: Run master's tcg_market to local disk
+        env:
+          MTGJSON_TCGSKU_PATH: "${{ needs.cache-skus.outputs.filepath }}"
+        run: |
+          mkdir -p out/old/tcg_market
+          set +e
+          "$RUNNER_TEMP/bantool-old" -tcg_market \
+              -datastore "$DS" \
+              -output-path out/old/tcg_market \
+              -format ndjson > old.log 2>&1
+          echo "old exit=$?"
+          set -e
+          echo "old lines mentioning 403: $(grep -c 403 old.log || true)"
+          tail -n 40 old.log
+          find out/old -type f | xargs wc -l
+
+      - name: Run the realign tcg_market to the scratch prefix
+        env:
+          TCGPLAYER_CATALOG_PATH: "${{ vars.ANONTCG_OUTPUT_BASE }}/scratch/realign-2026-11/datastore/magic/tcgplayer-catalog.json.xz"
+        run: |
+          export AFFILIATE="$TCG_PARTNER"
+          set +e
+          "$RUNNER_TEMP/bantool-new" -game magic -store tcg_market \
+              -datastore "$DS" \
+              -output-path "${SCRATCH}/magic/tcg_market" \
+              -format ndjson > new.log 2>&1
+          echo "new exit=$?"
+          set -e
+          echo "new lines mentioning 403: $(grep -c 403 new.log || true)"
+          tail -n 60 new.log
+          mkdir -p out/new/tcg_market
+          aws s3 cp --recursive "${SCRATCH}/magic/tcg_market" out/new/tcg_market
+          find out/new -type f | xargs wc -l
+
+      - name: Diff
+        run: |
+          python3 .github/scratch/diff_outputs.py out "$DS" report.json
+          cat report.json
+
+      - name: Upload the report
+        uses: actions/upload-artifact@v4
+        with:
+          name: tcg-market-diff-report
+          path: report.json
